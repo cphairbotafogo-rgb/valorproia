@@ -141,9 +141,10 @@ def carregar_dados_nuvem():
             def define_cat(t):
                 if t in LISTA_EUA: return "Exterior (EUA)"
                 elif t in LISTA_CRIPTO: return "Criptomoedas"
-                # Como você vai deixar (pode copiar e colar):
-acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
-df_fii = df[df['Ativo'].str.endswith('11') & ~df['Ativo'].isin(acoes_falsos_fiis)]
+                try:
+    acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
+    df_fii = df[df['Ativo'].str.endswith('11') & ~df['Ativo'].isin(acoes_falsos_fiis)]
+except Exception as e:
                 else: return "Ações"
             
             if 'Categoria' not in df.columns:
