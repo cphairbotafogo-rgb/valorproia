@@ -147,7 +147,6 @@ def carregar_dados_nuvem():
                 return "FIIs"
             else:
                 return "Ações"
-            
             if 'Categoria' not in df.columns:
                 df['Categoria'] = df['Ticker'].apply(define_cat)
             
