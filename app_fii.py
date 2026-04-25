@@ -142,9 +142,14 @@ def carregar_dados_nuvem():
                 if t in LISTA_EUA: return "Exterior (EUA)"
                 elif t in LISTA_CRIPTO: return "Criptomoedas"
                 try:
+    # Lista de ações intrusas
     acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
+    
+    # Filtra os ativos que terminam em 11 e tira os intrusos
     df_fii = df[df['Ativo'].str.endswith('11') & ~df['Ativo'].isin(acoes_falsos_fiis)]
+    
 except Exception as e:
+    pass
                 else: return "Ações"
             
             if 'Categoria' not in df.columns:
