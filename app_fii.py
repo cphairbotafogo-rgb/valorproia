@@ -138,16 +138,16 @@ def carregar_dados_nuvem():
                 'tipo': 'Tipo'
             })
             # Recuperando Categoria na hora de ler (pra manter a lógica local)
-           def define_cat(t):
-            if t in LISTA_EUA: return "Exterior (EUA)"
-            elif t in LISTA_CRIPTO: return "Criptomoedas"
-            
-            acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
-            if str(t).endswith('11') and t not in acoes_falsos_fiis:
-                return "FIIs"
-            else:
-                return "Ações"
+            def define_cat(t):
+                if t in LISTA_EUA: return "Exterior (EUA)"
+                elif t in LISTA_CRIPTO: return "Criptomoedas"
                 
+                acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
+                if str(t).endswith('11') and t not in acoes_falsos_fiis:
+                    return "FIIs"
+                else:
+                    return "Ações"
+                    
             if 'Categoria' not in df.columns:
                 df['Categoria'] = df['Ticker'].apply(define_cat)
             
