@@ -142,7 +142,7 @@ if 'autenticado' not in st.session_state:
 
 def tela_login():
     # === 🔑 CONFIGURAÇÃO DO DONO (MUDE PARA O SEU E-MAIL) ===
-    EMAIL_ADMIN = "seu.email@exemplo.com" 
+    EMAIL_ADMIN = "aripeixotooficial@outlook.com" 
     
     st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
