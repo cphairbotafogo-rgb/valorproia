@@ -525,35 +525,46 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
-# 🌐 MOTOR DE BUSCA CACHEADO (Fica fora da aba!)
+# 🌐 MOTOR DE PREÇO ROBUSTO
 # ==========================================
-@st.cache_data(ttl=60) # Guarda o preço por 60 segundos para não travar o app
+@st.cache_data(ttl=60)
 def buscar_preco_yf(ticker, fallback):
     try:
         ticker = str(ticker).strip().upper()
-        # Se já tem traço (ex: ETH-USD), mantém. Se não, assume BRL (ex: ETH vira ETH-BRL)
         ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
-        
-        dados = yf.Ticker(ticker_yf).fast_info
-        preco = dados.get("lastPrice")
-        
-        return preco if preco else fallback
-    except:
+
+        ativo = yf.Ticker(ticker_yf)
+
+        # 1. Tenta fast_info (mais rápido)
+        try:
+            preco = ativo.fast_info.get("lastPrice")
+            if preco:
+                return float(preco)
+        except:
+            pass
+
+        # 2. Fallback seguro (history)
+        hist = ativo.history(period="1d")
+        if not hist.empty:
+            return float(hist["Close"].iloc[-1])
+
+        return fallback
+
+    except Exception:
         return fallback
 
 
+# --- ABA CRIPTO ---
 with tab_cripto:
     if not df_g.empty:
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
 
         if not criptos.empty:
-            import pandas as pd
-            import yfinance as yf
-            import streamlit as st
 
             # ==========================================
-            # 🔁 1. PADRONIZAÇÃO
+            # 🧱 PIPELINE
             # ==========================================
+
             def padronizar_colunas(df):
                 mapa = {
                     "Custo_Pos": "Custo_Total",
@@ -564,130 +575,101 @@ with tab_cripto:
                     "preco_medio": "Preco_Medio"
                 }
                 df = df.rename(columns=mapa)
-                df = df.loc[:, ~df.columns.duplicated()]
-                return df
+                return df.loc[:, ~df.columns.duplicated()]
 
-            # ==========================================
-            # 🛂 2. VALIDAÇÃO
-            # ==========================================
+
             def validar_dados(df):
-                obrigatorias = ["Custo_Total", "Qtd", "Total_Atual", "Preço"]
+                obrigatorias = ["Ticker", "Custo_Total", "Qtd", "Preço"]
                 faltando = [c for c in obrigatorias if c not in df.columns]
-
                 if faltando:
                     raise ValueError(f"Colunas ausentes: {faltando}")
-
                 return df
 
-            # ==========================================
-            # 🧼 3. TIPOS
-            # ==========================================
+
             def tratar_tipos(df):
-                cols = ["Custo_Total", "Qtd", "Total_Atual", "Preço", "Preco_Medio"]
-                existentes = [c for c in cols if c in df.columns]
+                if "Preco_Medio" not in df.columns:
+                    df["Preco_Medio"] = 0
 
-                for col in existentes:
-                    df[col] = pd.to_numeric(df[col], errors="coerce")
+                cols = ["Custo_Total", "Qtd", "Preço", "Preco_Medio"]
 
-                if df[existentes].isna().any().any():
-                    st.warning("⚠️ Dados inválidos encontrados — ajustados automaticamente.")
-                    df[existentes] = df[existentes].fillna(0)
+                for c in cols:
+                    if c in df.columns:
+                        df[c] = pd.to_numeric(df[c], errors="coerce")
 
+                df[cols] = df[cols].fillna(0)
                 return df
 
-            # ==========================================
-            # 🌐 4. BUSCA DE PREÇO (COM CACHE)
-            # ==========================================
-            @st.cache_data(ttl=60)
-            def buscar_preco(ticker):
-                try:
-                    ticker = str(ticker).strip().upper()
-                    ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
 
-                    dados = yf.Ticker(ticker_yf).fast_info
-                    preco = dados.get("lastPrice")
-
-                    return preco
-                except:
-                    return None
-
-            def atualizar_precos(df):
+            def atualizar_preco_online(df):
                 precos = []
                 totais = []
 
                 for _, row in df.iterrows():
-                    preco_live = buscar_preco(row["Ticker"])
-
-                    if preco_live is None:
-                        preco_live = row["Preço"]
-
+                    preco_live = buscar_preco_yf(row["Ticker"], row["Preço"])
                     precos.append(preco_live)
                     totais.append(preco_live * row["Qtd"])
 
-                df["Preço Atual"] = precos
-                df["Patrimônio Atual"] = totais
-
+                df["Preço_Atualizado"] = precos
+                df["Total_Atualizado"] = totais
                 return df
 
-            # ==========================================
-            # 🧠 5. CÁLCULO
-            # ==========================================
-            def calcular(df):
-                df["L/P (R$)"] = df["Patrimônio Atual"] - df["Custo_Total"]
+
+            def calcular_metricas(df):
+                df["L/P (R$)"] = df["Total_Atualizado"] - df["Custo_Total"]
 
                 df["L/P (%)"] = df.apply(
                     lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100)
                     if pd.notna(r["Custo_Total"]) and r["Custo_Total"] > 0 else 0,
                     axis=1
                 )
-
                 return df
 
+
+            def preparar_dados_cripto(df):
+                df = padronizar_colunas(df)
+                df = validar_dados(df)
+                df = tratar_tipos(df)
+                df = atualizar_preco_online(df)
+                df = calcular_metricas(df)
+                return df
+
+
             # ==========================================
-            # 🚀 PIPELINE
+            # 🖥️ UI
             # ==========================================
             try:
-                criptos = padronizar_colunas(criptos)
-                criptos = validar_dados(criptos)
-                criptos = tratar_tipos(criptos)
-                criptos = atualizar_precos(criptos)
-                criptos = calcular(criptos)
+                df_final = preparar_dados_cripto(criptos)
+
+                df_view = df_final[
+                    ["Ticker","Qtd","Preco_Medio","Preço_Atualizado","Total_Atualizado","L/P (R$)","L/P (%)"]
+                ].copy()
+
+                df_view.rename(columns={
+                    "Preco_Medio": "PM Unitário",
+                    "Preço_Atualizado": "Preço Atual",
+                    "Total_Atualizado": "Patrimônio (R$)"
+                }, inplace=True)
+
+
+                def formatar_dinheiro(v):
+                    try:
+                        return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    except:
+                        return "R$ 0,00"
+
+
+                df_view["PM Unitário"] = df_view["PM Unitário"].apply(formatar_dinheiro)
+                df_view["Preço Atual"] = df_view["Preço Atual"].apply(formatar_dinheiro)
+                df_view["Patrimônio (R$)"] = df_view["Patrimônio (R$)"].apply(formatar_dinheiro)
+
+                df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
+                df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+                df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
+
+                st.dataframe(df_view, hide_index=True, use_container_width=True)
 
             except Exception as e:
-                st.error(f"Erro nos dados: {e}")
-                st.stop()
-
-            # ==========================================
-            # 🎨 FORMATAÇÃO
-            # ==========================================
-            df_view = criptos[[
-                "Ticker",
-                "Qtd",
-                "Preco_Medio",
-                "Preço Atual",
-                "Patrimônio Atual",
-                "L/P (R$)",
-                "L/P (%)"
-            ]].copy()
-
-            df_view.rename(columns={
-                "Preco_Medio": "PM Unitário"
-            }, inplace=True)
-
-            def formata_dinheiro(v):
-                try:
-                    return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                except:
-                    return "R$ 0,00"
-
-            df_view["PM Unitário"] = df_view["PM Unitário"].apply(formata_dinheiro)
-            df_view["Preço Atual"] = df_view["Preço Atual"].apply(formata_dinheiro)
-            df_view["Patrimônio Atual"] = df_view["Patrimônio Atual"].apply(formata_dinheiro)
-            df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
-            df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
-            df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
-
-            st.dataframe(df_view, hide_index=True, use_container_width=True)
+                st.error(f"Erro estrutural: {e}")
 
                 
 # --- ABA 7: DIVIDENDOS ---
