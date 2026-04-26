@@ -524,8 +524,11 @@ with tab_rf:
 with tab_cripto:
     if not df_g.empty:
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
+        
+        # ADICIONE ESTA LINHA ABAIXO PARA FAZERMOS O RAIO-X:
+        st.write("RAIO-X DOS DADOS:", criptos)
+        
         if not criptos.empty:
-            import pandas as pd
             
             # 1. Força tudo a ser número para não bugar a matemática
             criptos["Custo_Pos"] = pd.to_numeric(criptos["Custo_Pos"], errors='coerce').fillna(0)
