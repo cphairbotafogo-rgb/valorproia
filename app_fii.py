@@ -106,7 +106,7 @@ def tela_login():
         
         with c1:
             st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9; margin-bottom: 15px;">
-            <h3>Mensal</h3><h2>R$ 29,90</h2><p>Acesso por 30 dias</p></div>""", unsafe_allow_html=True)
+            <h3>Mensal</h3><h2>R$ 27,90</h2><p>Acesso por 30 dias</p></div>""", unsafe_allow_html=True)
             st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True)
 
         with c2:
