@@ -265,7 +265,6 @@ st.divider()
 # 📥 FUNÇÃO DE CARREGAR DADOS DA NUVEM E ADAPTAR PARA O MOTOR ANTIGO
 # =============================================================================
 def carregar_dados_nuvem():
-    # 👉 A TRAVA DE SEGURANÇA (Se não tiver logado, nem tenta buscar no banco)
     if "usuario_id" not in st.session_state or st.session_state.usuario_id == "":
         return pd.DataFrame()
 
@@ -274,7 +273,6 @@ def carregar_dados_nuvem():
         df = pd.DataFrame(res.data)
         if not df.empty:
             df['data_operacao'] = pd.to_datetime(df['data_operacao'])
-            # Renomeia as colunas do banco para as colunas exatas que o seu motor.py exige
             df = df.rename(columns={
                 'ticker': 'Ticker', 
                 'quantidade': 'Qtd', 
@@ -282,20 +280,16 @@ def carregar_dados_nuvem():
                 'data_operacao': 'Data',
                 'tipo': 'Tipo'
             })
-            # Recuperando Categoria na hora de ler (pra manter a lógica local)
             def define_cat(t):
                 if t in LISTA_EUA: return "Exterior (EUA)"
                 elif t in LISTA_CRIPTO: return "Criptomoedas"
-                
                 acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
                 if str(t).endswith('11') and t not in acoes_falsos_fiis:
                     return "FIIs"
                 else:
                     return "Ações"
-                    
             if 'Categoria' not in df.columns:
                 df['Categoria'] = df['Ticker'].apply(define_cat)
-            
         return df
     except Exception as e:
         st.error(f"Erro ao carregar dados da nuvem: {e}")
