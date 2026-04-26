@@ -532,7 +532,7 @@ with tab_cripto:
             # 🧱 INÍCIO DA CAMADA DE PROTEÇÃO (PIPELINE)
             # ==========================================
             
-            # 1. 🔁 Padronização de colunas (ANTI-CRACHÁ ERRADO)
+            # 1. 🔁 Padronização de colunas
             def padronizar_colunas(df):
                 mapa = {
                     "Custo_Pos": "Custo_Total",
@@ -543,13 +543,13 @@ with tab_cripto:
                     "preco_medio": "Preco_Medio"
                 }
                 df = df.rename(columns=mapa)
-                # Tira qualquer coluna duplicada para não bugar a conversão
+                # Vacina contra colunas duplicadas
                 df = df.loc[:, ~df.columns.duplicated()]
                 return df
 
-            # 2. 🛂 Validação (ANTI-DADO QUEBRADO)
+            # 2. 🛂 Validação (Preco_Medio não é mais obrigatório para não travar o app à toa)
             def validar_dados(df):
-                colunas_obrigatorias = ["Custo_Total", "Qtd", "Total_Atual", "Preço", "Preco_Medio"]
+                colunas_obrigatorias = ["Custo_Total", "Qtd", "Total_Atual", "Preço"]
                 erros = []
                 for col in colunas_obrigatorias:
                     if col not in df.columns:
@@ -559,25 +559,31 @@ with tab_cripto:
                     raise ValueError(" | ".join(erros))
                 return df
 
-            # 3. 🧼 Limpeza controlada (SEM MASCARAR ERRO)
+            # 3. 🧼 Limpeza controlada (Blindada contra KeyErrors)
             def tratar_tipos(df):
+                # Garante que o Preco_Medio exista para não quebrar o visual depois
+                if "Preco_Medio" not in df.columns:
+                    df["Preco_Medio"] = 0
+                    
                 colunas_numericas = ["Custo_Total", "Qtd", "Total_Atual", "Preço", "Preco_Medio"]
                 
-                for col in colunas_numericas:
-                    if col in df.columns:
-                        df[col] = pd.to_numeric(df[col], errors="coerce")
+                # O pulo do gato: processa apenas as colunas que realmente chegaram aqui
+                colunas_existentes = [col for col in colunas_numericas if col in df.columns]
                 
-                if df[colunas_numericas].isna().any().any():
+                for col in colunas_existentes:
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+                
+                if df[colunas_existentes].isna().any().any():
                     st.warning("⚠️ Atenção: Existem valores vazios ou inválidos no banco de dados. Os cálculos foram ajustados para evitar falhas.")
-                    df[colunas_numericas] = df[colunas_numericas].fillna(0)
+                    df[colunas_existentes] = df[colunas_existentes].fillna(0)
                 
                 return df
 
-            # 4. 🧠 Cálculo seguro
+            # 4. 🧠 Cálculo seguro (Usando pd.notna para evitar bugs lógicos)
             def calcular_metricas(df):
                 df["L/P (R$)"] = df["Total_Atual"] - df["Custo_Total"]
                 df["L/P (%)"] = df.apply(
-                    lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100) if r["Custo_Total"] and r["Custo_Total"] > 0 else 0,
+                    lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100) if pd.notna(r["Custo_Total"]) and r["Custo_Total"] > 0 else 0,
                     axis=1
                 )
                 return df
