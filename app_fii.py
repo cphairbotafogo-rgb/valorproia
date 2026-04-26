@@ -520,45 +520,59 @@ with tab_rf:
             df_vrf["Qtd"] = df_vrf["Qtd"].apply(formatar_qtd)
             st.dataframe(df_vrf, hide_index=True, use_container_width=True)
 
+import yfinance as yf
+import pandas as pd
+import streamlit as st
+
+# ==========================================
+# 🌐 MOTOR DE BUSCA CACHEADO (Fica fora da aba!)
+# ==========================================
+@st.cache_data(ttl=60) # Guarda o preço por 60 segundos para não travar o app
+def buscar_preco_yf(ticker, fallback):
+    try:
+        ticker = str(ticker).strip().upper()
+        # Se já tem traço (ex: ETH-USD), mantém. Se não, assume BRL (ex: ETH vira ETH-BRL)
+        ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
+        
+        dados = yf.Ticker(ticker_yf).fast_info
+        preco = dados.get("lastPrice")
+        
+        return preco if preco else fallback
+    except:
+        return fallback
+
+
 # --- ABA 6: CRIPTOMOEDAS ---
 with tab_cripto:
     if not df_g.empty:
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
         
         if not criptos.empty:
-            import pandas as pd
-            import yfinance as yf  # Biblioteca que busca preços ao vivo da bolsa/cripto
             
             # ==========================================
             # 🧱 INÍCIO DA CAMADA DE PROTEÇÃO (PIPELINE)
             # ==========================================
             
-            # 1. 🔁 Padronização de colunas
+            # 1. Padronização
             def padronizar_colunas(df):
                 mapa = {
-                    "Custo_Pos": "Custo_Total",
-                    "custo_total": "Custo_Total",
-                    "preco": "Preço",
-                    "Preco": "Preço",
-                    "quantidade": "Qtd",
-                    "preco_medio": "Preco_Medio"
+                    "Custo_Pos": "Custo_Total", "custo_total": "Custo_Total",
+                    "preco": "Preço", "Preco": "Preço",
+                    "quantidade": "Qtd", "preco_medio": "Preco_Medio"
                 }
                 df = df.rename(columns=mapa)
                 df = df.loc[:, ~df.columns.duplicated()]
                 return df
 
-            # 2. 🛂 Validação 
+            # 2. Validação
             def validar_dados(df):
                 colunas_obrigatorias = ["Custo_Total", "Qtd", "Total_Atual", "Preço"]
-                erros = []
-                for col in colunas_obrigatorias:
-                    if col not in df.columns:
-                        erros.append(f"Coluna ausente: {col}")
+                erros = [col for col in colunas_obrigatorias if col not in df.columns]
                 if erros:
-                    raise ValueError(" | ".join(erros))
+                    raise ValueError("Colunas ausentes: " + " | ".join(erros))
                 return df
 
-            # 3. 🧼 Limpeza controlada
+            # 3. Limpeza
             def tratar_tipos(df):
                 if "Preco_Medio" not in df.columns:
                     df["Preco_Medio"] = 0
@@ -571,68 +585,52 @@ with tab_cripto:
                 
                 if df[colunas_existentes].isna().any().any():
                     df[colunas_existentes] = df[colunas_existentes].fillna(0)
-                
                 return df
 
-            # 3.5 🌐 BUSCADOR AO VIVO (Corrigido e Blindado)
+            # 3.5 Atualização Profissional (Criando NOVAS colunas)
             def atualizar_preco_online(df):
                 precos_vivos = []
                 totais_vivos = []
                 
-                for index, row in df.iterrows():
-                    # 1. Limpa espaços invisíveis (ex: "ETH-BRL " vira "ETH-BRL")
-                    ticker = str(row["Ticker"]).strip().upper() 
-                    qtd = row["Qtd"]
-                    preco_estatico = row["Preço"]
+                for _, row in df.iterrows():
+                    # Usa o motor cacheado!
+                    preco_live = buscar_preco_yf(row["Ticker"], row["Preço"])
                     
-                    try:
-                        ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
-                        
-                        # 2. Pede 5 dias em vez de 1. Isso resolve o bug de fuso horário do Yahoo!
-                        cotacao = yf.Ticker(ticker_yf).history(period="5d")
-                        
-                        if not cotacao.empty:
-                            # Pega o preço de fechamento da linha mais recente
-                            preco_live = cotacao['Close'].iloc[-1]
-                        else:
-                            preco_live = preco_estatico 
-                    except:
-                        preco_live = preco_estatico 
-                        
                     precos_vivos.append(preco_live)
-                    totais_vivos.append(preco_live * qtd) 
+                    totais_vivos.append(preco_live * row["Qtd"])
                 
-                df["Preço"] = precos_vivos
-                df["Total_Atual"] = totais_vivos
+                # NUNCA sobrescreve o original. Cria colunas novas.
+                df["Preço_Atualizado"] = precos_vivos
+                df["Total_Atualizado"] = totais_vivos
                 return df
 
-            # 4. 🧠 Cálculo seguro 
+            # 4. Cálculo com os dados novos
             def calcular_metricas(df):
-                df["L/P (R$)"] = df["Total_Atual"] - df["Custo_Total"]
+                df["L/P (R$)"] = df["Total_Atualizado"] - df["Custo_Total"]
                 df["L/P (%)"] = df.apply(
                     lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100) if pd.notna(r["Custo_Total"]) and r["Custo_Total"] > 0 else 0,
                     axis=1
                 )
                 return df
 
-            # 5. 🚀 O Cérebro (Juntando tudo)
+            # 5. O Cérebro
             def preparar_dados_cripto(df):
                 df = padronizar_colunas(df)
                 df = validar_dados(df)
                 df = tratar_tipos(df)
-                df = atualizar_preco_online(df) # <-- Injetamos a internet aqui!
+                df = atualizar_preco_online(df)
                 df = calcular_metricas(df)
                 return df
 
             # ==========================================
             # 🖥️ APLICAÇÃO NA TELA
             # ==========================================
-            
             try:
                 criptos_processado = preparar_dados_cripto(criptos)
                 
-                df_vcripto = criptos_processado[["Ticker","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
-                df_vcripto.rename(columns={"Preco_Medio":"PM Unitário", "Preço":"Preço Atual", "Total_Atual":"Patrimônio (R$)"}, inplace=True)
+                # Puxando as NOVAS colunas para a tela
+                df_vcripto = criptos_processado[["Ticker","Qtd","Preco_Medio","Preço_Atualizado","Total_Atualizado","L/P (R$)","L/P (%)"]].copy()
+                df_vcripto.rename(columns={"Preco_Medio":"PM Unitário", "Preço_Atualizado":"Preço Atual", "Total_Atualizado":"Patrimônio (R$)"}, inplace=True)
                 
                 def formata_dinheiro(valor):
                     try:
@@ -651,6 +649,7 @@ with tab_cripto:
                 
             except Exception as e:
                 st.error(f"Erro estrutural nos dados de Criptomoedas: {e}")
+                
 # --- ABA 7: DIVIDENDOS ---
 with tab_div:
     st.markdown("#### 💰 Registro de Renda Passiva")
