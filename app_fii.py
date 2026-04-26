@@ -29,6 +29,100 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
+import streamlit as st
+from datetime
+
+# =============================================================================
+# 🔒 FUNÇÃO DE BLOQUEIO FREEMIUM (Coloque antes das suas abas)
+# =============================================================================
+def exibir_bloqueio_premium(funcionalidade):
+    st.markdown(f"""
+        <div style="text-align: center; padding: 40px; border: 2px dashed #1e3a8a; border-radius: 15px; background-color: #f8f9fa;">
+            <h2 style="color: #1e3a8a;">🔒 {funcionalidade}</h2>
+            <p style="font-size: 18px;">Esta funcionalidade é exclusiva para usuários <b>Premium</b>.</p>
+            <p>Assine agora para liberar o acesso total ao terminal institucional.</p>
+        </div>
+    """, unsafe_allow_html=True)
+    st.write("")
+    st.link_button("🚀 Liberar Acesso Premium", "https://pay.kiwify.com.br/SEU_LINK_GERAL", use_container_width=True, type="primary")
+    st.stop()
+
+# =============================================================================
+# 🔐 NOVA TELA DE LOGIN COM VITRINE (Substitua a sua def tela_login() antiga por esta)
+# =============================================================================
+def tela_login():
+    # === 🔑 SUA CHAVE MESTRA ===
+    EMAIL_ADMIN = "ripeixotooficial@outlook.com" # <--- MUDE AQUI
+    
+    st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
+    st.write("")
+    
+    aba_login, aba_planos = st.tabs(["🔐 Acessar Terminal", "🛒 Planos Premium"])
+    
+    with aba_login:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            with st.form("login_form"):
+                u = st.text_input("Usuário (E-mail)").strip().lower()
+                p = st.text_input("Senha", type="password")
+                entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+                
+                if entrar:
+                    with st.spinner("Autenticando..."):
+                        try:
+                            # O 'supabase' precisa estar inicializado antes (você já tem isso no topo do seu código)
+                            resposta = supabase.table("usuarios").select("*").eq("email", u).eq("senha", p).execute()
+                            
+                            if len(resposta.data) > 0:
+                                dados = resposta.data[0]
+                                st.session_state.autenticado = True
+                                st.session_state.usuario_logado = u
+                                st.session_state.usuario_id = dados['id']
+                                
+                                # --- 🚦 LÓGICA DO FREEMIUM ---
+                                hoje = datetime.now().date()
+                                exp = dados.get('expiracao')
+                                
+                                # Se é o dono OU pagou e está na validade -> PREMIUM
+                                if u == EMAIL_ADMIN.lower():
+                                    st.session_state.tipo_acesso = "premium"
+                                elif exp and datetime.strptime(exp, "%Y-%m-%d").date() >= hoje:
+                                    st.session_state.tipo_acesso = "premium"
+                                else:
+                                    st.session_state.tipo_acesso = "gratis"
+                                
+                                st.rerun()
+                            else:
+                                st.error("E-mail ou senha incorretos.")
+                        except Exception as e:
+                            st.error(f"Erro de conexão com o banco de dados: {e}")
+
+    with aba_planos:
+        st.markdown("<h3 style='text-align: center;'>Invista no seu Futuro com o ValorPro IA</h3>", unsafe_allow_html=True)
+        st.write("---")
+        
+        c1, c2, c3 = st.columns(3)
+        
+        with c1:
+            st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9; margin-bottom: 15px;">
+            <h3>Mensal</h3><h2>R$ 29,90</h2><p>Acesso por 30 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True)
+
+        with c2:
+            st.markdown("""<div style="border: 2px solid #1e3a8a; border-radius: 10px; padding: 20px; text-align: center; background: #fff; position: relative; margin-bottom: 15px;">
+            <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #1e3a8a; color: white; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: bold;">⭐ MAIS VENDIDO</span>
+            <h3>Trimestral</h3><h2>R$ 69,90</h2><p>Acesso por 90 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Trimestral", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True, type="primary")
+
+        with c3:
+            st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9; margin-bottom: 15px;">
+            <h3>Anual</h3><h2>R$ 197,00</h2><p>Acesso por 365 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Anual", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True)
+
+        st.write("---")
+        st.info("💡 A liberação é feita automaticamente após a confirmação do pagamento.")
+
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
@@ -47,34 +141,81 @@ if 'autenticado' not in st.session_state:
     st.session_state.usuario_id = ""
 
 def tela_login():
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        st.write("")
-        st.write("")
-        st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
-        with st.form("login_form"):
-            u = st.text_input("Usuário (E-mail)")
-            p = st.text_input("Senha", type="password")
-            entrar = st.form_submit_button("Acessar Terminal", use_container_width=True)
-            
-            if entrar:
-                with st.spinner("Autenticando no servidor seguro..."):
-                    try:
-                        resposta = supabase.table("usuarios").select("*").eq("email", u).eq("senha", p).execute()
-                        if len(resposta.data) > 0:
-                            st.session_state.autenticado = True
-                            st.session_state.usuario_logado = u
-                            st.session_state.usuario_id = resposta.data[0]['id']
-                            st.rerun()
-                        else:
-                            st.error("Usuário ou senha incorretos.")
-                    except Exception as e:
-                        st.error(f"Erro de conexão com o banco de dados: {e}")
+    # === 🔑 CONFIGURAÇÃO DO DONO (MUDE PARA O SEU E-MAIL) ===
+    EMAIL_ADMIN = "seu.email@exemplo.com" 
+    
+    st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
+    st.write("")
+    
+    aba_login, aba_planos = st.tabs(["🔐 Acessar Terminal", "🛒 Planos de Assinatura"])
+    
+    with aba_login:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            with st.form("login_form"):
+                u = st.text_input("Usuário (E-mail)").strip().lower()
+                p = st.text_input("Senha", type="password")
+                entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+                
+                if entrar:
+                    with st.spinner("Autenticando..."):
+                        try:
+                            resposta = supabase.table("usuarios").select("*").eq("email", u).eq("senha", p).execute()
+                            if len(resposta.data) > 0:
+                                dados = resposta.data[0]
+                                
+                                # --- VERIFICAÇÃO DE ACESSO ---
+                                # 1. Se for o DONO, entra direto
+                                if u == EMAIL_ADMIN.lower():
+                                    st.session_state.autenticado = True
+                                    st.session_state.usuario_logado = u
+                                    st.session_state.usuario_id = dados['id']
+                                    st.rerun()
+                                
+                                # 2. Se for cliente, verifica validade
+                                elif 'expiracao' in dados and dados['expiracao']:
+                                    from datetime import datetime
+                                    data_exp = datetime.strptime(dados['expiracao'], "%Y-%m-%d").date()
+                                    if datetime.now().date() > data_exp:
+                                        st.error(f"❌ Assinatura expirada em {data_exp.strftime('%d/%m/%Y')}")
+                                        st.info("Escolha um plano na aba ao lado para renovar.")
+                                        st.stop()
+                                
+                                # Tudo OK
+                                st.session_state.autenticado = True
+                                st.session_state.usuario_logado = u
+                                st.session_state.usuario_id = dados['id']
+                                st.rerun()
+                            else:
+                                st.error("E-mail ou senha incorretos.")
+                        except Exception as e:
+                            st.error(f"Erro no banco: {e}")
 
-if not st.session_state.autenticado:
-    tela_login()
-    st.stop()
+    with aba_planos:
+        st.markdown("<h3 style='text-align: center;'>Invista no seu Futuro com o ValorPro IA</h3>", unsafe_allow_html=True)
+        c1, c2, c3 = st.columns(3)
+        
+        # PLANO MENSAL
+        with c1:
+            st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
+            <h3>Mensal</h3><h2>R$ 29,90</h2><p>Acesso 30 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/LINK_MENSAL", use_container_width=True)
+
+        # PLANO TRIMESTRAL (Destaque)
+        with c2:
+            st.markdown("""<div style="border: 2px solid #1e3a8a; border-radius: 10px; padding: 20px; text-align: center; background: #fff;">
+            <span style="color: #1e3a8a; font-weight: bold;">⭐ MAIS VENDIDO</span><h3>Trimestral</h3><h2>R$ 69,90</h2><p>Acesso 90 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Trimestral", "https://pay.kiwify.com.br/LINK_TRIMESTRAL", use_container_width=True, type="primary")
+
+        # PLANO ANUAL
+        with c3:
+            st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
+            <h3>Anual</h3><h2>R$ 197,00</h2><p>Acesso 365 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Anual", "https://pay.kiwify.com.br/LINK_ANUAL", use_container_width=True)
+
+        st.write("---")
+        st.info("💡 A liberação é feita automaticamente após a confirmação do Pix.")
 
 # =============================================================================
 # 🎨 4. DESIGN E ESTILOS NATIVOS
