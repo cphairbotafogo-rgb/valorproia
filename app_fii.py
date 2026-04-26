@@ -10,6 +10,11 @@ import json
 import os
 import base64
 
+# =============================================================================
+# 0. CONFIGURAÇÃO OBRIGATÓRIA DA PÁGINA (Deve ser o primeiro comando Streamlit)
+# =============================================================================
+st.set_page_config(page_title="ValorPro IA", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
+
 # === IMPORTANDO A NOSSA ARQUITETURA MODULARIZADA ===
 from banco import *
 from motor import *
@@ -23,17 +28,20 @@ except ImportError:
 # =============================================================================
 # 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
-# COLOQUE SUAS CHAVES DO SUPABASE ABAIXO:
 URL_SUPABASE = st.secrets["SUPABASE_URL"]
 CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
-import streamlit as st
-from datetime import datetime
+# =============================================================================
+# 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
+# =============================================================================
+CHAVE_API_GOOGLE = st.secrets["GEMINI_CHAVE"]
+if CHAVE_API_GOOGLE:
+    genai.configure(api_key=CHAVE_API_GOOGLE)
 
 # =============================================================================
-# 🔒 FUNÇÃO DE BLOQUEIO FREEMIUM (Coloque antes das suas abas)
+# 🔒 3. FUNÇÃO DE BLOQUEIO FREEMIUM
 # =============================================================================
 def exibir_bloqueio_premium(funcionalidade):
     st.markdown(f"""
@@ -44,15 +52,20 @@ def exibir_bloqueio_premium(funcionalidade):
         </div>
     """, unsafe_allow_html=True)
     st.write("")
-    st.link_button("🚀 Liberar Acesso Premium", "https://pay.kiwify.com.br/SEU_LINK_GERAL", use_container_width=True, type="primary")
+    st.link_button("🚀 Liberar Acesso Premium", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True, type="primary")
     st.stop()
 
 # =============================================================================
-# 🔐 NOVA TELA DE LOGIN COM VITRINE (Substitua a sua def tela_login() antiga por esta)
+# 🔐 4. TELA DE LOGIN COM VITRINE (Kiwify Integrada)
 # =============================================================================
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+    st.session_state.usuario_logado = ""
+    st.session_state.usuario_id = ""
+
 def tela_login():
     # === 🔑 SUA CHAVE MESTRA ===
-    EMAIL_ADMIN = "aripeixotooficial@outlook.com" # <--- MUDE AQUI
+    EMAIL_ADMIN = "aripeixotooficial@outlook.com"
     
     st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
@@ -71,7 +84,6 @@ def tela_login():
                 if entrar:
                     with st.spinner("Autenticando..."):
                         try:
-                            # O 'supabase' precisa estar inicializado antes (você já tem isso no topo do seu código)
                             resposta = supabase.table("usuarios").select("*").eq("email", u).eq("senha", p).execute()
                             
                             if len(resposta.data) > 0:
@@ -84,7 +96,6 @@ def tela_login():
                                 hoje = datetime.now().date()
                                 exp = dados.get('expiracao')
                                 
-                                # Se é o dono OU pagou e está na validade -> PREMIUM
                                 if u == EMAIL_ADMIN.lower():
                                     st.session_state.tipo_acesso = "premium"
                                 elif exp and datetime.strptime(exp, "%Y-%m-%d").date() >= hoje:
@@ -123,102 +134,13 @@ def tela_login():
         st.write("---")
         st.info("💡 A liberação é feita automaticamente após a confirmação do pagamento.")
 
-# =============================================================================
-# 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
-# =============================================================================
-CHAVE_API_GOOGLE = st.secrets["GEMINI_CHAVE"]
-if CHAVE_API_GOOGLE:
-    genai.configure(api_key=CHAVE_API_GOOGLE)
+# Bloqueia a renderização do resto da página se não estiver logado
+if not st.session_state.autenticado:
+    tela_login()
+    st.stop()
 
 # =============================================================================
-# 🔐 3. SEGURANÇA E LOGIN (NUVEM)
-# =============================================================================
-st.set_page_config(page_title="ValorPro IA", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
-
-if 'autenticado' not in st.session_state:
-    st.session_state.autenticado = False
-    st.session_state.usuario_logado = ""
-    st.session_state.usuario_id = ""
-
-def tela_login():
-    # === 🔑 CONFIGURAÇÃO DO DONO (MUDE PARA O SEU E-MAIL) ===
-    EMAIL_ADMIN = "aripeixotooficial@outlook.com" 
-    
-    st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
-    st.write("")
-    
-    aba_login, aba_planos = st.tabs(["🔐 Acessar Terminal", "🛒 Planos de Assinatura"])
-    
-    with aba_login:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            with st.form("login_form"):
-                u = st.text_input("Usuário (E-mail)").strip().lower()
-                p = st.text_input("Senha", type="password")
-                entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
-                
-                if entrar:
-                    with st.spinner("Autenticando..."):
-                        try:
-                            resposta = supabase.table("usuarios").select("*").eq("email", u).eq("senha", p).execute()
-                            if len(resposta.data) > 0:
-                                dados = resposta.data[0]
-                                
-                                # --- VERIFICAÇÃO DE ACESSO ---
-                                # 1. Se for o DONO, entra direto
-                                if u == EMAIL_ADMIN.lower():
-                                    st.session_state.autenticado = True
-                                    st.session_state.usuario_logado = u
-                                    st.session_state.usuario_id = dados['id']
-                                    st.rerun()
-                                
-                                # 2. Se for cliente, verifica validade
-                                elif 'expiracao' in dados and dados['expiracao']:
-                                    from datetime import datetime
-                                    data_exp = datetime.strptime(dados['expiracao'], "%Y-%m-%d").date()
-                                    if datetime.now().date() > data_exp:
-                                        st.error(f"❌ Assinatura expirada em {data_exp.strftime('%d/%m/%Y')}")
-                                        st.info("Escolha um plano na aba ao lado para renovar.")
-                                        st.stop()
-                                
-                                # Tudo OK
-                                st.session_state.autenticado = True
-                                st.session_state.usuario_logado = u
-                                st.session_state.usuario_id = dados['id']
-                                st.rerun()
-                            else:
-                                st.error("E-mail ou senha incorretos.")
-                        except Exception as e:
-                            st.error(f"Erro no banco: {e}")
-
-    with aba_planos:
-        st.markdown("<h3 style='text-align: center;'>Invista no seu Futuro com o ValorPro IA</h3>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        
-        # PLANO MENSAL
-        with c1:
-            st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <h3>Mensal</h3><h2>R$ 29,90</h2><p>Acesso 30 dias</p></div>""", unsafe_allow_html=True)
-            st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/LINK_MENSAL", use_container_width=True)
-
-        # PLANO TRIMESTRAL (Destaque)
-        with c2:
-            st.markdown("""<div style="border: 2px solid #1e3a8a; border-radius: 10px; padding: 20px; text-align: center; background: #fff;">
-            <span style="color: #1e3a8a; font-weight: bold;">⭐ MAIS VENDIDO</span><h3>Trimestral</h3><h2>R$ 69,90</h2><p>Acesso 90 dias</p></div>""", unsafe_allow_html=True)
-            st.link_button("💳 Assinar Trimestral", "https://pay.kiwify.com.br/LINK_TRIMESTRAL", use_container_width=True, type="primary")
-
-        # PLANO ANUAL
-        with c3:
-            st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <h3>Anual</h3><h2>R$ 197,00</h2><p>Acesso 365 dias</p></div>""", unsafe_allow_html=True)
-            st.link_button("💳 Assinar Anual", "https://pay.kiwify.com.br/LINK_ANUAL", use_container_width=True)
-
-        st.write("---")
-        st.info("💡 A liberação é feita automaticamente após a confirmação do Pix.")
-
-# =============================================================================
-# 🎨 4. DESIGN E ESTILOS NATIVOS
+# 🎨 5. DESIGN E ESTILOS NATIVOS
 # =============================================================================
 st.markdown("""
 <style>
@@ -262,7 +184,7 @@ with col_clock:
 st.divider()
 
 # =============================================================================
-# 📥 FUNÇÃO DE CARREGAR DADOS DA NUVEM E ADAPTAR PARA O MOTOR ANTIGO
+# 📥 6. FUNÇÃO DE CARREGAR DADOS DA NUVEM (COM TRAVA DE SEGURANÇA)
 # =============================================================================
 def carregar_dados_nuvem():
     if "usuario_id" not in st.session_state or st.session_state.usuario_id == "":
@@ -283,30 +205,6 @@ def carregar_dados_nuvem():
             def define_cat(t):
                 if t in LISTA_EUA: return "Exterior (EUA)"
                 elif t in LISTA_CRIPTO: return "Criptomoedas"
-                acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
-                if str(t).endswith('11') and t not in acoes_falsos_fiis:
-                    return "FIIs"
-                else:
-                    return "Ações"
-            if 'Categoria' not in df.columns:
-                df['Categoria'] = df['Ticker'].apply(define_cat)
-        return df
-    except Exception as e:
-        st.error(f"Erro ao carregar dados da nuvem: {e}")
-        return pd.DataFrame()
-            df['data_operacao'] = pd.to_datetime(df['data_operacao'])
-            # Renomeia as colunas do banco para as colunas exatas que o seu motor.py exige
-            df = df.rename(columns={
-                'ticker': 'Ticker', 
-                'quantidade': 'Qtd', 
-                'preco_unitario': 'Preco_Pago', 
-                'data_operacao': 'Data',
-                'tipo': 'Tipo'
-            })
-            # Recuperando Categoria na hora de ler (pra manter a lógica local)
-            def define_cat(t):
-                if t in LISTA_EUA: return "Exterior (EUA)"
-                elif t in LISTA_CRIPTO: return "Criptomoedas"
                 
                 acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
                 if str(t).endswith('11') and t not in acoes_falsos_fiis:
@@ -322,9 +220,13 @@ def carregar_dados_nuvem():
         st.error(f"Erro ao carregar dados da nuvem: {e}")
         return pd.DataFrame()
 
-if "df_geral" not in st.session_state: st.session_state.df_geral = carregar_dados_nuvem()
+if "df_geral" not in st.session_state: 
+    st.session_state.df_geral = carregar_dados_nuvem()
 df_geral = st.session_state.df_geral
 
+# =============================================================================
+# 🎛️ 7. SIDEBAR E LANÇAMENTOS
+# =============================================================================
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.usuario_logado}")
     
@@ -391,7 +293,6 @@ with st.sidebar:
             with st.spinner("Salvando no Supabase..."):
                 q_f = q_in if tipo == "Compra" else -q_in
                 
-                # Inserção direta na tabela operacoes do Supabase
                 nova_op = {
                     "usuario_id": st.session_state.usuario_id,
                     "ticker": t_in.upper(),
@@ -415,7 +316,7 @@ with st.sidebar:
     ibov_anual = st.number_input("Meta Ibovespa (% a.a.):", min_value=0.1, max_value=50.0, value=12.0, step=0.1) / 100
 
 # =============================================================================
-# ⚙️ MOTOR DE CÁLCULO E CONSOLIDAÇÃO (Mantido Intacto)
+# ⚙️ 8. MOTOR DE CÁLCULO E CONSOLIDAÇÃO
 # =============================================================================
 df_g = pd.DataFrame()
 if not df_geral.empty:
@@ -441,12 +342,11 @@ if not df_geral.empty:
         df_g.fillna({"P_VP": 0.0, "P_L": 0.0, "Rend": 0.0, "Var_Dia": 0.0, "DY_12M": "-", "DY_Mensal": "-", "Status": "Offline"}, inplace=True)
         
         precos_manuais = carregar_precos_manuais()
-# O TRUQUE: Força tudo que tem "TESOURO" no nome a virar Renda Fixa na marra
+        # O TRUQUE: Força tudo que tem "TESOURO" no nome a virar Renda Fixa na marra
         df_g.loc[df_g["Ticker"].str.contains("TESOURO", case=False, na=False), "Categoria"] = "Renda Fixa"
 
         mask_rf = df_g["Categoria"] == "Renda Fixa"
         
-        # O escudo: Só tenta calcular se existir Renda Fixa na carteira
         if mask_rf.any():
             df_g.loc[mask_rf, "Preço"] = pd.to_numeric(df_g.loc[mask_rf, "Preco_Medio"], errors="coerce").fillna(0.0)
             if precos_manuais:
@@ -465,7 +365,7 @@ if not df_geral.empty:
         else: snap_df.to_csv(SNAPSHOT_FILE, index=False)
 
 # =============================================================================
-# 📑 ABAS DO SISTEMA (100% COMPLETAS E INTOCADAS)
+# 📑 9. ABAS DO SISTEMA (AS 14 ABAS COMPLETAS)
 # =============================================================================
 tabs = st.tabs(["🌍 Visão Global", "🏢 FIIs", "📈 Ações", "🌎 Exterior", "🛡️ Renda Fixa", "🪙 Cripto", "💰 Dividendos", "⚖️ Rebalanceamento", "🔍 Radar", "🧮 Simuladores", "🤖 ValorPro IA", "🧾 IR", "🎯 Metas", "📝 Histórico"])
 tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_rad, tab_sim, tab_ia, tab_ir, tab_metas, tab_edit = tabs
@@ -806,7 +706,7 @@ with tab_sim:
         with jc2: ap_mes = st.number_input("Aporte Mensal (R$):", 0.0, value=500.0, step=50.0)
         with jc3: tx_mes = st.number_input("Rendimento (% a.m.):",0.1, value=0.8, step=0.1)
         anos_j = st.slider("Horizonte (anos):", 1, 35, 10)
-        meses_j = anos_j * 12; pat = ap_ini; inv = ap_ini; tx = tx_mes / 100; hs_m, hs_i, hs_j = [], [], []
+        meses_j = anos_j * 12; pat = ap_ini; inv = ap_ini; tx = tx_mes / 100; hs_m, hs_i, hs_j = [], [] , []
         for mes in range(1, meses_j + 1):
             pat += pat * tx + ap_mes; inv += ap_mes
             if mes % 12 == 0: hs_m.append(f"Ano {mes//12}"); hs_i.append(inv); hs_j.append(pat - inv)
@@ -840,11 +740,13 @@ with tab_sim:
 
 # --- ABA 11: CONSULTOR IA ---
 with tab_ia:
+    if st.session_state.get('tipo_acesso') != "premium":
+        exibir_bloqueio_premium("ValorPro IA Intelligence")
+    
     st.markdown("#### 🤖 ValorPro IA Intelligence")
     ARQUIVO_CHAT = "historico_ia.json"
     
     if CHAVE_API_GOOGLE != "COLE_SUA_CHAVE_AQUI" and CHAVE_API_GOOGLE.strip() != "":
-        # Configuração da chave
         try:
             genai.configure(api_key=CHAVE_API_GOOGLE)
         except Exception as e:
@@ -868,12 +770,11 @@ with tab_ia:
             
         if "chat_ia" not in st.session_state:
             try:
-                # 🚀 O CAÇADOR: Usa a mesma lógica do Raio-X para nunca dar erro 404
-                modelo_liberado = "gemini-1.5-flash" # Nome de segurança
+                modelo_liberado = "gemini-1.5-flash"
                 for m in genai.list_models():
                     if 'generateContent' in m.supported_generation_methods:
                         modelo_liberado = m.name.replace("models/", "")
-                        break # Pega o primeiro modelo que a sua chave aceita
+                        break
                         
                 model = genai.GenerativeModel(modelo_liberado)
                 hist_gemini = [{"role": "user" if msg["role"] == "user" else "model", "parts": [msg["content"]]} for msg in st.session_state.mensagens_ia]
@@ -898,7 +799,6 @@ with tab_ia:
                     try:
                         ctx = df_g.to_string() if "df_g" in locals() and not df_g.empty else "Carteira vazia."
                         
-                        # INSTRUÇÃO DE PERSONALIDADE MESTRA
                         prompt_invisivel = (
                             f"Instrução de Personalidade: Você é o ValorPro IA, um assessor financeiro de elite, educado e prestativo. "
                             f"Se o usuário disser apenas 'oi', 'olá', ou fizer uma saudação simples, cumprimente-o cordialmente e pergunte o que ele gostaria de analisar hoje. "
@@ -919,8 +819,7 @@ with tab_ia:
     else:
         st.warning("⚠️ **A IA está dormindo. Configure sua chave API do Google para acordá-la.**") 
 
-
-#ABA 12: IMPOSTO DE RENDA ---
+# --- ABA 12: IMPOSTO DE RENDA ---
 with tab_ir:
     st.markdown("#### 🧾 Bens e Direitos & Histórico de Aquisição")
     st.info("📌 **Nota:** Esta tabela detalha cada compra individual para facilitar sua declaração e controle de valor real por data.")
