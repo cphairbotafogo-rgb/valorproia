@@ -525,18 +525,33 @@ import yfinance as yf
 import streamlit as st
 
 # ==========================================
-# 🌐 MOTOR DE BUSCA DE PREÇO (COM CACHE)
-# ATENÇÃO: Precisa ficar FORA da aba e de 'ifs' para o cache funcionar!
+# 🌐 MOTOR DE BUSCA (COM RAIO-X ATIVADO)
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_preco(ticker):
     try:
+        import yfinance as yf
+        import streamlit as st
+        
         ticker = str(ticker).strip().upper()
         ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
+        
+        # Avisa que está tentando buscar
+        print(f"Tentando buscar: {ticker_yf}...")
+        
         dados = yf.Ticker(ticker_yf).fast_info
         preco = dados.get("lastPrice")
+        
+        if preco is None:
+            st.warning(f"⚠️ Yahoo Finance respondeu, mas não tem preço para {ticker_yf}")
+        else:
+            st.success(f"✅ Preço encontrado para {ticker_yf}: R$ {preco}")
+            
         return preco
-    except:
+        
+    except Exception as e:
+        # TIRA O SILENCIADOR: Faz o erro aparecer grandão na tela!
+        st.error(f"🚨 MOTOR QUEBROU ao buscar {ticker}: {e}")
         return None
 
 # --- ABA 6: CRIPTOMOEDAS ---
