@@ -542,7 +542,10 @@ with tab_cripto:
                     "quantidade": "Qtd",
                     "preco_medio": "Preco_Medio"
                 }
-                return df.rename(columns=mapa)
+                df = df.rename(columns=mapa)
+                # Tira qualquer coluna duplicada para não bugar a conversão
+                df = df.loc[:, ~df.columns.duplicated()]
+                return df
 
             # 2. 🛂 Validação (ANTI-DADO QUEBRADO)
             def validar_dados(df):
@@ -562,13 +565,10 @@ with tab_cripto:
                 
                 for col in colunas_numericas:
                     if col in df.columns:
-                        # Força a conversão. Se der erro, vira NaN (vazio)
                         df[col] = pd.to_numeric(df[col], errors="coerce")
                 
-                # Se houver algum dado vazio (NaN) após a conversão, avisamos o usuário
                 if df[colunas_numericas].isna().any().any():
                     st.warning("⚠️ Atenção: Existem valores vazios ou inválidos no banco de dados. Os cálculos foram ajustados para evitar falhas.")
-                    # Preenchemos com 0 apenas para a matemática não travar a tela inteira, mas já alertamos acima!
                     df[colunas_numericas] = df[colunas_numericas].fillna(0)
                 
                 return df
@@ -595,14 +595,11 @@ with tab_cripto:
             # ==========================================
             
             try:
-                # Passa os dados brutos pela máquina de limpeza
                 criptos_processado = preparar_dados_cripto(criptos)
                 
-                # Prepara a tabela apenas com as colunas que importam para o visual
                 df_vcripto = criptos_processado[["Ticker","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
                 df_vcripto.rename(columns={"Preco_Medio":"PM Unitário", "Preço":"Preço Atual", "Total_Atual":"Patrimônio (R$)"}, inplace=True)
                 
-                # Formatações Visuais (Deixa os números com cara de sistema financeiro)
                 def formata_dinheiro(valor):
                     try:
                         return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -616,13 +613,10 @@ with tab_cripto:
                 df_vcripto["L/P (%)"] = df_vcripto["L/P (%)"].apply(lambda x: formatar_delta(x, True))
                 df_vcripto["Qtd"] = df_vcripto["Qtd"].apply(formatar_qtd)
                 
-                # Renderiza a tabela limpa e perfeita
                 st.dataframe(df_vcripto, hide_index=True, use_container_width=True)
                 
             except Exception as e:
-                # Se algo gravíssimo acontecer (ex: mudaram o banco de dados), ele exibe esse erro vermelho em vez de quebrar o app
                 st.error(f"Erro estrutural nos dados de Criptomoedas: {e}")
-
 # --- ABA 7: DIVIDENDOS ---
 with tab_div:
     st.markdown("#### 💰 Registro de Renda Passiva")
