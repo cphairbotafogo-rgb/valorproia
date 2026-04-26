@@ -117,19 +117,19 @@ def tela_login():
         
         with c1:
             st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9; margin-bottom: 15px;">
-            <h3>Mensal</h3><h2>R$ 27,90</h2><p>Acesso por 30 dias</p></div>""", unsafe_allow_html=True)
-            st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True)
+            <h3>Mensal</h3><h2>R$ 29,90</h2><p>Acesso por 30 dias</p></div>""", unsafe_allow_html=True)
+            st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
 
         with c2:
             st.markdown("""<div style="border: 2px solid #1e3a8a; border-radius: 10px; padding: 20px; text-align: center; background: #fff; position: relative; margin-bottom: 15px;">
             <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #1e3a8a; color: white; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: bold;">⭐ MAIS VENDIDO</span>
             <h3>Trimestral</h3><h2>R$ 69,90</h2><p>Acesso por 90 dias</p></div>""", unsafe_allow_html=True)
-            st.link_button("💳 Assinar Trimestral", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True, type="primary")
+            st.link_button("💳 Assinar Trimestral", "https://pay.kiwify.com.br/HkrQfua", use_container_width=True, type="primary")
 
         with c3:
             st.markdown("""<div style="border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9; margin-bottom: 15px;">
             <h3>Anual</h3><h2>R$ 197,00</h2><p>Acesso por 365 dias</p></div>""", unsafe_allow_html=True)
-            st.link_button("💳 Assinar Anual", "https://pay.kiwify.com.br/LINK_AQUI", use_container_width=True)
+            st.link_button("💳 Assinar Anual", "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
 
         st.write("---")
         st.info("💡 A liberação é feita automaticamente após a confirmação do pagamento.")
