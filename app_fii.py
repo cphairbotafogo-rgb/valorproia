@@ -525,11 +525,33 @@ with tab_cripto:
     if not df_g.empty:
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
         if not criptos.empty:
-            criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]; criptos["L/P (%)"] = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
+            # 1. Trava de segurança: Garante que PM e Custo sejam números (se vier vazio, vira 0)
+            import pandas as pd # Garantir que o pandas está disponível aqui
+            criptos["Preco_Medio"] = pd.to_numeric(criptos["Preco_Medio"], errors='coerce').fillna(0)
+            criptos["Custo_Pos"] = pd.to_numeric(criptos["Custo_Pos"], errors='coerce').fillna(0)
+            criptos["Total_Atual"] = pd.to_numeric(criptos["Total_Atual"], errors='coerce').fillna(0)
+            criptos["Preço"] = pd.to_numeric(criptos["Preço"], errors='coerce').fillna(0)
+
+            # 2. Faz a matemática do Lucro/Prejuízo
+            criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]
+            criptos["L/P (%)"] = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
+            
+            # 3. Prepara a tabela visual
             df_vcripto = criptos[["Ticker","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
             df_vcripto.rename(columns={"Preco_Medio":"PM Unitário", "Preço":"Preço Atual", "Total_Atual":"Patrimônio (R$)"}, inplace=True)
-            df_vcripto["L/P (R$)"] = df_vcripto["L/P (R$)"].apply(formatar_delta); df_vcripto["L/P (%)"] = df_vcripto["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+            
+            # 4. Formatações visuais para ficar com cara de sistema profissional
+            def formata_dinheiro(valor):
+                return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                
+            df_vcripto["PM Unitário"] = df_vcripto["PM Unitário"].apply(formata_dinheiro)
+            df_vcripto["Preço Atual"] = df_vcripto["Preço Atual"].apply(formata_dinheiro)
+            df_vcripto["Patrimônio (R$)"] = df_vcripto["Patrimônio (R$)"].apply(formata_dinheiro)
+            
+            df_vcripto["L/P (R$)"] = df_vcripto["L/P (R$)"].apply(formatar_delta)
+            df_vcripto["L/P (%)"] = df_vcripto["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_vcripto["Qtd"] = df_vcripto["Qtd"].apply(formatar_qtd)
+            
             st.dataframe(df_vcripto, hide_index=True, use_container_width=True)
 
 # --- ABA 7: DIVIDENDOS ---
