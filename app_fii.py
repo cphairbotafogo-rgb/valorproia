@@ -524,30 +524,25 @@ with tab_rf:
 with tab_cripto:
     if not df_g.empty:
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
-        
-        # ADICIONE ESTA LINHA ABAIXO PARA FAZERMOS O RAIO-X:
-        st.write("RAIO-X DOS DADOS:", criptos)
-        
         if not criptos.empty:
+            import pandas as pd
             
-            # 1. Força tudo a ser número para não bugar a matemática
-            criptos["Custo_Pos"] = pd.to_numeric(criptos["Custo_Pos"], errors='coerce').fillna(0)
+            # 1. Garante que os números estão no formato certo
+            criptos["Custo_Total"] = pd.to_numeric(criptos["Custo_Total"], errors='coerce').fillna(0)
             criptos["Qtd"] = pd.to_numeric(criptos["Qtd"], errors='coerce').fillna(0)
             criptos["Total_Atual"] = pd.to_numeric(criptos["Total_Atual"], errors='coerce').fillna(0)
             criptos["Preço"] = pd.to_numeric(criptos["Preço"], errors='coerce').fillna(0)
+            criptos["Preco_Medio"] = pd.to_numeric(criptos["Preco_Medio"], errors='coerce').fillna(0)
 
-            # 2. O PULO DO GATO: Se o banco não enviar o PM, calculamos ele na marra!
-            criptos["Preco_Medio"] = criptos.apply(lambda r: (r["Custo_Pos"] / r["Qtd"]) if r["Qtd"] > 0 else 0, axis=1)
-
-            # 3. Faz a conta real do Lucro/Prejuízo
-            criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]
-            criptos["L/P (%)"] = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
+            # 2. Faz a conta real do Lucro/Prejuízo usando a coluna certa (Custo_Total)
+            criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Total"]
+            criptos["L/P (%)"] = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100) if r["Custo_Total"] > 0 else 0, axis=1)
             
-            # 4. Prepara as colunas para a tela
+            # 3. Prepara as colunas para a tela
             df_vcripto = criptos[["Ticker","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
             df_vcripto.rename(columns={"Preco_Medio":"PM Unitário", "Preço":"Preço Atual", "Total_Atual":"Patrimônio (R$)"}, inplace=True)
             
-            # 5. Deixa os números bonitos com "R$"
+            # 4. Deixa os números bonitos com "R$"
             def formata_dinheiro(valor):
                 try:
                     return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
