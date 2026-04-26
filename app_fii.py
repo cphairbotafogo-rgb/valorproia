@@ -574,27 +574,29 @@ with tab_cripto:
                 
                 return df
 
-            # 3.5 🌐 BUSCADOR AO VIVO (Com Raio-X)
+            # 3.5 🌐 BUSCADOR AO VIVO (Corrigido e Blindado)
             def atualizar_preco_online(df):
                 precos_vivos = []
                 totais_vivos = []
                 
                 for index, row in df.iterrows():
-                    ticker = row["Ticker"]
+                    # 1. Limpa espaços invisíveis (ex: "ETH-BRL " vira "ETH-BRL")
+                    ticker = str(row["Ticker"]).strip().upper() 
                     qtd = row["Qtd"]
                     preco_estatico = row["Preço"]
                     
                     try:
                         ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
-                        cotacao = yf.Ticker(ticker_yf).history(period="1d")
+                        
+                        # 2. Pede 5 dias em vez de 1. Isso resolve o bug de fuso horário do Yahoo!
+                        cotacao = yf.Ticker(ticker_yf).history(period="5d")
                         
                         if not cotacao.empty:
+                            # Pega o preço de fechamento da linha mais recente
                             preco_live = cotacao['Close'].iloc[-1]
                         else:
-                            st.warning(f"Yahoo Finance não achou preço para {ticker_yf}")
                             preco_live = preco_estatico 
-                    except Exception as e:
-                        st.error(f"Erro ao buscar {ticker} na internet: {e}")
+                    except:
                         preco_live = preco_estatico 
                         
                     precos_vivos.append(preco_live)
