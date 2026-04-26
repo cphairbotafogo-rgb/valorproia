@@ -527,6 +527,7 @@ with tab_cripto:
         
         if not criptos.empty:
             import pandas as pd
+            import yfinance as yf  # Biblioteca que busca preços ao vivo da bolsa/cripto
             
             # ==========================================
             # 🧱 INÍCIO DA CAMADA DE PROTEÇÃO (PIPELINE)
@@ -543,43 +544,66 @@ with tab_cripto:
                     "preco_medio": "Preco_Medio"
                 }
                 df = df.rename(columns=mapa)
-                # Vacina contra colunas duplicadas
                 df = df.loc[:, ~df.columns.duplicated()]
                 return df
 
-            # 2. 🛂 Validação (Preco_Medio não é mais obrigatório para não travar o app à toa)
+            # 2. 🛂 Validação 
             def validar_dados(df):
                 colunas_obrigatorias = ["Custo_Total", "Qtd", "Total_Atual", "Preço"]
                 erros = []
                 for col in colunas_obrigatorias:
                     if col not in df.columns:
                         erros.append(f"Coluna ausente: {col}")
-                
                 if erros:
                     raise ValueError(" | ".join(erros))
                 return df
 
-            # 3. 🧼 Limpeza controlada (Blindada contra KeyErrors)
+            # 3. 🧼 Limpeza controlada
             def tratar_tipos(df):
-                # Garante que o Preco_Medio exista para não quebrar o visual depois
                 if "Preco_Medio" not in df.columns:
                     df["Preco_Medio"] = 0
                     
                 colunas_numericas = ["Custo_Total", "Qtd", "Total_Atual", "Preço", "Preco_Medio"]
-                
-                # O pulo do gato: processa apenas as colunas que realmente chegaram aqui
                 colunas_existentes = [col for col in colunas_numericas if col in df.columns]
                 
                 for col in colunas_existentes:
                     df[col] = pd.to_numeric(df[col], errors="coerce")
                 
                 if df[colunas_existentes].isna().any().any():
-                    st.warning("⚠️ Atenção: Existem valores vazios ou inválidos no banco de dados. Os cálculos foram ajustados para evitar falhas.")
                     df[colunas_existentes] = df[colunas_existentes].fillna(0)
                 
                 return df
 
-            # 4. 🧠 Cálculo seguro (Usando pd.notna para evitar bugs lógicos)
+            # 3.5 🌐 BUSCADOR AO VIVO (A Mágica do Tempo Real)
+            def atualizar_preco_online(df):
+                precos_vivos = []
+                totais_vivos = []
+                
+                for index, row in df.iterrows():
+                    ticker = row["Ticker"]
+                    qtd = row["Qtd"]
+                    preco_estatico = row["Preço"]
+                    
+                    try:
+                        # Adapta o Ticker para o formato do Yahoo Finance (ex: ETH-BRL)
+                        ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
+                        cotacao = yf.Ticker(ticker_yf).history(period="1d")
+                        
+                        if not cotacao.empty:
+                            preco_live = cotacao['Close'].iloc[-1] # Pega o fechamento mais recente
+                        else:
+                            preco_live = preco_estatico # Se não achar, usa o que estava no banco
+                    except:
+                        preco_live = preco_estatico # Se a internet falhar, não quebra o app
+                        
+                    precos_vivos.append(preco_live)
+                    totais_vivos.append(preco_live * qtd) # Recalcula o total com o preço novo
+                
+                df["Preço"] = precos_vivos
+                df["Total_Atual"] = totais_vivos
+                return df
+
+            # 4. 🧠 Cálculo seguro 
             def calcular_metricas(df):
                 df["L/P (R$)"] = df["Total_Atual"] - df["Custo_Total"]
                 df["L/P (%)"] = df.apply(
@@ -593,6 +617,7 @@ with tab_cripto:
                 df = padronizar_colunas(df)
                 df = validar_dados(df)
                 df = tratar_tipos(df)
+                df = atualizar_preco_online(df) # <-- Injetamos a internet aqui!
                 df = calcular_metricas(df)
                 return df
 
