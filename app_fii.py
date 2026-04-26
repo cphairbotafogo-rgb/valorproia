@@ -30,7 +30,7 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 import streamlit as st
-from datetime
+from datetime import datetime
 
 # =============================================================================
 # 🔒 FUNÇÃO DE BLOQUEIO FREEMIUM (Coloque antes das suas abas)
