@@ -52,7 +52,7 @@ def exibir_bloqueio_premium(funcionalidade):
 # =============================================================================
 def tela_login():
     # === 🔑 SUA CHAVE MESTRA ===
-    EMAIL_ADMIN = "ripeixotooficial@outlook.com" # <--- MUDE AQUI
+    EMAIL_ADMIN = "aripeixotooficial@outlook.com" # <--- MUDE AQUI
     
     st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
