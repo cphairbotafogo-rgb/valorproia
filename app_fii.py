@@ -574,7 +574,7 @@ with tab_cripto:
                 
                 return df
 
-            # 3.5 🌐 BUSCADOR AO VIVO (A Mágica do Tempo Real)
+            # 3.5 🌐 BUSCADOR AO VIVO (Com Raio-X)
             def atualizar_preco_online(df):
                 precos_vivos = []
                 totais_vivos = []
@@ -585,19 +585,20 @@ with tab_cripto:
                     preco_estatico = row["Preço"]
                     
                     try:
-                        # Adapta o Ticker para o formato do Yahoo Finance (ex: ETH-BRL)
                         ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
                         cotacao = yf.Ticker(ticker_yf).history(period="1d")
                         
                         if not cotacao.empty:
-                            preco_live = cotacao['Close'].iloc[-1] # Pega o fechamento mais recente
+                            preco_live = cotacao['Close'].iloc[-1]
                         else:
-                            preco_live = preco_estatico # Se não achar, usa o que estava no banco
-                    except:
-                        preco_live = preco_estatico # Se a internet falhar, não quebra o app
+                            st.warning(f"Yahoo Finance não achou preço para {ticker_yf}")
+                            preco_live = preco_estatico 
+                    except Exception as e:
+                        st.error(f"Erro ao buscar {ticker} na internet: {e}")
+                        preco_live = preco_estatico 
                         
                     precos_vivos.append(preco_live)
-                    totais_vivos.append(preco_live * qtd) # Recalcula o total com o preço novo
+                    totais_vivos.append(preco_live * qtd) 
                 
                 df["Preço"] = precos_vivos
                 df["Total_Atual"] = totais_vivos
