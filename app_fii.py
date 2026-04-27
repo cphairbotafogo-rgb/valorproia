@@ -525,32 +525,28 @@ import yfinance as yf
 import streamlit as st
 
 # ==========================================
-# 🌐 MOTOR DE BUSCA (COM RAIO-X ATIVADO)
+# 🌐 MOTOR DE BUSCA (BLINDADO CONTRA BUG DE DIVIDENDOS)
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_preco(ticker):
     try:
         import yfinance as yf
-        import streamlit as st
         
         ticker = str(ticker).strip().upper()
         ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
         
-        # Avisa que está tentando buscar
-        print(f"Tentando buscar: {ticker_yf}...")
+        # O SEGREDO ESTÁ AQUI: actions=False impede o Yahoo de procurar dividendos!
+        ativo = yf.Ticker(ticker_yf)
+        df_historico = ativo.history(period="5d", actions=False, auto_adjust=False)
         
-        dados = yf.Ticker(ticker_yf).fast_info
-        preco = dados.get("lastPrice")
-        
-        if preco is None:
-            st.warning(f"⚠️ Yahoo Finance respondeu, mas não tem preço para {ticker_yf}")
+        if not df_historico.empty:
+            preco = df_historico['Close'].iloc[-1]
+            return float(preco)
         else:
-            st.success(f"✅ Preço encontrado para {ticker_yf}: R$ {preco}")
+            return None
             
-        return preco
-        
     except Exception as e:
-        # TIRA O SILENCIADOR: Faz o erro aparecer grandão na tela!
+        import streamlit as st
         st.error(f"🚨 MOTOR QUEBROU ao buscar {ticker}: {e}")
         return None
 
