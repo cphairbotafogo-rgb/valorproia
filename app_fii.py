@@ -332,17 +332,19 @@ import streamlit as st
 def buscar_preco_cripto(ticker):
     try:
         import yfinance as yf
-        ticker = str(ticker).strip().upper()
-        ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
+        t = str(ticker).strip().upper()
+        ticker_yf = t if "-" in t else f"{t}-BRL"
         
-        # O SEGREDINHO: actions=False impede o erro de dividendos nas criptos!
         ativo = yf.Ticker(ticker_yf)
-        df_hist = ativo.history(period="1d", actions=False, auto_adjust=False)
+        # O SEGREDO: 5 dias para não falhar no fds e actions=False para não dar erro de dividendo
+        df_hist = ativo.history(period="5d", actions=False, auto_adjust=False)
         
         if not df_hist.empty:
+            # O SEGREDO 2: iloc[-1] pega o último preço da lista (o mais recente)
             return float(df_hist['Close'].iloc[-1])
         return None
-    except:
+    except Exception as e:
+        print(f"Erro na busca de {ticker}: {e}")
         return None
 
 def buscar_multiplos(itens):
