@@ -524,31 +524,26 @@ import pandas as pd
 import yfinance as yf
 import streamlit as st
 
-# ==========================================
-# 🌐 MOTOR DE BUSCA (BLINDADO CONTRA BUG DE DIVIDENDOS)
-# ==========================================
-@st.cache_data(ttl=60, show_spinner=False)
-def buscar_preco(ticker):
-    try:
-        import yfinance as yf
-        
-        ticker = str(ticker).strip().upper()
-        ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
-        
-        # O SEGREDO ESTÁ AQUI: actions=False impede o Yahoo de procurar dividendos!
-        ativo = yf.Ticker(ticker_yf)
-        df_historico = ativo.history(period="5d", actions=False, auto_adjust=False)
-        
-        if not df_historico.empty:
-            preco = df_historico['Close'].iloc[-1]
-            return float(preco)
-        else:
-            return None
+# =============================================================================
+# BUSCA EM LOTE (A FUNÇÃO QUE ESTAVA FALTANDO)
+# =============================================================================
+def buscar_multiplos(itens):
+    resultados = []
+    # Usamos ThreadPool para não travar a interface enquanto busca vários ativos
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = []
+        for item in itens:
+            t = item[0] if isinstance(item, (tuple, list)) else item
+            c = item[1] if isinstance(item, (tuple, list)) else None
+            # Aqui ela chama o nosso motor blindado!
+            futures.append(ex.submit(buscar_mercado, t, c))
             
-    except Exception as e:
-        import streamlit as st
-        st.error(f"🚨 MOTOR QUEBROU ao buscar {ticker}: {e}")
-        return None
+        for fut in as_completed(futures):
+            res = fut.result()
+            if res: resultados.append(res)
+            
+    return resultados
 
 # --- ABA 6: CRIPTOMOEDAS ---
 with tab_cripto:
