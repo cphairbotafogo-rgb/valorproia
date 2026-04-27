@@ -70,50 +70,63 @@ def formatar_delta(valor, is_percent=False):
     except: return "-"
 
 # =============================================================================
-# 🚀 MOTOR DE BUSCA OTIMIZADO PARA NUVEM (YFINANCE)
+# 🚀 MOTOR DE BUSCA OTIMIZADO PARA NUVEM (BLINDADO)
 # =============================================================================
 @st.cache_data(ttl=600, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     
-    # 1. Identificação da Categoria e Formatação do Ticker
+    # 1. Identificação da Categoria
     is_us = (categoria_sugerida == "Exterior (EUA)")
-    is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
+    is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD") or categoria_sugerida == "Criptomoedas"
     
-    # Ticker para o Yahoo (Brasileiros precisam de .SA)
-    if is_us or is_crypto:
-        t_yahoo = ticker
-    else:
-        t_yahoo = f"{ticker}.SA"
+    # Formatação do Ticker
+    t_yahoo = ticker if (is_us or is_crypto) else f"{ticker}.SA"
+    categoria = categoria_sugerida if categoria_sugerida else ("FIIs" if ticker.endswith("11") else "Ações")
 
     try:
         dat = yf.Ticker(t_yahoo)
-        # Usamos fast_info e info para garantir que pegamos os dados
-        info = dat.info
         
-        # Preço Atual
-        preco = _safe_float(info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose'))
+        # ---------------------------------------------------------
+        # PASSO 1: PEGANDO O PREÇO DE FORMA SEGURA (SEM USAR .INFO)
+        # ---------------------------------------------------------
+        df_hist = dat.history(period="1d")
+        if df_hist.empty:
+            return None
+            
+        preco = _safe_float(df_hist['Close'].iloc[-1])
         
-        # Indicadores
-        p_vp = _safe_float(info.get('priceToBook'))
-        p_l = _safe_float(info.get('trailingPE') or info.get('forwardPE'))
-        variacao_dia = _safe_float(info.get('regularMarketChangePercent'))
-        
-        # Dividendos (Plano B para FIIs: pegamos o último provento histórico)
-        dy_raw = _safe_float(info.get('dividendYield'))
-        rend_ultimo = _safe_float(info.get('lastDividendValue'))
-        
-        # Se rend_ultimo vier zerado (comum em FIIs no Yahoo), tentamos o histórico recente
-        if rend_ultimo == 0 and not is_crypto:
-            hist_div = dat.dividends
-            if not hist_div.empty:
-                rend_ultimo = _safe_float(hist_div.iloc[-1])
+        # Variáveis padrão
+        p_vp, p_l, dy_raw, rend_ultimo, variacao_dia = 0.0, 0.0, 0.0, 0.0, 0.0
+
+        # ---------------------------------------------------------
+        # PASSO 2: INDICADORES APENAS PARA AÇÕES E FIIS
+        # Criptomoedas quebram o .info, então nós pulamos elas!
+        # ---------------------------------------------------------
+        if not is_crypto:
+            try:
+                info = dat.info
+                p_vp = _safe_float(info.get('priceToBook'))
+                p_l = _safe_float(info.get('trailingPE') or info.get('forwardPE'))
+                variacao_dia = _safe_float(info.get('regularMarketChangePercent'))
+                dy_raw = _safe_float(info.get('dividendYield'))
+                rend_ultimo = _safe_float(info.get('lastDividendValue'))
+                
+                # Se rend_ultimo vier zerado (comum em FIIs), buscamos no histórico seguro
+                if rend_ultimo == 0:
+                    hist_completo = dat.history(period="1y")
+                    if 'Dividends' in hist_completo.columns:
+                        divs = hist_completo[hist_completo['Dividends'] > 0]
+                        if not divs.empty:
+                            rend_ultimo = _safe_float(divs['Dividends'].iloc[-1])
+            except Exception:
+                # Se o .info der pau, não tem problema! O "pass" aqui salva a gente.
+                # Como já pegamos o Preço lá em cima, o app não vai quebrar.
+                pass
 
         # Cálculos Finais
         dy_12m = f"{dy_raw * 100:.2f}%" if dy_raw > 0 else "-"
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
-        
-        categoria = categoria_sugerida if categoria_sugerida else ("FIIs" if ticker.endswith("11") else "Ações")
 
         if preco > 0:
             return {
@@ -128,23 +141,9 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 "P_L": p_l,
                 "Status": classificar_ativo(categoria, p_vp, p_l)
             }
+            
     except Exception as e:
+        # Se quiser ver o erro escondido no futuro, é só colocar st.error(e) aqui
         pass
     
     return None
-
-def buscar_multiplos(itens):
-    resultados = []
-    # Usamos ThreadPool para não travar a interface enquanto busca vários ativos
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = []
-        for item in itens:
-            t = item[0] if isinstance(item, (tuple, list)) else item
-            c = item[1] if isinstance(item, (tuple, list)) else None
-            futures.append(ex.submit(buscar_mercado, t, c))
-            
-        for fut in as_completed(futures):
-            res = fut.result()
-            if res: resultados.append(res)
-            
-    return resultados
