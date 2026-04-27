@@ -152,68 +152,99 @@ def _motor_fii_especifico(ticker):
     except: pass
     return rend, p_vp, dy
 
-# --- 2. MOTOR PRINCIPAL DE BUSCA (Ações, Cripto, EUA e FII) ---
+# --- 1. FUNÇÕES DE APOIO (PARA NÃO DAR ERRO DE NOME) ---
+def _safe_float(val):
+    try:
+        if val is None: return 0.0
+        if isinstance(val, (int, float)): return float(val)
+        s = str(val).replace("R$", "").replace("%", "").strip()
+        s = s.replace(".", "").replace(",", ".")
+        return float(s)
+    except: return 0.0
+
+def _yf_fetch_full(symbol):
+    try:
+        tk = yf.Ticker(symbol)
+        hist = tk.history(period="1d")
+        if not hist.empty:
+            p = float(hist['Close'].iloc[-1])
+            prev = tk.info.get('previousClose', p)
+            var = ((p - prev) / prev * 100) if prev else 0.0
+            return p, var
+    except: pass
+    return 0.0, 0.0
+
+# --- 2. MOTOR ESPECIALISTA EM FIIS (StatusInvest) ---
+def _motor_fii_especifico(ticker):
+    rend = p_vp = preco_f = 0.0
+    dy = "0,00%"
+    try:
+        url = f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0'}
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            for div in soup.find_all("div", class_="info"):
+                label = div.get_text().lower()
+                val_tag = div.find("strong", class_="value")
+                if val_tag:
+                    v = val_tag.get_text(strip=True)
+                    if "valor atual" in label: preco_f = _safe_float(v)
+                    elif "p/vp" in label: p_vp = _safe_float(v)
+                    elif "último rendimento" in label: rend = _safe_float(v)
+                    elif "dividend yield" in label: dy = v
+    except: pass
+    return rend, p_vp, dy, preco_f
+
+# --- 3. MOTOR PRINCIPAL (Cripto, Ações e FII) ---
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
     is_us = (categoria_sugerida == "Exterior (EUA)")
     
-    # Identifica se é FII
     if categoria_sugerida in ["Ações", "Acao", "BDR"]: is_fii = False
     else: is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
     
-    if is_crypto: categoria = "Criptomoedas"
-    elif is_us: categoria = "Exterior (EUA)"
-    elif is_fii: categoria = "FIIs"
-    else: categoria = "Ações"
-
+    categoria = "Criptomoedas" if is_crypto else ("Exterior (EUA)" if is_us else ("FIIs" if is_fii else "Ações"))
     preco = variacao_dia = p_vp = p_l = rend_ultimo = 0.0
     dy_12m = "0,00%"
 
-    # --- BUSCA PARA CRIPTOMOEDAS (Binance) ---
     if is_crypto:
         try:
-            symbol_bin = ticker.replace("-", "")
-            r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_bin}", timeout=4)
-            if r_bin.status_code == 200:
-                data = r_bin.json()
-                preco = _safe_float(data.get("lastPrice"))
-                variacao_dia = _safe_float(data.get("priceChangePercent"))
+            r = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={ticker.replace('-','')}", timeout=4)
+            if r.status_code == 200:
+                d = r.json(); preco = _safe_float(d.get("lastPrice")); variacao_dia = _safe_float(d.get("priceChangePercent"))
         except: pass
         if preco == 0.0: preco, variacao_dia = _yf_fetch_full(ticker)
 
-    # --- BUSCA PARA FIIS (Motor Especialista) ---
     elif is_fii:
-        symbol_yf = f"{ticker}.SA"
-        preco, variacao_dia = _yf_fetch_full(symbol_yf)
-        rend_ultimo, p_vp, dy_12m = _motor_fii_especifico(ticker)
+        preco, variacao_dia = _yf_fetch_full(f"{ticker}.SA")
+        rend_f, pvp_f, dy_f, pr_f = _motor_fii_especifico(ticker)
+        rend_ultimo, p_vp, dy_12m = rend_f, pvp_f, dy_f
+        if preco == 0.0: preco = pr_f
 
-    # --- BUSCA PARA AÇÕES E EUA (Yahoo Finance) ---
     else:
-        symbol_yf = ticker if is_us else f"{ticker}.SA"
-        preco, variacao_dia = _yf_fetch_full(symbol_yf)
+        symbol = ticker if is_us else f"{ticker}.SA"
+        preco, variacao_dia = _yf_fetch_full(symbol)
         try:
-            tk = yf.Ticker(symbol_yf)
-            info = tk.info
-            p_vp = _safe_float(info.get('priceToBook', 0))
-            p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
+            tk = yf.Ticker(symbol); info = tk.info
+            p_vp = _safe_float(info.get('priceToBook', 0)); p_l = _safe_float(info.get('trailingPE', 0))
             dy_raw = _safe_float(info.get('dividendYield', 0))
             if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-    # --- RETORNO CONSOLIDADO ---
     if preco > 0 or is_crypto:
-        dy_m_calc = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
+        dy_m = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
         return {
             "Ticker": ticker, "Categoria": categoria, "Preço": preco, 
-            "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m_calc:.2f}%", 
+            "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m:.2f}%", 
             "Rend": rend_ultimo, "P_VP": p_vp, "P_L": p_l, 
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
 
-# --- 3. EXECUTOR MULTIPLOS (Threading) ---
+# --- 4. EXECUTOR MULTIPLOS ---
 def buscar_multiplos(itens):
     resultados = []
     with ThreadPoolExecutor(max_workers=6) as ex:
