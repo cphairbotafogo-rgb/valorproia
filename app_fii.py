@@ -321,94 +321,210 @@ with st.sidebar:
 # =============================================================================
 # BUSCA EM LOTE (A FUNÇÃO QUE ESTAVA FALTANDO)
 # =============================================================================
-import pandas as pd
 import yfinance as yf
-import streamlit as st 
+import pandas as pd
+import streamlit as st
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# =======================================================
-# 🌐 MOTOR CRIPTO BLINDADO (YAHOO FINANCE)
-# =======================================================
+# ==========================================
+# 🌐 MOTOR DE PREÇO (ROBUSTO + CACHE)
+# ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_preco_cripto(ticker):
     try:
-        import yfinance as yf
         t = str(ticker).strip().upper()
-        ticker_yf = t if "-" in t else f"{t}-BRL"
-        
-        # Tentativa de download direto (mais forte que o Ticker.history)
-        data = yf.download(ticker_yf, period="5d", interval="1d", progress=False, actions=False)
-        
+
+        # Padronização de ticker
+        if "-" not in t:
+            ticker_yf = f"{t}-BRL"
+        else:
+            ticker_yf = t.replace(" ", "")
+
+        # Download direto (mais estável que history)
+        data = yf.download(
+            ticker_yf,
+            period="5d",
+            interval="1d",
+            progress=False,
+            actions=False,
+            auto_adjust=False
+        )
+
         if not data.empty:
-            # Pegamos o último valor da coluna 'Close'
-            valor = float(data['Close'].iloc[-1])
-            return valor
-        return None
-    except Exception as e:
+            try:
+                # Caso padrão
+                if "Close" in data.columns:
+                    return float(data["Close"].iloc[-1])
+
+                # Caso MultiIndex (raro, mas crítico)
+                elif isinstance(data.columns, pd.MultiIndex):
+                    return float(data["Close"].iloc[-1].values[0])
+
+            except Exception:
+                return None
+
         return None
 
-def buscar_multiplos(itens):
-    resultados = []
-    # Usamos ThreadPool para não travar a interface enquanto busca vários ativos
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = []
-        for item in itens:
-            t = item[0] if isinstance(item, (tuple, list)) else item
-            c = item[1] if isinstance(item, (tuple, list)) else None
-            # Aqui ela chama o nosso motor blindado!
-            futures.append(ex.submit(buscar_mercado, t, c))
-            
-        for fut in as_completed(futures):
-            res = fut.result()
-            if res: resultados.append(res)
-            
+    except Exception:
+        return None
+
+
+# ==========================================
+# ⚡ BUSCA PARALELA (RÁPIDA)
+# ==========================================
+def buscar_precos_em_lote(tickers):
+    resultados = {}
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futuros = {
+            executor.submit(buscar_preco_cripto, t): t for t in tickers
+        }
+
+        for futuro in as_completed(futuros):
+            ticker = futuros[futuro]
+            try:
+                resultados[ticker] = futuro.result()
+            except:
+                resultados[ticker] = None
+
     return resultados
-df_g = pd.DataFrame()
-if not df_geral.empty:
-    with st.spinner("Sincronizando carteira Global..."):
-        df_cart = consolidar(df_geral)
-        mask_bolsa = df_cart["Categoria"].isin(["FIIs","Fiagro","FII","Ações","Acao","BDR","Criptomoedas", "Exterior (EUA)"])
-        lista_busca = df_cart[mask_bolsa][["Ticker", "Categoria"]].values.tolist()
-        
-        m_data = buscar_multiplos(lista_busca) if lista_busca else []
-        if m_data:
-            df_mkt = pd.DataFrame(m_data).drop(columns=["Categoria"], errors="ignore")
-            df_g = pd.merge(df_cart, df_mkt, on="Ticker", how="left")
-        else: df_g = df_cart.copy()
 
-        for col in ["Preço","P_VP","P_L","Rend","Var_Dia"]:
-            if col not in df_g.columns: df_g[col] = 0.0
-        for col in ["DY_12M", "DY_Mensal"]:
-            if col not in df_g.columns: df_g[col] = "-"
-        if "Status" not in df_g.columns: df_g["Status"] = "Offline"
-        
-        df_g["Preço"] = pd.to_numeric(df_g["Preço"], errors="coerce").fillna(0.0)
-        df_g["Preço"] = df_g.apply(lambda r: r["Preco_Medio"] if r["Preço"] == 0.0 else r["Preço"], axis=1)
-        df_g.fillna({"P_VP": 0.0, "P_L": 0.0, "Rend": 0.0, "Var_Dia": 0.0, "DY_12M": "-", "DY_Mensal": "-", "Status": "Offline"}, inplace=True)
-        
-        precos_manuais = carregar_precos_manuais()
-        # O TRUQUE: Força tudo que tem "TESOURO" no nome a virar Renda Fixa na marra
-        df_g.loc[df_g["Ticker"].str.contains("TESOURO", case=False, na=False), "Categoria"] = "Renda Fixa"
 
-        mask_rf = df_g["Categoria"] == "Renda Fixa"
-        
-        if mask_rf.any():
-            df_g.loc[mask_rf, "Preço"] = pd.to_numeric(df_g.loc[mask_rf, "Preco_Medio"], errors="coerce").fillna(0.0)
-            if precos_manuais:
-                df_g.loc[mask_rf, "Preço"] = df_g.loc[mask_rf, "Ticker"].map(precos_manuais).fillna(df_g.loc[mask_rf, "Preco_Medio"])
+# --- ABA CRIPTO ---
+with tab_cripto:
+    if not df_g.empty:
 
-        df_g["Total_Atual"] = df_g["Qtd"] * df_g["Preço"]
-        df_g["Custo_Pos"] = df_g["Qtd"] * df_g["Preco_Medio"]
+        criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
 
-        df_g["Setor"] = df_g.apply(lambda r: descobrir_setor(r["Ticker"], r["Categoria"]), axis=1)
+        if not criptos.empty:
 
-        hoje_str = datetime.now().strftime("%Y-%m-%d")
-        snap_df = pd.DataFrame([{"Data": hoje_str, "Aportado": df_g["Custo_Pos"].sum(), "Mercado": df_g["Total_Atual"].sum()}])
-        if os.path.exists(SNAPSHOT_FILE):
-            df_snap_old = pd.read_csv(SNAPSHOT_FILE)
-            pd.concat([df_snap_old[df_snap_old["Data"] != hoje_str], snap_df], ignore_index=True).to_csv(SNAPSHOT_FILE, index=False)
-        else: snap_df.to_csv(SNAPSHOT_FILE, index=False)
+            # ==========================================
+            # 🧱 PIPELINE
+            # ==========================================
 
+            def padronizar_colunas(df):
+                mapa = {
+                    "Custo_Pos": "Custo_Total",
+                    "custo_total": "Custo_Total",
+                    "preco": "Preço",
+                    "Preco": "Preço",
+                    "quantidade": "Qtd",
+                    "preco_medio": "Preco_Medio"
+                }
+                df = df.rename(columns=mapa)
+                return df.loc[:, ~df.columns.duplicated()]
+
+
+            def validar_dados(df):
+                obrigatorias = ["Ticker", "Custo_Total", "Qtd", "Preço"]
+                faltando = [c for c in obrigatorias if c not in df.columns]
+                if faltando:
+                    raise ValueError(f"Colunas ausentes: {faltando}")
+                return df
+
+
+            def tratar_tipos(df):
+                if "Preco_Medio" not in df.columns:
+                    df["Preco_Medio"] = 0
+
+                cols = ["Custo_Total", "Qtd", "Preço", "Preco_Medio"]
+
+                for c in cols:
+                    if c in df.columns:
+                        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+                df[cols] = df[cols].fillna(0)
+                return df
+
+
+            def atualizar_precos(df):
+                tickers = df["Ticker"].tolist()
+                mapa_precos = buscar_precos_em_lote(tickers)
+
+                precos = []
+                totais = []
+
+                for _, row in df.iterrows():
+                    preco_live = mapa_precos.get(row["Ticker"])
+
+                    # fallback para preço antigo
+                    if preco_live is None:
+                        preco_live = row["Preço"]
+
+                    precos.append(preco_live)
+                    totais.append(preco_live * row["Qtd"])
+
+                df["Preço_Atualizado"] = precos
+                df["Total_Atualizado"] = totais
+
+                return df
+
+
+            def calcular_metricas(df):
+                df["L/P (R$)"] = df["Total_Atualizado"] - df["Custo_Total"]
+
+                df["L/P (%)"] = df.apply(
+                    lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100)
+                    if pd.notna(r["Custo_Total"]) and r["Custo_Total"] > 0 else 0,
+                    axis=1
+                )
+
+                return df
+
+
+            def preparar_dados_cripto(df):
+                df = padronizar_colunas(df)
+                df = validar_dados(df)
+                df = tratar_tipos(df)
+                df = atualizar_precos(df)
+                df = calcular_metricas(df)
+                return df
+
+
+            # ==========================================
+            # 🖥️ UI
+            # ==========================================
+            try:
+                df_final = preparar_dados_cripto(criptos)
+
+                df_view = df_final[
+                    [
+                        "Ticker",
+                        "Qtd",
+                        "Preco_Medio",
+                        "Preço_Atualizado",
+                        "Total_Atualizado",
+                        "L/P (R$)",
+                        "L/P (%)",
+                    ]
+                ].copy()
+
+                df_view.rename(columns={
+                    "Preco_Medio": "PM Unitário",
+                    "Preço_Atualizado": "Preço Atual",
+                    "Total_Atualizado": "Patrimônio (R$)"
+                }, inplace=True)
+
+
+                def formatar_dinheiro(v):
+                    try:
+                        return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    except:
+                        return "R$ 0,00"
+
+
+                df_view["PM Unitário"] = df_view["PM Unitário"].apply(formatar_dinheiro)
+                df_view["Preço Atual"] = df_view["Preço Atual"].apply(formatar_dinheiro)
+                df_view["Patrimônio (R$)"] = df_view["Patrimônio (R$)"].apply(formatar_dinheiro)
+
+                df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
+                df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+                df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
+
+                st.dataframe(df_view, hide_index=True, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Erro estrutural nos dados de Criptomoedas: {e}")
 # =============================================================================
 # 📑 9. ABAS DO SISTEMA (AS 14 ABAS COMPLETAS)
 # =============================================================================
