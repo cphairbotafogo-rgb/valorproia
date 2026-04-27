@@ -185,7 +185,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
         except: pass
 
         # 3. FALLBACK STATUSINVEST E FUNDAMENTUS (Sempre busca se faltar P/VP ou P/L)
-    if not is_us and not is_crypto and (preco == 0.0 or p_vp == 0.0 or p_l == 0.0):
+    if not is_us and not is_crypto and (preco == 0.0 or p_vp == 0.0 or p_l == 0.0 or is_fii):
         try:
             headers = {'User-Agent': 'Mozilla/5.0'}
             url_cat = "fundos-imobiliarios" if is_fii else "acoes"
@@ -194,7 +194,9 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 soup = BeautifulSoup(r3.text, "html.parser")
                 def _ext_val(termos):
                     for tag in soup.find_all(["h3", "span", "div"]):
-                        if tag.get_text(strip=True).lower() in termos:
+                        texto_tag = tag.get_text(strip=True).lower()
+                        # 🟢 A mudança focada no FII: acha o texto mesmo se estiver camuflado
+                        if any(t in texto_tag for t in termos):
                             strong = tag.find_next("strong")
                             if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
                     return 0.0
@@ -206,10 +208,11 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 
                 if dy_12m == "0,00%" or dy_12m == "-":
                     for tag in soup.find_all(["h3", "span", "div"]):
-                        if tag.get_text(strip=True).lower() == "dividend yield":
+                        if "dividend yield" in tag.get_text(strip=True).lower() or "dy" == tag.get_text(strip=True).lower():
                             strong = tag.find_next("strong")
                             if strong: 
-                                dy_12m = strong.get_text(strip=True)
+                                val_str = strong.get_text(strip=True)
+                                dy_12m = val_str if "%" in val_str else f"{val_str}%"
                                 break
         except: pass
 
