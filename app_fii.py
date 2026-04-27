@@ -323,7 +323,24 @@ with st.sidebar:
 # =============================================================================
 import pandas as pd
 import yfinance as yf
-import streamlit as st
+import streamlit as st 
+
+@st.cache_data(ttl=60, show_spinner=False)
+def buscar_preco_binance(ticker):
+    try:
+        import requests
+        ticker = str(ticker).strip().upper()
+        # Converte "ETH-BRL" para "ETHBRL"
+        simbolo = ticker.replace("-", "") if "-" in ticker else f"{ticker}BRL"
+        
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={simbolo}"
+        resposta = requests.get(url, timeout=5)
+        
+        if resposta.status_code == 200:
+            return float(resposta.json()["price"])
+        return None
+    except:
+        return None
 
 def buscar_multiplos(itens):
     resultados = []
