@@ -297,7 +297,7 @@ def tela_login():
 if not st.session_state.autenticado:
     tela_login()
     st.stop()
-
+https://github.com/cphairbotafogo-rgb/valorproia/blob/main/app_fii.py
 # =============================================================================
 # 🎨 6. DESIGN E RELÓGIO
 # =============================================================================
@@ -320,6 +320,7 @@ TOP_20_ACOES = ["PETR4","VALE3","ITUB4","BBDC4","BBAS3","B3SA3","ABEV3","WEGE3",
 LISTA_CRIPTO = ["BTC-BRL", "ETH-BRL", "SOL-BRL", "USDT-BRL", "DOGE-BRL", "XRP-BRL"]
 LISTA_EUA = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BRK-B", "JNJ", "V", "VOO", "IVV", "QQQ"]
 LISTA_COMPLETA_B3 = sorted(list(set(TOP_20_ACOES + TOP_20_FII + ["ALPA4", "ALSO3", "ALUP11", "AMBP3", "ARZZ4", "ASAI3", "AURE3", "AZUL4", "BBDC3", "BEEF3", "BPAC11", "BRAP4", "BRFS3", "BRKM5", "CASH3", "CCRO3", "CEAB3", "CGAS4", "CIEL3", "CMIG4", "COGN3", "CPFE6", "CPLE6", "CRFB3", "CSAN3", "CSMG3", "CSNA3", "CVCB3", "CXSE3", "CYRE3", "DIRR3", "EGIE3", "ELET6", "ENBR3", "ENEV3", "ENGI11", "EZTC3", "FLRY3", "GGBR4", "GOAU4", "GOLL4", "HYPE3", "IGTI11", "INTB3", "ITSA4", "JHSF3", "KLBN11", "LWSA3", "MGLU3", "MRFG3", "MRVE3", "MULT3", "NTCO3", "PCAR3", "PETR3", "PETZ3", "POMO4", "PSSA3", "QUAL3", "RAPT4", "RDOR3", "RECV3", "RRRP3", "SANB11", "SANB4", "SAPR11", "SAPR4", "SLCE3", "SMFT3", "SOMA3", "TAEE11", "TIMS3", "TOTS3", "TRPL4", "UGPA3", "USIM4", "VIVT3", "YDUQ3", "ARRI11", "BRCR11", "BRCO11", "BTAL11", "CACR11", "CVBI11", "DEVA11", "FEXC11", "GGRC11", "HCTR11", "HGCR11", "HSML11", "JSRE11", "KFOF11", "KNCA11", "MALL11", "PLCR11", "PVBI11", "RBRL11", "RBRP11", "RBVA11", "RBRF11", "RECR11", "RECT11", "SARE11", "SNCI11", "TGAR11", "URPR11", "VCJR11", "VGIP11", "VILG11", "VINO11", "VRTA11", "XPCI11", "XPPR11", "XPSF11"])))
+
 
 def get_image_base64(path):
     try:
