@@ -197,6 +197,17 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
         }
     return None
 
+def buscar_multiplos(itens):
+    resultados = []
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futures = {}
+        for item in itens:
+            if isinstance(item, tuple) or isinstance(item, list): futures[ex.submit(buscar_mercado, item[0], item[1])] = item[0]
+            else: futures[ex.submit(buscar_mercado, item)] = item
+        for fut in as_completed(futures):
+            res = fut.result()
+            if res: resultados.append(res)
+    return resultados
 
 # =============================================================================
 # 🔒 5. BLOQUEIO FREEMIUM E TELA DE LOGIN
