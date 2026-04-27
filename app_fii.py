@@ -329,7 +329,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # ==========================================
 # 🧱 MOCK (remova se já vem do Supabase)
 # ==========================================
-# Simulação caso df_g não exista ainda
 if "df_g" not in locals():
     df_g = pd.DataFrame({
         "Categoria": ["Criptomoedas"],
@@ -339,26 +338,20 @@ if "df_g" not in locals():
         "Custo_Total": [10000]
     })
 
-
 # ==========================================
-# 🧭 CRIAÇÃO DAS ABAS (CORREÇÃO DO ERRO)
+# 🧭 ABAS
 # ==========================================
 tab_resumo, tab_acoes, tab_fiis, tab_cripto = st.tabs([
-    "Resumo",
-    "Ações",
-    "FIIs",
-    "Criptomoedas"
+    "Resumo", "Ações", "FIIs", "Criptomoedas"
 ])
 
-
 # ==========================================
-# 🌐 MOTOR DE PREÇO (ROBUSTO)
+# 🌐 MOTOR DE PREÇO
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_preco_cripto(ticker):
     try:
         t = str(ticker).strip().upper()
-
         ticker_yf = f"{t}-BRL" if "-" not in t else t.replace(" ", "")
 
         data = yf.download(
@@ -371,41 +364,35 @@ def buscar_preco_cripto(ticker):
         )
 
         if not data.empty:
-            try:
-                if "Close" in data.columns:
-                    return float(data["Close"].iloc[-1])
-
-                elif isinstance(data.columns, pd.MultiIndex):
-                    return float(data["Close"].iloc[-1].values[0])
-            except:
-                return None
+            if "Close" in data.columns:
+                return float(data["Close"].iloc[-1])
+            elif isinstance(data.columns, pd.MultiIndex):
+                return float(data["Close"].iloc[-1].values[0])
 
         return None
-
     except:
         return None
-
 
 # ==========================================
 # ⚡ BUSCA PARALELA
 # ==========================================
 def buscar_precos_em_lote(tickers):
     resultados = {}
-
     with ThreadPoolExecutor(max_workers=5) as executor:
-        futuros = {
-            executor.submit(buscar_preco_cripto, t): t for t in tickers
-        }
-
+        futuros = {executor.submit(buscar_preco_cripto, t): t for t in tickers}
         for futuro in as_completed(futuros):
             ticker = futuros[futuro]
             try:
                 resultados[ticker] = futuro.result()
             except:
                 resultados[ticker] = None
-
     return resultados
 
+# ==========================================
+# 🔒 CONSTANTES (ANTI-ERRO DE COLUNA)
+# ==========================================
+COL_CUSTO = "Custo_Total"
+COL_TOTAL = "Total_Atualizado"
 
 # ==========================================
 # 💰 ABA CRIPTO
@@ -413,7 +400,6 @@ def buscar_precos_em_lote(tickers):
 with tab_cripto:
 
     if not df_g.empty:
-
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
 
         if not criptos.empty:
@@ -421,7 +407,6 @@ with tab_cripto:
             # =========================
             # PIPELINE
             # =========================
-
             def padronizar_colunas(df):
                 mapa = {
                     "Custo_Pos": "Custo_Total",
@@ -434,20 +419,18 @@ with tab_cripto:
                 df = df.rename(columns=mapa)
                 return df.loc[:, ~df.columns.duplicated()]
 
-
             def validar_dados(df):
-                obrigatorias = ["Ticker", "Custo_Total", "Qtd", "Preço"]
+                obrigatorias = ["Ticker", COL_CUSTO, "Qtd", "Preço"]
                 faltando = [c for c in obrigatorias if c not in df.columns]
                 if faltando:
                     raise ValueError(f"Colunas ausentes: {faltando}")
                 return df
 
-
             def tratar_tipos(df):
                 if "Preco_Medio" not in df.columns:
                     df["Preco_Medio"] = 0
 
-                cols = ["Custo_Total", "Qtd", "Preço", "Preco_Medio"]
+                cols = [COL_CUSTO, "Qtd", "Preço", "Preco_Medio"]
 
                 for c in cols:
                     if c in df.columns:
@@ -455,7 +438,6 @@ with tab_cripto:
 
                 df[cols] = df[cols].fillna(0)
                 return df
-
 
             def atualizar_precos(df):
                 tickers = df["Ticker"].tolist()
@@ -466,7 +448,6 @@ with tab_cripto:
 
                 for _, row in df.iterrows():
                     preco_live = mapa_precos.get(row["Ticker"])
-
                     if preco_live is None:
                         preco_live = row["Preço"]
 
@@ -474,22 +455,19 @@ with tab_cripto:
                     totais.append(preco_live * row["Qtd"])
 
                 df["Preço_Atualizado"] = precos
-                df["Total_Atualizado"] = totais
+                df[COL_TOTAL] = totais
 
                 return df
-
 
             def calcular_metricas(df):
-                df["L/P (R$)"] = df["Total_Atualizado"] - df["Custo_Total"]
+                df["L/P (R$)"] = df[COL_TOTAL] - df[COL_CUSTO]
 
                 df["L/P (%)"] = df.apply(
-                    lambda r: (r["L/P (R$)"] / r["Custo_Total"] * 100)
-                    if pd.notna(r["Custo_Total"]) and r["Custo_Total"] > 0 else 0,
+                    lambda r: (r["L/P (R$)"] / r[COL_CUSTO] * 100)
+                    if pd.notna(r[COL_CUSTO]) and r[COL_CUSTO] > 0 else 0,
                     axis=1
                 )
-
                 return df
-
 
             def preparar_dados_cripto(df):
                 df = padronizar_colunas(df)
@@ -499,7 +477,6 @@ with tab_cripto:
                 df = calcular_metricas(df)
                 return df
 
-
             # =========================
             # EXECUÇÃO
             # =========================
@@ -507,23 +484,14 @@ with tab_cripto:
                 df_final = preparar_dados_cripto(criptos)
 
                 df_view = df_final[
-                    [
-                        "Ticker",
-                        "Qtd",
-                        "Preco_Medio",
-                        "Preço_Atualizado",
-                        "Total_Atualizado",
-                        "L/P (R$)",
-                        "L/P (%)",
-                    ]
+                    ["Ticker", "Qtd", "Preco_Medio", "Preço_Atualizado", COL_TOTAL, "L/P (R$)", "L/P (%)"]
                 ].copy()
 
                 df_view.rename(columns={
                     "Preco_Medio": "PM Unitário",
                     "Preço_Atualizado": "Preço Atual",
-                    "Total_Atualizado": "Patrimônio (R$)"
+                    COL_TOTAL: "Patrimônio (R$)"
                 }, inplace=True)
-
 
                 def formatar_dinheiro(v):
                     try:
@@ -531,20 +499,25 @@ with tab_cripto:
                     except:
                         return "R$ 0,00"
 
-
                 df_view["PM Unitário"] = df_view["PM Unitário"].apply(formatar_dinheiro)
                 df_view["Preço Atual"] = df_view["Preço Atual"].apply(formatar_dinheiro)
                 df_view["Patrimônio (R$)"] = df_view["Patrimônio (R$)"].apply(formatar_dinheiro)
 
-                # Se essas funções não existirem, comente:
-                # df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
-                # df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
-                # df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
-
                 st.dataframe(df_view, hide_index=True, use_container_width=True)
 
+                # =========================
+                # 🧮 RESUMO GLOBAL (CORRIGIDO)
+                # =========================
+                df_v_filt = df_final.copy()
+
+                total_glob = df_v_filt[COL_TOTAL].sum()
+                total_inv = df_v_filt[COL_CUSTO].sum()
+
+                st.metric("💰 Patrimônio Total", formatar_dinheiro(total_glob))
+                st.metric("📥 Total Investido", formatar_dinheiro(total_inv))
+
             except Exception as e:
-                st.error(f"Erro estrutural nos dados: {e}")
+                st.error(f"Erro estrutural: {e}")
 # =============================================================================
 # 📑 9. ABAS DO SISTEMA (AS 14 ABAS COMPLETAS)
 # =============================================================================
