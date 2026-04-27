@@ -103,100 +103,69 @@ def formatar_delta(valor, is_percent=False):
         return f"⚪ {prefix}0.00{suffix}"
     except: return "-"
 
-# =============================================================================
-# 📡 4. NOVO MOTOR DE BUSCA YFINANCE + BINANCE
-# =============================================================================
-def _yf_fetch_full(ticker: str):
-    """Busca o preço e a variação diária via YFinance contornando o bloqueio do Yahoo"""
+# --- MOTOR ESPECIALISTA PARA FIIS ---
+def _motor_fii_br(ticker):
+    rend = p_vp = 0.0
+    dy = "0,00%"
     try:
-        data = yf.download(ticker, period="5d", interval="1d", progress=False, auto_adjust=True)
-        if data is None or data.empty: return 0.0, 0.0
-        
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
-            
-        if "Close" not in data.columns: return 0.0, 0.0
-        
-        close = data["Close"].dropna()
-        if close.empty: return 0.0, 0.0
-        
-        preco = float(close.iloc[-1])
-        var_dia = 0.0
-        if len(close) > 1:
-            preco_ant = float(close.iloc[-2])
-            if preco_ant > 0:
-                var_dia = ((preco / preco_ant) - 1) * 100
-                
-        return preco, var_dia
-    except:
-        return 0.0, 0.0
+        url = f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}"
+        # Header disfarçado de navegador real para evitar bloqueios
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0'}
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
+            for div in soup.find_all("div", class_="info"):
+                label = div.get_text().lower()
+                val_tag = div.find("strong", class_="value")
+                if val_tag:
+                    val_txt = val_tag.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", ".").strip()
+                    if "p/vp" in label: p_vp = _safe_float(val_txt)
+                    elif "último rendimento" in label or "rendimento" in label: rend = _safe_float(val_txt)
+                    elif "dividend yield" in label: dy = val_tag.get_text(strip=True)
+    except: pass
+    return rend, p_vp, dy
 
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
     is_us = (categoria_sugerida == "Exterior (EUA)")
+    is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
     
-    if categoria_sugerida in ["Ações", "Acao", "BDR"]: is_fii = False
-    else: is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
-        
-    if is_crypto: categoria = "Criptomoedas"
-    elif is_us: categoria = "Exterior (EUA)"
-    elif is_fii: categoria = "FIIs"
-    else: categoria = "Ações"
-
-    preco = p_vp = p_l = rend_ultimo = 0.0
-    variacao_dia = 0.0
+    categoria = "Criptomoedas" if is_crypto else ("Exterior (EUA)" if is_us else ("FIIs" if is_fii else "Ações"))
+    preco = variacao_dia = p_vp = p_l = rend_ultimo = 0.0
     dy_12m = "0,00%"
 
-    # 1. MOTOR CRIPTO (Você disse que está perfeito, não mexi)
-    if is_crypto:
-        symbol_binance = ticker.replace("-", "")
-        try:
-            r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_binance}", timeout=4)
-            if r_bin.status_code == 200:
-                data = r_bin.json()
-                preco = _safe_float(data.get("lastPrice"))
-                variacao_dia = _safe_float(data.get("priceChangePercent"))
-        except: pass
-        if preco == 0.0:
-            preco, variacao_dia = _yf_fetch_full(ticker)
+    # 1. PREÇO E VARIAÇÃO (YAHOO)
+    symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
+    preco, variacao_dia = _yf_fetch_full(symbol)
 
-    # 2. MOTOR AÇÕES/FIIS PREÇO (Você disse que está perfeito, não mexi)
+    # 2. DADOS ESPECÍFICOS DE FIIS (Motor Independente)
+    if is_fii:
+        rend_f, pvp_f, dy_f = _motor_fii_br(ticker)
+        rend_ultimo, p_vp, dy_12m = rend_f, pvp_f, dy_f
+    
+    # 3. DADOS DE AÇÕES E CRIPTO (Yahoo)
     else:
-        symbol = ticker if is_us else f"{ticker}.SA"
-        preco, variacao_dia = _yf_fetch_full(symbol)
-        
         try:
             tk = yf.Ticker(symbol)
             info = tk.info
-            if info:
-                p_vp = _safe_float(info.get('priceToBook', 0))
-                p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
-                dy_raw = _safe_float(info.get('dividendYield', 0))
-                if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
-            
-            divs = tk.dividends
-            if not divs.empty:
-                rend_ultimo = _safe_float(divs.iloc[-1])
+            p_vp = _safe_float(info.get('priceToBook', 0))
+            p_l = _safe_float(info.get('trailingPE', 0))
+            dy_raw = _safe_float(info.get('dividendYield', 0))
+            if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-        # =====================================================
-        # 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS (O SEU BLOCO NOVO)
-        # =====================================================
-        if not is_us and not is_crypto:
-            
-            # 🟢 O SALVADOR DO FII: Pula a letra "R$" e pega só o número do rendimento
-            if is_fii and rend_ultimo == 0.0:
-                try:
-                    r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                    if r_si.status_code == 200:
-                        import re
-                        # A MÁGICA: [^0-9]* faz o sistema ignorar o "R$ " e focar no número (ex: 0,10)
-                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', r_si.text, re.IGNORECASE | re.DOTALL)
-                        if m_rend: 
-                            rend_ultimo = _safe_float(m_rend.group(1).replace(".", "").replace(",", "."))
-                except: pass
+    # 4. CONSOLIDAÇÃO
+    if preco > 0 or is_crypto:
+        dy_m = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
+        return {
+            "Ticker": ticker, "Categoria": categoria, "Preço": preco, 
+            "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m:.2f}%", 
+            "Rend": rend_ultimo, "P_VP": p_vp, "P_L": p_l, 
+            "Status": classificar_ativo(categoria, p_vp, p_l)
+        }
+    return None
 
             # Fallback Fundamentus para P/VP, P/L e DY
             if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
@@ -614,9 +583,11 @@ with tab_fii:
     if not df_g.empty:
         f = df_g[df_g["Categoria"].isin(["FII", "FIIs", "Fiagro"])].copy()
         if not f.empty:
+            # Cálculos de Renda
             f["Rend"] = pd.to_numeric(f["Rend"], errors="coerce").fillna(0)
             f["Renda Mensal"] = f["Qtd"] * f["Rend"]
             
+            # Métricas de topo
             m1, m2, m3, col_pie_fii = st.columns([1,1,1,1.2])
             m1.metric("💰 Patrimônio FIIs", f"R$ {f['Total_Atual'].sum():,.2f}")
             m2.metric("💸 Renda Mensal Est.", f"R$ {f['Renda Mensal'].sum():,.2f}")
@@ -626,13 +597,13 @@ with tab_fii:
             with col_pie_fii:
                 fig_pf = px.pie(f, values="Total_Atual", names="Ticker", hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
                 fig_pf.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
-                fig_pf.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, uniformtext_minsize=12, uniformtext_mode='hide')
+                fig_pf.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False)
                 st.plotly_chart(fig_pf, use_container_width=True)
 
+            # Preparação da Tabela
             f["L/P (R$)"] = f["Total_Atual"] - f["Custo_Pos"]
             f["L/P (%)"] = f.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
             
-            # COLUNAS ATUALIZADAS
             df_vf = f[["Ticker","Setor","Qtd","Preco_Medio","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","P_VP","Rend","Renda Mensal","DY_12M","DY_Mensal","Status"]].copy()
             
             df_vf.rename(columns={
@@ -645,6 +616,7 @@ with tab_fii:
                 "DY_Mensal":"DY Mensal"
             }, inplace=True)
             
+            # Formatação
             df_vf["Var. Dia %"] = df_vf["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
             df_vf["L/P (R$)"] = df_vf["L/P (R$)"].apply(formatar_delta)
             df_vf["L/P (%)"] = df_vf["L/P (%)"].apply(lambda x: formatar_delta(x, True))
