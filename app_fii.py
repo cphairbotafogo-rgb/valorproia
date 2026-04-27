@@ -626,50 +626,50 @@ with tab_cripto:
                 )
                 return df
 
-           # ==========================================
-            # 🚀 PIPELINE
+          # ==========================================
+            # 🚀 PIPELINE E FORMATAÇÃO (Tudo junto e seguro)
             # ==========================================
             try:
+                # 1. Roda a máquina
                 criptos = padronizar_colunas(criptos)
                 criptos = validar_dados(criptos)
                 criptos = tratar_tipos(criptos)
                 criptos = atualizar_precos(criptos)
                 criptos = calcular(criptos)
 
+                # 2. Se a máquina funcionou sem erros, desenha a tabela!
+                df_view = criptos[[
+                    "Ticker",
+                    "Qtd",
+                    "Preco_Medio",
+                    "Preço Atual",
+                    "Patrimônio Atual",
+                    "L/P (R$)",
+                    "L/P (%)"
+                ]].copy()
+
+                df_view.rename(columns={
+                    "Preco_Medio": "PM Unitário"
+                }, inplace=True)
+
+                def formata_dinheiro(v):
+                    try:
+                        return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    except:
+                        return "R$ 0,00"
+
+                df_view["PM Unitário"] = df_view["PM Unitário"].apply(formata_dinheiro)
+                df_view["Preço Atual"] = df_view["Preço Atual"].apply(formata_dinheiro)
+                df_view["Patrimônio Atual"] = df_view["Patrimônio Atual"].apply(formata_dinheiro)
+                df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
+                df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+                df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
+
+                st.dataframe(df_view, hide_index=True, use_container_width=True)
+
             except Exception as e:
-                st.error(f"Erro nos dados: {e}")
-              
-            # ==========================================
-            # 🎨 FORMATAÇÃO
-            # ==========================================
-            df_view = criptos[[
-                "Ticker",
-                "Qtd",
-                "Preco_Medio",
-                "Preço Atual",
-                "Patrimônio Atual",
-                "L/P (R$)",
-                "L/P (%)"
-            ]].copy()
-
-            df_view.rename(columns={
-                "Preco_Medio": "PM Unitário"
-            }, inplace=True)
-
-            def formata_dinheiro(v):
-                try:
-                    return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                except:
-                    return "R$ 0,00"
-
-            df_view["PM Unitário"] = df_view["PM Unitário"].apply(formata_dinheiro)
-            df_view["Preço Atual"] = df_view["Preço Atual"].apply(formata_dinheiro)
-            df_view["Patrimônio Atual"] = df_view["Patrimônio Atual"].apply(formata_dinheiro)
-            df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
-            df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
-            df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
-
-            st.dataframe(df_view, hide_index=True, use_container_width=True)
+                # Se algo falhar, ele exibe a mensagem e NÃO tenta desenhar a tabela!
+                st.error(f"⚠️ Falha nos dados de Criptomoedas: {e}")
 
                 
 # --- ABA 7: DIVIDENDOS ---
