@@ -325,19 +325,22 @@ import pandas as pd
 import yfinance as yf
 import streamlit as st 
 
+# =======================================================
+# 🌐 MOTOR CRIPTO BLINDADO (YAHOO FINANCE)
+# =======================================================
 @st.cache_data(ttl=60, show_spinner=False)
-def buscar_preco_binance(ticker):
+def buscar_preco_cripto(ticker):
     try:
-        import requests
+        import yfinance as yf
         ticker = str(ticker).strip().upper()
-        # Converte "ETH-BRL" para "ETHBRL"
-        simbolo = ticker.replace("-", "") if "-" in ticker else f"{ticker}BRL"
+        ticker_yf = ticker if "-" in ticker else f"{ticker}-BRL"
         
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={simbolo}"
-        resposta = requests.get(url, timeout=5)
+        # O SEGREDINHO: actions=False impede o erro de dividendos nas criptos!
+        ativo = yf.Ticker(ticker_yf)
+        df_hist = ativo.history(period="1d", actions=False, auto_adjust=False)
         
-        if resposta.status_code == 200:
-            return float(resposta.json()["price"])
+        if not df_hist.empty:
+            return float(df_hist['Close'].iloc[-1])
         return None
     except:
         return None
@@ -619,7 +622,7 @@ with tab_cripto:
 
                 for _, row in df.iterrows():
                     # 👇 AQUI ESTÁ A MUDANÇA: Usando o motor da Binance!
-                    preco_live = buscar_preco_binance(row["Ticker"])
+                    preco_live = buscar_preco_cripto(row["Ticker"])
 
                     if preco_live is None:
                         preco_live = row["Preço"]
