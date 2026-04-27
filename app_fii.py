@@ -617,11 +617,28 @@ with tab_fii:
                 fig_pf.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, uniformtext_minsize=12, uniformtext_mode='hide')
                 st.plotly_chart(fig_pf, use_container_width=True)
 
-            f["L/P (R$)"] = f["Total_Atual"] - f["Custo_Pos"]; f["L/P (%)"] = f.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
-            df_vf = f[["Ticker","Setor","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)","Rend","Renda Mensal","DY_12M"]].copy()
-            df_vf.rename(columns={"Preco_Medio":"PM (R$)","Preço":"Atual","Total_Atual":"Patrimônio","Rend":"Rend/Cota"}, inplace=True)
-            df_vf["L/P (R$)"] = df_vf["L/P (R$)"].apply(formatar_delta); df_vf["L/P (%)"] = df_vf["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+            f["L/P (R$)"] = f["Total_Atual"] - f["Custo_Pos"]
+            f["L/P (%)"] = f.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
+            
+            # 🟢 AQUI: Colocamos de volta o Var_Dia, P_VP, DY_Mensal e Status!
+            df_vf = f[["Ticker","Setor","Qtd","Preco_Medio","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","P_VP","Rend","Renda Mensal","DY_12M","DY_Mensal","Status"]].copy()
+            
+            df_vf.rename(columns={
+                "Preco_Medio":"PM (R$)",
+                "Preço":"Atual",
+                "Var_Dia":"Var. Dia %",
+                "Total_Atual":"Patrimônio",
+                "Rend":"Rend/Cota",
+                "P_VP":"P/VP",
+                "DY_12M":"DY 12M",
+                "DY_Mensal":"DY Mensal"
+            }, inplace=True)
+            
+            df_vf["Var. Dia %"] = df_vf["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
+            df_vf["L/P (R$)"] = df_vf["L/P (R$)"].apply(formatar_delta)
+            df_vf["L/P (%)"] = df_vf["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_vf["Qtd"] = df_vf["Qtd"].apply(formatar_qtd)
+            
             st.dataframe(df_vf, hide_index=True, use_container_width=True)
         else: st.info("Nenhum FII registrado.")
     else: st.info("Sua carteira está vazia.")
@@ -642,11 +659,27 @@ with tab_aco:
                 fig_pa.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, uniformtext_minsize=12, uniformtext_mode='hide')
                 st.plotly_chart(fig_pa, use_container_width=True)
 
-            a["L/P (R$)"] = a["Total_Atual"] - a["Custo_Pos"]; a["L/P (%)"] = a.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
-            df_va = a[["Ticker","Setor","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)","DY_12M"]].copy()
-            df_va.rename(columns={"Preco_Medio":"PM (R$)","Preço":"Atual","Total_Atual":"Patrimônio"}, inplace=True)
-            df_va["L/P (R$)"] = df_va["L/P (R$)"].apply(formatar_delta); df_va["L/P (%)"] = df_va["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+            a["L/P (R$)"] = a["Total_Atual"] - a["Custo_Pos"]
+            a["L/P (%)"] = a.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
+            
+            # 🟢 AQUI: Colocamos de volta Var_Dia, P_VP, P_L e Status!
+            df_va = a[["Ticker","Setor","Qtd","Preco_Medio","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","P_VP","P_L","DY_12M","Status"]].copy()
+            
+            df_va.rename(columns={
+                "Preco_Medio":"PM (R$)",
+                "Preço":"Atual",
+                "Var_Dia":"Var. Dia %",
+                "Total_Atual":"Patrimônio",
+                "P_VP":"P/VP",
+                "P_L":"P/L",
+                "DY_12M":"DY 12M"
+            }, inplace=True)
+            
+            df_va["Var. Dia %"] = df_va["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
+            df_va["L/P (R$)"] = df_va["L/P (R$)"].apply(formatar_delta)
+            df_va["L/P (%)"] = df_va["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_va["Qtd"] = df_va["Qtd"].apply(formatar_qtd)
+            
             st.dataframe(df_va, hide_index=True, use_container_width=True)
         else: st.info("Nenhuma Ação registrada.")
     else: st.info("Sua carteira está vazia.")
@@ -656,6 +689,9 @@ with tab_ext:
     if not df_g.empty:
         ext = df_g[df_g["Categoria"] == "Exterior (EUA)"].copy()
         if not ext.empty:
+            # Garante que o Status e Var_Dia não fiquem vazios caso a API demore
+            ext.fillna({"Status": "🌎 Global", "Var_Dia": 0.0}, inplace=True)
+            
             m1, m2, col_vaz, col_pie_ext = st.columns([1,1,1,1.2])
             m1.metric("🌎 Patrimônio EUA", f"R$ {ext['Total_Atual'].sum():,.2f}")
             lp_ext = (ext["Total_Atual"] - ext["Custo_Pos"]).sum(); ct_ext = ext["Custo_Pos"].sum()
@@ -667,11 +703,25 @@ with tab_ext:
                 fig_ext.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, uniformtext_minsize=12, uniformtext_mode='hide')
                 st.plotly_chart(fig_ext, use_container_width=True)
 
-            ext["L/P (R$)"] = ext["Total_Atual"] - ext["Custo_Pos"]; ext["L/P (%)"] = ext.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
-            df_vext = ext[["Ticker","Setor","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
-            df_vext.rename(columns={"Preco_Medio":"PM (R$)","Preço":"Atual (R$)","Total_Atual":"Patrimônio (R$)"}, inplace=True)
-            df_vext["L/P (R$)"] = df_vext["L/P (R$)"].apply(formatar_delta); df_vext["L/P (%)"] = df_vext["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+            ext["L/P (R$)"] = ext["Total_Atual"] - ext["Custo_Pos"]
+            ext["L/P (%)"] = ext.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
+            
+            # 🟢 RESTAURANDO AS COLUNAS: Var_Dia e Status
+            df_vext = ext[["Ticker","Setor","Qtd","Preco_Medio","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","Status"]].copy()
+            
+            df_vext.rename(columns={
+                "Preco_Medio":"PM (R$)",
+                "Preço":"Atual (R$)",
+                "Var_Dia":"Var. Dia %",
+                "Total_Atual":"Patrimônio (R$)"
+            }, inplace=True)
+            
+            # Formatação visual das cores (Verde/Vermelho)
+            df_vext["Var. Dia %"] = df_vext["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
+            df_vext["L/P (R$)"] = df_vext["L/P (R$)"].apply(formatar_delta)
+            df_vext["L/P (%)"] = df_vext["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_vext["Qtd"] = df_vext["Qtd"].apply(formatar_qtd)
+            
             st.dataframe(df_vext, hide_index=True, use_container_width=True)
         else: st.info("Nenhuma Ação do Exterior registrada.")
     else: st.info("Sua carteira está vazia.")
