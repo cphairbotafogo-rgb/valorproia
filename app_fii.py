@@ -176,65 +176,37 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
         except: pass
 
         if not is_us and not is_crypto:
-            if is_fii or p_vp == 0.0 or p_l == 0.0:
-                try:
-                    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-                    url_cat = "fundos-imobiliarios" if is_fii else "acoes"
-                    r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+            try:
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+                url_cat = "fundos-imobiliarios" if is_fii else "acoes"
+                r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+                
+                if r3.status_code == 200:
+                    soup = BeautifulSoup(r3.text, "html.parser")
                     
-                    if r3.status_code == 200:
-                        soup = BeautifulSoup(r3.text, "html.parser")
-                        
-                        # 🟢 O NOVO RASTREADOR INFALÍVEL PARA FIIS
-                        def _ext_text(termos):
-                            for tag in soup.find_all(True):
-                                tag_title = tag.get('title', '').lower()
-                                tag_text = tag.get_text(strip=True).lower()
-                                # Checa tanto o texto invisível (title) quanto o texto visível
-                                if any(t in tag_title for t in termos) or any(t == tag_text for t in termos):
-                                    strong = tag.find_next("strong")
-                                    if strong: return strong.get_text(strip=True)
-                            return ""
+                    def _ext_text(termos):
+                        for tag in soup.find_all(True):
+                            t_title = tag.get('title', '').lower()
+                            t_text = tag.get_text(strip=True).lower()
+                            if any(t in t_title for t in termos) or any(t == t_text for t in termos):
+                                s = tag.find("strong")
+                                if not s: s = tag.find_next("strong")
+                                if s: return s.get_text(strip=True)
+                        return ""
 
-                        def _ext_val(termos):
-                            res = _ext_text(termos)
-                            return _safe_float(res.replace("R$", "").replace("%", "").replace(".", "").replace(",", ".")) if res else 0.0
-                        
-                        if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
-                        if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
-                        if p_l == 0.0: p_l = _ext_val(["p/l"])
-                        
-                        if rend_ultimo == 0.0: 
-                            rend_ultimo = _ext_val(["último rendimento", "ultimo rendimento", "último rend."])
-                        
-                        if dy_12m == "0,00%" or dy_12m == "-":
-                            dy_str = _ext_text(["dividend yield", "dy"])
-                            if dy_str: dy_12m = dy_str if "%" in dy_str else f"{dy_str}%"
-                except: pass
-
-            if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
-                try:
-                    url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                    if r4.status_code == 200:
-                        soup_f = BeautifulSoup(r4.text, "html.parser")
-                        def _ext_fund(label):
-                            span = soup_f.find("span", string=label)
-                            if span:
-                                td_val = span.find_parent("td").find_next_sibling("td")
-                                if td_val: return td_val.get_text(strip=True)
-                            return ""
-                        
-                        if p_vp == 0.0: 
-                            val = _ext_fund("P/VP")
-                            if val: p_vp = _safe_float(val.replace("%", "").replace(".", "").replace(",", "."))
-                        if p_l == 0.0: 
-                            val = _ext_fund("P/L")
-                            if val: p_l = _safe_float(val.replace("%", "").replace(".", "").replace(",", "."))
-                        if dy_12m == "0,00%" or dy_12m == "-":
-                            val = _ext_fund("Div. Yield")
-                            if val: dy_12m = val if "%" in val else f"{val}%"
-                except: pass
+                    def _ext_val(termos):
+                        res = _ext_text(termos)
+                        return _safe_float(res.replace("R$", "").replace("%", "").replace(".", "").replace(",", ".")) if res else 0.0
+                    
+                    if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
+                    p_vp = _ext_val(["p/vp", "vpa"])
+                    p_l = _ext_val(["p/l"])
+                    # Busca rendimento com termos mais amplos
+                    rend_ultimo = _ext_val(["rendimento", "último rendimento", "rend. mensal"])
+                    
+                    dy_str = _ext_text(["dividend yield", "dy"])
+                    if dy_str: dy_12m = dy_str if "%" in dy_str else f"{dy_str}%"
+            except: pass
 
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
@@ -650,7 +622,7 @@ with tab_fii:
             f["L/P (R$)"] = f["Total_Atual"] - f["Custo_Pos"]
             f["L/P (%)"] = f.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
             
-            # 🟢 AQUI: Colocamos de volta o Var_Dia, P_VP, DY_Mensal e Status!
+            # COLUNAS ATUALIZADAS
             df_vf = f[["Ticker","Setor","Qtd","Preco_Medio","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","P_VP","Rend","Renda Mensal","DY_12M","DY_Mensal","Status"]].copy()
             
             df_vf.rename(columns={
@@ -659,7 +631,6 @@ with tab_fii:
                 "Var_Dia":"Var. Dia %",
                 "Total_Atual":"Patrimônio",
                 "Rend":"Rend/Cota",
-                "P_VP":"P/VP",
                 "DY_12M":"DY 12M",
                 "DY_Mensal":"DY Mensal"
             }, inplace=True)
