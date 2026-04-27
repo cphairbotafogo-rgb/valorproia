@@ -150,10 +150,11 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     dy_12m = "0,00%"
 
     # =====================================================
-    # 1. MOTOR CRIPTO
+    # 1. MOTOR EXCLUSIVO E BLINDADO PARA CRIPTOMOEDAS
     # =====================================================
     if is_crypto:
         symbol_binance = ticker.replace("-", "")
+        # Usando a API de Dados Pública da Binance (não sofre bloqueio na Nuvem)
         try:
             r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_binance}", timeout=4)
             if r_bin.status_code == 200:
@@ -161,17 +162,18 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 preco = _safe_float(data.get("lastPrice"))
                 variacao_dia = _safe_float(data.get("priceChangePercent"))
         except: pass
+        
+        # Se a Binance falhar por qualquer motivo, o Yahoo Finance entra em ação imediatamente
         if preco == 0.0:
             preco, variacao_dia = _yf_fetch_full(ticker)
 
     # =====================================================
-    # 2. MOTOR AÇÕES E FIIS (COM DIVIDENDOS NATIVOS YAHOO)
+    # 2. MOTOR PARA AÇÕES, FIIS E EUA (YFINANCE)
     # =====================================================
     else:
         symbol = ticker if is_us else f"{ticker}.SA"
         preco, variacao_dia = _yf_fetch_full(symbol)
         
-        # Puxa P/VP, P/L, e Rendimentos direto da fonte segura do Yahoo
         try:
             tk = yf.Ticker(symbol)
             info = tk.info
@@ -180,37 +182,58 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
                 dy_raw = _safe_float(info.get('dividendYield', 0))
                 if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
-            
-            # A MÁGICA DOS FIIS: Pega o último rendimento do histórico do Yahoo (Imune a bloqueios)
-            divs = tk.dividends
-            if not divs.empty:
-                rend_ultimo = _safe_float(divs.iloc[-1])
         except: pass
 
-        # =====================================================
-        # 3. FALLBACK FUNDAMENTUS (Leve e não bloqueia)
-        # =====================================================
-        if not is_us and not is_crypto:
-            if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
-                try:
-                    url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=4)
-                    if r4.status_code == 200:
-                        import re
-                        html = r4.text
-                        if p_vp == 0.0:
-                            m = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                            if m: p_vp = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-                        if p_l == 0.0:
-                            m = re.search(r'P/L.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                            if m: p_l = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-                        if dy_12m == "0,00%":
-                            m = re.search(r'Div. Yield.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+%)', html, re.IGNORECASE | re.DOTALL)
-                            if m: dy_12m = m.group(1)
-                except: pass
+        # 3. FALLBACK STATUSINVEST E FUNDAMENTUS (Sempre busca se faltar P/VP ou P/L)
+    if not is_us and not is_crypto and (preco == 0.0 or p_vp == 0.0 or p_l == 0.0 or is_fii):
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            url_cat = "fundos-imobiliarios" if is_fii else "acoes"
+            r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+            if r3.status_code == 200:
+                soup = BeautifulSoup(r3.text, "html.parser")
+                def _ext_val(termos):
+                    for tag in soup.find_all(["h3", "span", "div"]):
+                        texto_tag = tag.get_text(strip=True).lower()
+                        # 🟢 A mudança focada no FII: acha o texto mesmo se estiver camuflado
+                        if any(t in texto_tag for t in termos):
+                            strong = tag.find_next("strong")
+                            if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
+                    return 0.0
+                
+                if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
+                if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
+                if p_l == 0.0: p_l = _ext_val(["p/l"])
+                if rend_ultimo == 0.0: rend_ultimo = _ext_val(["último rendimento", "rendimento"])
+                
+                if dy_12m == "0,00%" or dy_12m == "-":
+                    for tag in soup.find_all(["h3", "span", "div"]):
+                        if "dividend yield" in tag.get_text(strip=True).lower() or "dy" == tag.get_text(strip=True).lower():
+                            strong = tag.find_next("strong")
+                            if strong: 
+                                val_str = strong.get_text(strip=True)
+                                dy_12m = val_str if "%" in val_str else f"{val_str}%"
+                                break
+        except: pass
+
+        if p_vp == 0.0 or p_l == 0.0:
+            try:
+                url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
+                r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                if r4.status_code == 200:
+                    soup_f = BeautifulSoup(r4.text, "html.parser")
+                    def _ext_fund(label):
+                        span = soup_f.find("span", string=label)
+                        if span:
+                            td_val = span.find_parent("td").find_next_sibling("td")
+                            if td_val: return _safe_float(td_val.get_text(strip=True).replace("%", "").replace(".", "").replace(",", "."))
+                        return 0.0
+                    if p_vp == 0.0: p_vp = _ext_fund("P/VP")
+                    if p_l == 0.0: p_l = _ext_fund("P/L")
+            except: pass
 
     # =====================================================
-    # 4. CONSOLIDA E RETORNA
+    # 4. CONSOLIDA E RETORNA OS DADOS
     # =====================================================
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
@@ -233,6 +256,7 @@ def buscar_multiplos(itens):
             res = fut.result()
             if res: resultados.append(res)
     return resultados
+s
 
 # =============================================================================
 # 🔒 5. BLOQUEIO FREEMIUM E TELA DE LOGIN
