@@ -131,95 +131,70 @@ def _yf_fetch_full(ticker: str):
     except:
         return 0.0, 0.0
 
+# --- 1. MOTOR EXCLUSIVO PARA FIIS (O "ESPECIALISTA") ---
+def _motor_fii_especifico(ticker):
+    rend = p_vp = 0.0
+    dy = "0,00%"
+    try:
+        url = f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            # Varre as caixinhas de info do StatusInvest (onde ficam os números)
+            for div in soup.find_all("div", class_="info"):
+                label = div.get_text().lower()
+                val_tag = div.find("strong", class_="value")
+                if val_tag:
+                    val_txt = val_tag.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", ".").strip()
+                    if "p/vp" in label: p_vp = _safe_float(val_txt)
+                    elif "último rendimento" in label or "rendimento" in label: rend = _safe_float(val_txt)
+                    elif "dividend yield" in label: dy = val_tag.get_text(strip=True)
+    except: pass
+    return rend, p_vp, dy
+
+# --- 2. FUNÇÃO PRINCIPAL ---
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
     is_us = (categoria_sugerida == "Exterior (EUA)")
+    is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
     
-    if categoria_sugerida in ["Ações", "Acao", "BDR"]: is_fii = False
-    else: is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
-        
     if is_crypto: categoria = "Criptomoedas"
     elif is_us: categoria = "Exterior (EUA)"
     elif is_fii: categoria = "FIIs"
     else: categoria = "Ações"
 
-    preco = p_vp = p_l = rend_ultimo = 0.0
-    variacao_dia = 0.0
+    preco = variacao_dia = p_vp = p_l = rend_ultimo = 0.0
     dy_12m = "0,00%"
 
-    # 1. MOTOR CRIPTO (Você disse que está perfeito, não mexi)
-    if is_crypto:
-        symbol_binance = ticker.replace("-", "")
-        try:
-            r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_binance}", timeout=4)
-            if r_bin.status_code == 200:
-                data = r_bin.json()
-                preco = _safe_float(data.get("lastPrice"))
-                variacao_dia = _safe_float(data.get("priceChangePercent"))
-        except: pass
-        if preco == 0.0:
-            preco, variacao_dia = _yf_fetch_full(ticker)
+    # PREÇO E VARIAÇÃO (Sempre via Yahoo)
+    symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
+    preco, variacao_dia = _yf_fetch_full(symbol)
 
-    # 2. MOTOR AÇÕES/FIIS PREÇO (Você disse que está perfeito, não mexi)
-    else:
-        symbol = ticker if is_us else f"{ticker}.SA"
-        preco, variacao_dia = _yf_fetch_full(symbol)
+    # LÓGICA DE FIIS (Usa o Motor Especialista)
+    if is_fii:
+        rend_fii, pvp_fii, dy_fii = _motor_fii_especifico(ticker)
+        rend_ultimo = rend_fii
+        p_vp = pvp_fii
+        dy_12m = dy_fii if dy_fii else "0,00%"
         
+    # LÓGICA DE AÇÕES E CRIPTO (Usa o Yahoo nativo)
+    else:
         try:
             tk = yf.Ticker(symbol)
             info = tk.info
-            if info:
-                p_vp = _safe_float(info.get('priceToBook', 0))
-                p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
-                dy_raw = _safe_float(info.get('dividendYield', 0))
-                if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
-            
-            divs = tk.dividends
-            if not divs.empty:
-                rend_ultimo = _safe_float(divs.iloc[-1])
+            p_vp = _safe_float(info.get('priceToBook', 0))
+            p_l = _safe_float(info.get('trailingPE', 0))
+            dy_raw = _safe_float(info.get('dividendYield', 0))
+            if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-        # =====================================================
-        # 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS (O SEU BLOCO NOVO)
-        # =====================================================
-        if not is_us and not is_crypto:
-            
-            # 🟢 O SALVADOR DO FII: Pula a letra "R$" e pega só o número do rendimento
-            if is_fii and rend_ultimo == 0.0:
-                try:
-                    r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                    if r_si.status_code == 200:
-                        import re
-                        # A MÁGICA: [^0-9]* faz o sistema ignorar o "R$ " e focar no número (ex: 0,10)
-                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', r_si.text, re.IGNORECASE | re.DOTALL)
-                        if m_rend: 
-                            rend_ultimo = _safe_float(m_rend.group(1).replace(".", "").replace(",", "."))
-                except: pass
-
-            # Fallback Fundamentus para P/VP, P/L e DY
-            if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
-                try:
-                    url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                    if r4.status_code == 200:
-                        import re
-                        html = r4.text
-                        if p_vp == 0.0:
-                            m = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                            if m: p_vp = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-                        if p_l == 0.0:
-                            m = re.search(r'P/L.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                            if m: p_l = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-                        if dy_12m == "0,00%":
-                            m = re.search(r'Div. Yield.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+%)', html, re.IGNORECASE | re.DOTALL)
-                            if m: dy_12m = m.group(1)
-                except: pass
-
-    # 4. CONSOLIDA E RETORNA
-    if preco > 0.0 or is_crypto:
-        dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
+    # RETORNO FINAL
+    if preco > 0 or is_crypto:
+        dy_m = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
         return {
             "Ticker": ticker, "Categoria": categoria, "Preço": preco, 
             "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m:.2f}%", 
