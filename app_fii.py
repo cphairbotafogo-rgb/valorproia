@@ -327,7 +327,7 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ==========================================
-# 🧱 MOCK (remova se já vem do Supabase)
+# 🧱 MOCK
 # ==========================================
 if "df_g" not in locals():
     df_g = pd.DataFrame({
@@ -346,16 +346,35 @@ tab_resumo, tab_acoes, tab_fiis, tab_cripto = st.tabs([
 ])
 
 # ==========================================
-# 🌐 MOTOR DE PREÇO
+# 🌐 MOTOR DE PREÇO ROBUSTO
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_preco_cripto(ticker):
     try:
         t = str(ticker).strip().upper()
-        ticker_yf = f"{t}-BRL" if "-" not in t else t.replace(" ", "")
 
+        # 🔹 tenta BRL primeiro
+        ticker_brl = f"{t}-BRL" if "-" not in t else t
+        preco = _buscar_yf(ticker_brl)
+        if preco:
+            return preco
+
+        # 🔹 fallback USD
+        ticker_usd = f"{t}-USD" if "-" not in t else t.replace("BRL", "USD")
+        preco = _buscar_yf(ticker_usd)
+        if preco:
+            return preco
+
+        return None
+
+    except:
+        return None
+
+
+def _buscar_yf(ticker):
+    try:
         data = yf.download(
-            ticker_yf,
+            ticker,
             period="5d",
             interval="1d",
             progress=False,
@@ -366,33 +385,41 @@ def buscar_preco_cripto(ticker):
         if not data.empty:
             if "Close" in data.columns:
                 return float(data["Close"].iloc[-1])
+
             elif isinstance(data.columns, pd.MultiIndex):
                 return float(data["Close"].iloc[-1].values[0])
 
-        return None
     except:
         return None
 
+    return None
+
+
 # ==========================================
-# ⚡ BUSCA PARALELA
+# ⚡ PARALELO
 # ==========================================
 def buscar_precos_em_lote(tickers):
     resultados = {}
+
     with ThreadPoolExecutor(max_workers=5) as executor:
         futuros = {executor.submit(buscar_preco_cripto, t): t for t in tickers}
+
         for futuro in as_completed(futuros):
             ticker = futuros[futuro]
             try:
                 resultados[ticker] = futuro.result()
             except:
                 resultados[ticker] = None
+
     return resultados
 
+
 # ==========================================
-# 🔒 CONSTANTES (ANTI-ERRO DE COLUNA)
+# 🔒 CONSTANTES
 # ==========================================
 COL_CUSTO = "Custo_Total"
 COL_TOTAL = "Total_Atualizado"
+
 
 # ==========================================
 # 💰 ABA CRIPTO
@@ -400,6 +427,7 @@ COL_TOTAL = "Total_Atualizado"
 with tab_cripto:
 
     if not df_g.empty:
+
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
 
         if not criptos.empty:
@@ -419,12 +447,14 @@ with tab_cripto:
                 df = df.rename(columns=mapa)
                 return df.loc[:, ~df.columns.duplicated()]
 
+
             def validar_dados(df):
                 obrigatorias = ["Ticker", COL_CUSTO, "Qtd", "Preço"]
                 faltando = [c for c in obrigatorias if c not in df.columns]
                 if faltando:
                     raise ValueError(f"Colunas ausentes: {faltando}")
                 return df
+
 
             def tratar_tipos(df):
                 if "Preco_Medio" not in df.columns:
@@ -436,8 +466,12 @@ with tab_cripto:
                     if c in df.columns:
                         df[c] = pd.to_numeric(df[c], errors="coerce")
 
-                df[cols] = df[cols].fillna(0)
+                # 🔒 evita KeyError
+                cols_existentes = [c for c in cols if c in df.columns]
+                df[cols_existentes] = df[cols_existentes].fillna(0)
+
                 return df
+
 
             def atualizar_precos(df):
                 tickers = df["Ticker"].tolist()
@@ -448,6 +482,7 @@ with tab_cripto:
 
                 for _, row in df.iterrows():
                     preco_live = mapa_precos.get(row["Ticker"])
+
                     if preco_live is None:
                         preco_live = row["Preço"]
 
@@ -459,6 +494,7 @@ with tab_cripto:
 
                 return df
 
+
             def calcular_metricas(df):
                 df["L/P (R$)"] = df[COL_TOTAL] - df[COL_CUSTO]
 
@@ -467,7 +503,9 @@ with tab_cripto:
                     if pd.notna(r[COL_CUSTO]) and r[COL_CUSTO] > 0 else 0,
                     axis=1
                 )
+
                 return df
+
 
             def preparar_dados_cripto(df):
                 df = padronizar_colunas(df)
@@ -476,6 +514,7 @@ with tab_cripto:
                 df = atualizar_precos(df)
                 df = calcular_metricas(df)
                 return df
+
 
             # =========================
             # EXECUÇÃO
@@ -506,12 +545,10 @@ with tab_cripto:
                 st.dataframe(df_view, hide_index=True, use_container_width=True)
 
                 # =========================
-                # 🧮 RESUMO GLOBAL (CORRIGIDO)
+                # 🧮 RESUMO GLOBAL
                 # =========================
-                df_v_filt = df_final.copy()
-
-                total_glob = df_v_filt[COL_TOTAL].sum()
-                total_inv = df_v_filt[COL_CUSTO].sum()
+                total_glob = df_final[COL_TOTAL].sum()
+                total_inv = df_final[COL_CUSTO].sum()
 
                 st.metric("💰 Patrimônio Total", formatar_dinheiro(total_glob))
                 st.metric("📥 Total Investido", formatar_dinheiro(total_inv))
