@@ -327,20 +327,40 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ==========================================
-# 🌐 MOTOR DE PREÇO (ROBUSTO + CACHE)
+# 🧱 MOCK (remova se já vem do Supabase)
+# ==========================================
+# Simulação caso df_g não exista ainda
+if "df_g" not in locals():
+    df_g = pd.DataFrame({
+        "Categoria": ["Criptomoedas"],
+        "Ticker": ["ETH"],
+        "Qtd": [1],
+        "Preço": [10000],
+        "Custo_Total": [10000]
+    })
+
+
+# ==========================================
+# 🧭 CRIAÇÃO DAS ABAS (CORREÇÃO DO ERRO)
+# ==========================================
+tab_resumo, tab_acoes, tab_fiis, tab_cripto = st.tabs([
+    "Resumo",
+    "Ações",
+    "FIIs",
+    "Criptomoedas"
+])
+
+
+# ==========================================
+# 🌐 MOTOR DE PREÇO (ROBUSTO)
 # ==========================================
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_preco_cripto(ticker):
     try:
         t = str(ticker).strip().upper()
 
-        # Padronização de ticker
-        if "-" not in t:
-            ticker_yf = f"{t}-BRL"
-        else:
-            ticker_yf = t.replace(" ", "")
+        ticker_yf = f"{t}-BRL" if "-" not in t else t.replace(" ", "")
 
-        # Download direto (mais estável que history)
         data = yf.download(
             ticker_yf,
             period="5d",
@@ -352,25 +372,22 @@ def buscar_preco_cripto(ticker):
 
         if not data.empty:
             try:
-                # Caso padrão
                 if "Close" in data.columns:
                     return float(data["Close"].iloc[-1])
 
-                # Caso MultiIndex (raro, mas crítico)
                 elif isinstance(data.columns, pd.MultiIndex):
                     return float(data["Close"].iloc[-1].values[0])
-
-            except Exception:
+            except:
                 return None
 
         return None
 
-    except Exception:
+    except:
         return None
 
 
 # ==========================================
-# ⚡ BUSCA PARALELA (RÁPIDA)
+# ⚡ BUSCA PARALELA
 # ==========================================
 def buscar_precos_em_lote(tickers):
     resultados = {}
@@ -390,17 +407,20 @@ def buscar_precos_em_lote(tickers):
     return resultados
 
 
-# --- ABA CRIPTO ---
+# ==========================================
+# 💰 ABA CRIPTO
+# ==========================================
 with tab_cripto:
+
     if not df_g.empty:
 
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
 
         if not criptos.empty:
 
-            # ==========================================
-            # 🧱 PIPELINE
-            # ==========================================
+            # =========================
+            # PIPELINE
+            # =========================
 
             def padronizar_colunas(df):
                 mapa = {
@@ -447,7 +467,6 @@ with tab_cripto:
                 for _, row in df.iterrows():
                     preco_live = mapa_precos.get(row["Ticker"])
 
-                    # fallback para preço antigo
                     if preco_live is None:
                         preco_live = row["Preço"]
 
@@ -481,9 +500,9 @@ with tab_cripto:
                 return df
 
 
-            # ==========================================
-            # 🖥️ UI
-            # ==========================================
+            # =========================
+            # EXECUÇÃO
+            # =========================
             try:
                 df_final = preparar_dados_cripto(criptos)
 
@@ -517,14 +536,15 @@ with tab_cripto:
                 df_view["Preço Atual"] = df_view["Preço Atual"].apply(formatar_dinheiro)
                 df_view["Patrimônio (R$)"] = df_view["Patrimônio (R$)"].apply(formatar_dinheiro)
 
-                df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
-                df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
-                df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
+                # Se essas funções não existirem, comente:
+                # df_view["L/P (R$)"] = df_view["L/P (R$)"].apply(formatar_delta)
+                # df_view["L/P (%)"] = df_view["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+                # df_view["Qtd"] = df_view["Qtd"].apply(formatar_qtd)
 
                 st.dataframe(df_view, hide_index=True, use_container_width=True)
 
             except Exception as e:
-                st.error(f"Erro estrutural nos dados de Criptomoedas: {e}")
+                st.error(f"Erro estrutural nos dados: {e}")
 # =============================================================================
 # 📑 9. ABAS DO SISTEMA (AS 14 ABAS COMPLETAS)
 # =============================================================================
