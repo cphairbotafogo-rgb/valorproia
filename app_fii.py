@@ -187,7 +187,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 rend_ultimo = _safe_float(divs.iloc[-1])
         except: pass
 
-   # =====================================================
+  # =====================================================
 # 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS
 # =====================================================
 if not is_us and not is_crypto:
@@ -251,7 +251,6 @@ if not is_us and not is_crypto:
 
         except:
             pass
-
     # =====================================================
     # 4. CONSOLIDA E RETORNA
     # =====================================================
