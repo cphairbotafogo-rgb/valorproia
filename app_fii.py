@@ -333,18 +333,15 @@ def buscar_preco_cripto(ticker):
     try:
         import yfinance as yf
         t = str(ticker).strip().upper()
-        # Garante o formato correto para o Yahoo (ex: ETH-BRL)
         ticker_yf = t if "-" in t else f"{t}-BRL"
         
-        ativo = yf.Ticker(ticker_yf)
-        # 1. Mudamos para 5d para garantir que nunca venha vazio (mesmo no fds)
-        # 2. actions=False evita que o Yahoo trave procurando dividendos de cripto
-        df_hist = ativo.history(period="5d", actions=False, auto_adjust=False)
+        # Tentativa de download direto (mais forte que o Ticker.history)
+        data = yf.download(ticker_yf, period="5d", interval="1d", progress=False, actions=False)
         
-        if not df_hist.empty:
-            # 💡 O SEGREDO AQUI: iloc[-1] (com o sinal de menos) 
-            # Ele pega SEMPRE o preço mais atualizado (a última linha)
-            return float(df_hist['Close'].iloc[-1])
+        if not data.empty:
+            # Pegamos o último valor da coluna 'Close'
+            valor = float(data['Close'].iloc[-1])
+            return valor
         return None
     except Exception as e:
         return None
