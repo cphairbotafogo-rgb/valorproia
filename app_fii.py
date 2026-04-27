@@ -333,18 +333,20 @@ def buscar_preco_cripto(ticker):
     try:
         import yfinance as yf
         t = str(ticker).strip().upper()
+        # Garante o formato correto para o Yahoo (ex: ETH-BRL)
         ticker_yf = t if "-" in t else f"{t}-BRL"
         
         ativo = yf.Ticker(ticker_yf)
-        # O SEGREDO: 5 dias para não falhar no fds e actions=False para não dar erro de dividendo
+        # 1. Mudamos para 5d para garantir que nunca venha vazio (mesmo no fds)
+        # 2. actions=False evita que o Yahoo trave procurando dividendos de cripto
         df_hist = ativo.history(period="5d", actions=False, auto_adjust=False)
         
         if not df_hist.empty:
-            # O SEGREDO 2: iloc[-1] pega o último preço da lista (o mais recente)
+            # 💡 O SEGREDO AQUI: iloc[-1] (com o sinal de menos) 
+            # Ele pega SEMPRE o preço mais atualizado (a última linha)
             return float(df_hist['Close'].iloc[-1])
         return None
     except Exception as e:
-        print(f"Erro na busca de {ticker}: {e}")
         return None
 
 def buscar_multiplos(itens):
