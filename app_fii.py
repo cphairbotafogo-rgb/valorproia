@@ -188,69 +188,40 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
         except: pass
 
   # =====================================================
-# 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS
-# =====================================================
-if not is_us and not is_crypto:
-    
-    # 🟢 FII - captura robusta de rendimento e DY (sem depender de texto exato)
-    if is_fii and (rend_ultimo == 0.0 or dy_12m == "0,00%"):
-        try:
-            r_si = requests.get(
-                f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}",
-                headers={'User-Agent': 'Mozilla/5.0'},
-                timeout=5
-            )
+        # 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS
+        # =====================================================
+        if not is_us and not is_crypto:
+            
+            # 🟢 O SALVADOR DO FII: Pula a letra "R$" e pega só o número do rendimento
+            if is_fii and rend_ultimo == 0.0:
+                try:
+                    r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                    if r_si.status_code == 200:
+                        import re
+                        # A MÁGICA: [^0-9]* faz o sistema ignorar o "R$ " e focar no número (ex: 0,10)
+                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', r_si.text, re.IGNORECASE | re.DOTALL)
+                        if m_rend: 
+                            rend_ultimo = _safe_float(m_rend.group(1).replace(".", "").replace(",", "."))
+                except: pass
 
-            if r_si.status_code == 200:
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(r_si.text, "html.parser")
-
-                # 🔎 percorre todos os valores fortes da página
-                for strong in soup.find_all("strong"):
-                    txt = strong.get_text(strip=True)
-
-                    # DY (qualquer valor com %)
-                    if "%" in txt and dy_12m == "0,00%":
-                        dy_12m = txt
-
-                    # Rendimento (valor em R$ pequeno)
-                    if "R$" in txt and rend_ultimo == 0.0:
-                        val = _safe_float(txt.replace("R$", "").replace(".", "").replace(",", "."))
-                        
-                        # filtro pra evitar pegar preço
-                        if 0 < val < 2:
-                            rend_ultimo = val
-
-        except:
-            pass
-
-    # 🔵 Fundamentus - fallback para P/VP, P/L e DY
-    if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
-        try:
-            url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-            r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-
-            if r4.status_code == 200:
-                import re
-                html = r4.text
-
-                if p_vp == 0.0:
-                    m = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                    if m:
-                        p_vp = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-
-                if p_l == 0.0:
-                    m = re.search(r'P/L.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                    if m:
-                        p_l = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-
-                if dy_12m == "0,00%":
-                    m = re.search(r'Div\.?\s*Yield.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+%)', html, re.IGNORECASE | re.DOTALL)
-                    if m:
-                        dy_12m = m.group(1)
-
-        except:
-            pass
+            # Fallback Fundamentus para P/VP, P/L e DY
+            if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
+                try:
+                    url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
+                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                    if r4.status_code == 200:
+                        import re
+                        html = r4.text
+                        if p_vp == 0.0:
+                            m = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
+                            if m: p_vp = _safe_float(m.group(1).replace(".", "").replace(",", "."))
+                        if p_l == 0.0:
+                            m = re.search(r'P/L.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
+                            if m: p_l = _safe_float(m.group(1).replace(".", "").replace(",", "."))
+                        if dy_12m == "0,00%":
+                            m = re.search(r'Div. Yield.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+%)', html, re.IGNORECASE | re.DOTALL)
+                            if m: dy_12m = m.group(1)
+                except: pass
     # =====================================================
     # 4. CONSOLIDA E RETORNA
     # =====================================================
