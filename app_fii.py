@@ -153,6 +153,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
     
     # 2. BUSCA UNIFICADA VIA YFINANCE (Ações, FIIs, Cripto e EUA)
+    # Isso vai calcular o Preço Atual e a Variação Diária (%) automaticamente!
     preco, variacao_dia = _yf_fetch_full(symbol)
     
     try:
@@ -185,7 +186,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 rend_ultimo = _ext_val(["último rendimento", "rendimento"])
         except: pass
 
-    # 4. CONSOLIDA E RETORNA OS DADOS
+    # 4. CONSOLIDA E RETORNA OS DADOS (Com a variação calculada)
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
         return {
@@ -195,17 +196,6 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
-def buscar_multiplos(itens):
-    resultados = []
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        futures = {}
-        for item in itens:
-            if isinstance(item, tuple) or isinstance(item, list): futures[ex.submit(buscar_mercado, item[0], item[1])] = item[0]
-            else: futures[ex.submit(buscar_mercado, item)] = item
-        for fut in as_completed(futures):
-            res = fut.result()
-            if res: resultados.append(res)
-    return resultados
 
 
 # =============================================================================
