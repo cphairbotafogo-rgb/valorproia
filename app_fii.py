@@ -187,26 +187,28 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 rend_ultimo = _safe_float(divs.iloc[-1])
         except: pass
 
-        # =====================================================
+     # =====================================================
         # 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS
         # =====================================================
         if not is_us and not is_crypto:
             
-            # 🟢 O SALVADOR DO FII: Puxa só o último rendimento direto do código-fonte se o Yahoo falhou
+            # 🟢 O SALVADOR DO FII: Pula a letra "R$" e pega só o número do rendimento
             if is_fii and rend_ultimo == 0.0:
                 try:
-                    r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=4)
+                    r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
                     if r_si.status_code == 200:
                         import re
-                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>\s*([0-9,]+)', r_si.text, re.IGNORECASE | re.DOTALL)
-                        if m_rend: rend_ultimo = _safe_float(m_rend.group(1).replace(",", "."))
+                        # A MÁGICA: [^0-9]* faz o sistema ignorar o "R$ " e focar no número (ex: 0,10)
+                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', r_si.text, re.IGNORECASE | re.DOTALL)
+                        if m_rend: 
+                            rend_ultimo = _safe_float(m_rend.group(1).replace(".", "").replace(",", "."))
                 except: pass
 
             # Fallback Fundamentus para P/VP, P/L e DY
             if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
                 try:
                     url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=4)
+                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
                     if r4.status_code == 200:
                         import re
                         html = r4.text
