@@ -318,6 +318,30 @@ with st.sidebar:
 # =============================================================================
 # ⚙️ 8. MOTOR DE CÁLCULO E CONSOLIDAÇÃO
 # =============================================================================
+# =============================================================================
+# BUSCA EM LOTE (A FUNÇÃO QUE ESTAVA FALTANDO)
+# =============================================================================
+import pandas as pd
+import yfinance as yf
+import streamlit as st
+
+def buscar_multiplos(itens):
+    resultados = []
+    # Usamos ThreadPool para não travar a interface enquanto busca vários ativos
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        futures = []
+        for item in itens:
+            t = item[0] if isinstance(item, (tuple, list)) else item
+            c = item[1] if isinstance(item, (tuple, list)) else None
+            # Aqui ela chama o nosso motor blindado!
+            futures.append(ex.submit(buscar_mercado, t, c))
+            
+        for fut in as_completed(futures):
+            res = fut.result()
+            if res: resultados.append(res)
+            
+    return resultados
 df_g = pd.DataFrame()
 if not df_geral.empty:
     with st.spinner("Sincronizando carteira Global..."):
@@ -519,31 +543,6 @@ with tab_rf:
             df_vrf["L/P (R$)"] = df_vrf["L/P (R$)"].apply(formatar_delta); df_vrf["L/P (%)"] = df_vrf["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_vrf["Qtd"] = df_vrf["Qtd"].apply(formatar_qtd)
             st.dataframe(df_vrf, hide_index=True, use_container_width=True)
-
-import pandas as pd
-import yfinance as yf
-import streamlit as st
-
-# =============================================================================
-# BUSCA EM LOTE (A FUNÇÃO QUE ESTAVA FALTANDO)
-# =============================================================================
-def buscar_multiplos(itens):
-    resultados = []
-    # Usamos ThreadPool para não travar a interface enquanto busca vários ativos
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = []
-        for item in itens:
-            t = item[0] if isinstance(item, (tuple, list)) else item
-            c = item[1] if isinstance(item, (tuple, list)) else None
-            # Aqui ela chama o nosso motor blindado!
-            futures.append(ex.submit(buscar_mercado, t, c))
-            
-        for fut in as_completed(futures):
-            res = fut.result()
-            if res: resultados.append(res)
-            
-    return resultados
 
 # --- ABA 6: CRIPTOMOEDAS ---
 with tab_cripto:
