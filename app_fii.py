@@ -184,28 +184,53 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-        # FALLBACK STATUSINVEST (APENAS BRASIL)
-        if preco == 0.0 and not is_us:
+        # 3. FALLBACK STATUSINVEST E FUNDAMENTUS (Sempre busca se faltar P/VP ou P/L)
+    if not is_us and not is_crypto and (preco == 0.0 or p_vp == 0.0 or p_l == 0.0):
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            url_cat = "fundos-imobiliarios" if is_fii else "acoes"
+            r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+            if r3.status_code == 200:
+                soup = BeautifulSoup(r3.text, "html.parser")
+                def _ext_val(termos):
+                    for tag in soup.find_all(["h3", "span", "div"]):
+                        if tag.get_text(strip=True).lower() in termos:
+                            strong = tag.find_next("strong")
+                            if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
+                    return 0.0
+                
+                if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
+                if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
+                if p_l == 0.0: p_l = _ext_val(["p/l"])
+                if rend_ultimo == 0.0: rend_ultimo = _ext_val(["último rendimento", "rendimento"])
+                
+                if dy_12m == "0,00%" or dy_12m == "-":
+                    for tag in soup.find_all(["h3", "span", "div"]):
+                        if tag.get_text(strip=True).lower() == "dividend yield":
+                            strong = tag.find_next("strong")
+                            if strong: 
+                                dy_12m = strong.get_text(strip=True)
+                                break
+        except: pass
+
+        if p_vp == 0.0 or p_l == 0.0:
             try:
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                url_cat = "fundos-imobiliarios" if is_fii else "acoes"
-                r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
-                if r3.status_code == 200:
-                    soup = BeautifulSoup(r3.text, "html.parser")
-                    def _ext_val(termos):
-                        for tag in soup.find_all(["h3", "span", "div"]):
-                            if tag.get_text(strip=True).lower() in termos:
-                                strong = tag.find_next("strong")
-                                if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
+                url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
+                r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                if r4.status_code == 200:
+                    soup_f = BeautifulSoup(r4.text, "html.parser")
+                    def _ext_fund(label):
+                        span = soup_f.find("span", string=label)
+                        if span:
+                            td_val = span.find_parent("td").find_next_sibling("td")
+                            if td_val: return _safe_float(td_val.get_text(strip=True).replace("%", "").replace(".", "").replace(",", "."))
                         return 0.0
-                    if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
-                    if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
-                    if p_l == 0.0: p_l = _ext_val(["p/l"])
-                    rend_ultimo = _ext_val(["último rendimento", "rendimento"])
+                    if p_vp == 0.0: p_vp = _ext_fund("P/VP")
+                    if p_l == 0.0: p_l = _ext_fund("P/L")
             except: pass
 
     # =====================================================
-    # 3. CONSOLIDA E RETORNA OS DADOS
+    # 4. CONSOLIDA E RETORNA OS DADOS
     # =====================================================
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
@@ -216,6 +241,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
+
 def buscar_multiplos(itens):
     resultados = []
     with ThreadPoolExecutor(max_workers=6) as ex:
