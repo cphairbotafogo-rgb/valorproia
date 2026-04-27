@@ -131,7 +131,7 @@ def _yf_fetch_full(ticker: str):
     except:
         return 0.0, 0.0
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
@@ -149,44 +149,64 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     variacao_dia = 0.0
     dy_12m = "0,00%"
 
-    # 1. DEFINE O SÍMBOLO CORRETO PARA O YAHOO FINANCE
-    symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
-    
-    # 2. BUSCA UNIFICADA VIA YFINANCE (Ações, FIIs, Cripto e EUA)
-    # Isso vai calcular o Preço Atual e a Variação Diária (%) automaticamente!
-    preco, variacao_dia = _yf_fetch_full(symbol)
-    
-    try:
-        tk = yf.Ticker(symbol)
-        info = tk.info
-        if info:
-            p_vp = _safe_float(info.get('priceToBook', 0))
-            p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
-            dy_raw = _safe_float(info.get('dividendYield', 0))
-            if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
-    except: pass
-
-    # 3. FALLBACK STATUSINVEST (APENAS PARA AÇÕES E FIIS DO BRASIL)
-    if preco == 0.0 and not is_us and not is_crypto:
+    # =====================================================
+    # 1. MOTOR EXCLUSIVO E BLINDADO PARA CRIPTOMOEDAS
+    # =====================================================
+    if is_crypto:
+        symbol_binance = ticker.replace("-", "")
+        # Usando a API de Dados Pública da Binance (não sofre bloqueio na Nuvem)
         try:
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            url_cat = "fundos-imobiliarios" if is_fii else "acoes"
-            r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
-            if r3.status_code == 200:
-                soup = BeautifulSoup(r3.text, "html.parser")
-                def _ext_val(termos):
-                    for tag in soup.find_all(["h3", "span", "div"]):
-                        if tag.get_text(strip=True).lower() in termos:
-                            strong = tag.find_next("strong")
-                            if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
-                    return 0.0
-                if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
-                if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
-                if p_l == 0.0: p_l = _ext_val(["p/l"])
-                rend_ultimo = _ext_val(["último rendimento", "rendimento"])
+            r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_binance}", timeout=4)
+            if r_bin.status_code == 200:
+                data = r_bin.json()
+                preco = _safe_float(data.get("lastPrice"))
+                variacao_dia = _safe_float(data.get("priceChangePercent"))
+        except: pass
+        
+        # Se a Binance falhar por qualquer motivo, o Yahoo Finance entra em ação imediatamente
+        if preco == 0.0:
+            preco, variacao_dia = _yf_fetch_full(ticker)
+
+    # =====================================================
+    # 2. MOTOR PARA AÇÕES, FIIS E EUA (YFINANCE)
+    # =====================================================
+    else:
+        symbol = ticker if is_us else f"{ticker}.SA"
+        preco, variacao_dia = _yf_fetch_full(symbol)
+        
+        try:
+            tk = yf.Ticker(symbol)
+            info = tk.info
+            if info:
+                p_vp = _safe_float(info.get('priceToBook', 0))
+                p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
+                dy_raw = _safe_float(info.get('dividendYield', 0))
+                if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-    # 4. CONSOLIDA E RETORNA OS DADOS (Com a variação calculada)
+        # FALLBACK STATUSINVEST (APENAS BRASIL)
+        if preco == 0.0 and not is_us:
+            try:
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                url_cat = "fundos-imobiliarios" if is_fii else "acoes"
+                r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+                if r3.status_code == 200:
+                    soup = BeautifulSoup(r3.text, "html.parser")
+                    def _ext_val(termos):
+                        for tag in soup.find_all(["h3", "span", "div"]):
+                            if tag.get_text(strip=True).lower() in termos:
+                                strong = tag.find_next("strong")
+                                if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
+                        return 0.0
+                    if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
+                    if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
+                    if p_l == 0.0: p_l = _ext_val(["p/l"])
+                    rend_ultimo = _ext_val(["último rendimento", "rendimento"])
+            except: pass
+
+    # =====================================================
+    # 3. CONSOLIDA E RETORNA OS DADOS
+    # =====================================================
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
         return {
@@ -196,7 +216,6 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
-
 def buscar_multiplos(itens):
     resultados = []
     with ThreadPoolExecutor(max_workers=6) as ex:
