@@ -109,8 +109,7 @@ def _motor_fii_br(ticker):
     dy = "0,00%"
     try:
         url = f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}"
-        # Header disfarçado de navegador real para evitar bloqueios
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0'}
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
             soup = BeautifulSoup(r.text, 'html.parser')
@@ -166,6 +165,18 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
+
+def buscar_multiplos(itens):
+    resultados = []
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futures = {}
+        for item in itens:
+            if isinstance(item, tuple) or isinstance(item, list): futures[ex.submit(buscar_mercado, item[0], item[1])] = item[0]
+            else: futures[ex.submit(buscar_mercado, item)] = item
+        for fut in as_completed(futures):
+            res = fut.result()
+            if res: resultados.append(res)
+    return resultados
 
             # Fallback Fundamentus para P/VP, P/L e DY
             if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
@@ -583,29 +594,26 @@ with tab_fii:
     if not df_g.empty:
         f = df_g[df_g["Categoria"].isin(["FII", "FIIs", "Fiagro"])].copy()
         if not f.empty:
-            # Cálculos de Renda
             f["Rend"] = pd.to_numeric(f["Rend"], errors="coerce").fillna(0)
             f["Renda Mensal"] = f["Qtd"] * f["Rend"]
-            
-            # Métricas de topo
+
             m1, m2, m3, col_pie_fii = st.columns([1,1,1,1.2])
             m1.metric("💰 Patrimônio FIIs", f"R$ {f['Total_Atual'].sum():,.2f}")
             m2.metric("💸 Renda Mensal Est.", f"R$ {f['Renda Mensal'].sum():,.2f}")
             lp_fii = (f["Total_Atual"] - f["Custo_Pos"]).sum(); ct_fii = f["Custo_Pos"].sum()
             m3.metric("📈 Valorização", f"R$ {lp_fii:,.2f}", f"{lp_fii/ct_fii*100:+.2f}%" if ct_fii > 0 else "")
-            
+
             with col_pie_fii:
                 fig_pf = px.pie(f, values="Total_Atual", names="Ticker", hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
                 fig_pf.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
                 fig_pf.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False)
                 st.plotly_chart(fig_pf, use_container_width=True)
 
-            # Preparação da Tabela
             f["L/P (R$)"] = f["Total_Atual"] - f["Custo_Pos"]
             f["L/P (%)"] = f.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
-            
+
             df_vf = f[["Ticker","Setor","Qtd","Preco_Medio","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","P_VP","Rend","Renda Mensal","DY_12M","DY_Mensal","Status"]].copy()
-            
+
             df_vf.rename(columns={
                 "Preco_Medio":"PM (R$)",
                 "Preço":"Atual",
@@ -615,13 +623,12 @@ with tab_fii:
                 "DY_12M":"DY 12M",
                 "DY_Mensal":"DY Mensal"
             }, inplace=True)
-            
-            # Formatação
+
             df_vf["Var. Dia %"] = df_vf["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
             df_vf["L/P (R$)"] = df_vf["L/P (R$)"].apply(formatar_delta)
             df_vf["L/P (%)"] = df_vf["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_vf["Qtd"] = df_vf["Qtd"].apply(formatar_qtd)
-            
+
             st.dataframe(df_vf, hide_index=True, use_container_width=True)
         else: st.info("Nenhum FII registrado.")
     else: st.info("Sua carteira está vazia.")
