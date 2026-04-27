@@ -1,18 +1,4 @@
-# --- ABA 6: CRIPTOMOEDAS ---
-with tab_cripto:
-    if not df_g.empty:
-        criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
-        if not criptos.empty:
-            criptos.fillna({"Status": "⚡ Volátil", "Var_Dia": 0.0}, inplace=True)
-            m1, m2, col_vaz, col_pie_cripto = st.columns([1,1,1,1.2])
-            m1.metric("🪙 Patrimônio Cripto", f"R$ {criptos['Total_Atual'].sum():,.2f}")
-            lp_cripto = (criptos["Total_Atual"] - criptos["Custo_Pos"]).sum(); ct_cripto = criptos["Custo_Pos"].sum()
-            m2.metric("📈 Valorização", f"R$ {lp_cripto:,.2f}", f"{lp_cripto/ct_cripto*100:+.2f}%" if ct_cripto > 0 else "")
-            
-            with col_pie_cripto:
-                fig_cripto = px.pie(criptos, values="Total_Atual", names="Ticker", hole=0.4, color_discrete_sequence=["#eab308", "#ca8a04", "#854d0e"])
-                fig_cripto.update_layout(**PLOTLY_DARK, height=200, showlegend=False)
-                fig_cripto.update_trac# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import streamlit as st
 import pandas as pd
 import requests
@@ -27,6 +13,7 @@ import math
 import google.generativeai as genai
 import json
 import base64
+import yfinance as yf
 
 # =============================================================================
 # 0. CONFIGURAÇÃO DE PÁGINA (Obrigatório ser o primeiro comando)
@@ -71,7 +58,7 @@ if CHAVE_API_GOOGLE:
         ia_pronta = False
 
 # =============================================================================
-# 🔧 3. FUNÇÕES UTILITÁRIAS E MOTOR DE BUSCA (RESGATADO DO V7)
+# 🔧 3. FUNÇÕES UTILITÁRIAS
 # =============================================================================
 def _safe_float(val, default=0.0):
     try:
@@ -116,37 +103,53 @@ def formatar_delta(valor, is_percent=False):
         return f"⚪ {prefix}0.00{suffix}"
     except: return "-"
 
+# =============================================================================
+# 📡 4. NOVO MOTOR DE BUSCA YFINANCE + BINANCE
+# =============================================================================
+def _yf_fetch_full(ticker: str):
+    """Busca o preço e a variação diária via YFinance contornando o bloqueio do Yahoo"""
+    try:
+        data = yf.download(ticker, period="5d", interval="1d", progress=False, auto_adjust=True)
+        if data is None or data.empty: return 0.0, 0.0
+        
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+            
+        if "Close" not in data.columns: return 0.0, 0.0
+        
+        close = data["Close"].dropna()
+        if close.empty: return 0.0, 0.0
+        
+        preco = float(close.iloc[-1])
+        var_dia = 0.0
+        if len(close) > 1:
+            preco_ant = float(close.iloc[-2])
+            if preco_ant > 0:
+                var_dia = ((preco / preco_ant) - 1) * 100
+                
+        return preco, var_dia
+    except:
+        return 0.0, 0.0
+
 @st.cache_data(ttl=300, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
-    
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
     is_us = (categoria_sugerida == "Exterior (EUA)")
     
-    if categoria_sugerida in ["Ações", "Acao", "BDR"]:
-        is_fii = False
-    else:
-        is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
+    if categoria_sugerida in ["Ações", "Acao", "BDR"]: is_fii = False
+    else: is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
         
     if is_crypto: categoria = "Criptomoedas"
     elif is_us: categoria = "Exterior (EUA)"
     elif is_fii: categoria = "FIIs"
     else: categoria = "Ações"
 
-    preco = p_vp = p_l = rend_ultimo = dy_m = 0.0
-    dy_12m = "0,00%"
+    preco = p_vp = p_l = rend_ultimo = 0.0
     variacao_dia = 0.0
+    dy_12m = "0,00%"
 
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    usd_brl = 1.0
-    
-    if is_us:
-        try:
-            r_cambio = requests.get("https://query2.finance.yahoo.com/v7/finance/quote?symbols=BRL=X", headers=headers, timeout=4)
-            usd_brl = _safe_float(r_cambio.json()["quoteResponse"]["result"][0]["regularMarketPrice"])
-        except: usd_brl = 5.0 
-
-    # 🚀 O SEGREDO DO V7: RASPANDO DIRETO DA BINANCE PARA CRIPTO
+    # 1. CRIPTO (Binance Rápido)
     if is_crypto:
         try:
             symbol_binance = ticker.replace("-", "") 
@@ -157,85 +160,49 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 variacao_dia = _safe_float(data.get("priceChangePercent"))
         except: pass
 
-    try:
-        symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
-        url = f"https://query2.finance.yahoo.com/v7/finance/quote?symbols={symbol}&fields=regularMarketPrice,priceToBook,trailingPE,forwardPE,regularMarketChangePercent,dividendYield"
-        r = requests.get(url, headers=headers, timeout=5)
-        if r.status_code == 200:
-            result = r.json().get("quoteResponse", {}).get("result", [])
-            if result:
-                d = result[0]
-                if preco == 0.0: 
-                    preco_cru = _safe_float(d.get("regularMarketPrice"))
-                    preco = preco_cru * usd_brl if is_us else preco_cru
-                
-                p_vp = _safe_float(d.get("priceToBook"))
-                p_l = _safe_float(d.get("trailingPE") or d.get("forwardPE"))
-                if variacao_dia == 0.0: variacao_dia = _safe_float(d.get("regularMarketChangePercent"))
-                dy_raw = _safe_float(d.get("dividendYield"))
-                if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
-    except: pass
-
-    if not is_crypto and not is_us:
-        url_cat = "fundos-imobiliarios" if is_fii else "acoes"
-        url_si = f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}"
+    # 2. AÇÕES E FIIs (Yfinance Resolve o Problema)
+    else:
+        symbol = ticker if is_us else f"{ticker}.SA"
+        preco, variacao_dia = _yf_fetch_full(symbol)
+        
         try:
-            r3 = requests.get(url_si, headers=headers, timeout=5)
-            if r3.status_code == 200 and "não encontramos" not in r3.text.lower():
-                soup = BeautifulSoup(r3.text, "html.parser")
-                def _ext_text(termos):
-                    termos_lower = [t.lower() for t in (termos if isinstance(termos, list) else [termos])]
-                    for tag in soup.find_all(["h3", "h4", "span", "div"]):
-                        texto = tag.get_text(strip=True).lower()
-                        if any(t == texto or (t in texto and len(texto) < 40) for t in termos_lower):
-                            strong = tag.find_next("strong")
-                            if strong: return strong.get_text(strip=True)
-                    return ""
-                def _ext_float(termos):
-                    raw = _ext_text(termos)
-                    if raw: return _safe_float(raw.replace("R$", "").replace("%", "").replace(".", "").replace(",", ".").strip())
-                    return 0.0
-
-                if preco == 0.0: preco = _ext_float(["valor atual", "cotação"])
-                if p_vp == 0.0: p_vp = _ext_float(["p/vp", "preço sobre o valor patrimonial", "vpa"])
-                if p_l == 0.0: p_l = _ext_float(["p/l"])
-                rend_si = _ext_float(["último rendimento", "rendimento"])
-                if rend_si > 0: rend_ultimo = rend_si
-                if dy_12m == "0,00%" or dy_12m == "-":
-                    dy_text = _ext_text(["dividend yield"])
-                    if dy_text: dy_12m = dy_text
-                
-                if variacao_dia == 0.0:
-                    for div in soup.find_all(title=True):
-                        if "variação" in div["title"].lower() or "variacao" in div["title"].lower():
-                            b_tag = div.find("b")
-                            if b_tag:
-                                raw_var = b_tag.get_text(strip=True).replace("%", "").replace(".", "").replace(",", ".")
-                                val = _safe_float(raw_var)
-                                if "down" in b_tag.get("class", []) or "-" in raw_var: val = -abs(val)
-                                variacao_dia = val
-                                break
+            tk = yf.Ticker(symbol)
+            info = tk.info
+            if info:
+                p_vp = _safe_float(info.get('priceToBook', 0))
+                p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
+                dy_raw = _safe_float(info.get('dividendYield', 0))
+                if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-        if p_vp == 0.0 or p_l == 0.0:
+        # 3. Fallback StatusInvest (Apenas Brasil)
+        if preco == 0.0 and not is_us:
             try:
-                url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-                r4 = requests.get(url_fund, headers=headers, timeout=5)
-                if r4.status_code == 200:
-                    soup_f = BeautifulSoup(r4.text, "html.parser")
-                    def _ext_fund(label):
-                        span = soup_f.find("span", string=label)
-                        if span:
-                            td_val = span.find_parent("td").find_next_sibling("td")
-                            if td_val: return _safe_float(td_val.get_text(strip=True).replace("%", "").replace(".", "").replace(",", "."))
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                url_cat = "fundos-imobiliarios" if is_fii else "acoes"
+                r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+                if r3.status_code == 200:
+                    soup = BeautifulSoup(r3.text, "html.parser")
+                    def _ext_val(termos):
+                        for tag in soup.find_all(["h3", "span", "div"]):
+                            if tag.get_text(strip=True).lower() in termos:
+                                strong = tag.find_next("strong")
+                                if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
                         return 0.0
-                    if p_vp == 0.0: p_vp = _ext_fund("P/VP")
-                    if p_l == 0.0: p_l = _ext_fund("P/L")
+                    if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
+                    if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
+                    if p_l == 0.0: p_l = _ext_val(["p/l"])
+                    rend_ultimo = _ext_val(["último rendimento", "rendimento"])
             except: pass
 
-    if preco > 0.0 or p_vp > 0.0 or is_crypto:
+    if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
-        return {"Ticker": ticker, "Categoria": categoria, "Preço": preco, "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m:.2f}%", "Rend": rend_ultimo, "P_VP": p_vp, "P_L": p_l, "Status": classificar_ativo(categoria, p_vp, p_l)}
+        return {
+            "Ticker": ticker, "Categoria": categoria, "Preço": preco, 
+            "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m:.2f}%", 
+            "Rend": rend_ultimo, "P_VP": p_vp, "P_L": p_l, 
+            "Status": classificar_ativo(categoria, p_vp, p_l)
+        }
     return None
 
 def buscar_multiplos(itens):
@@ -250,8 +217,9 @@ def buscar_multiplos(itens):
             if res: resultados.append(res)
     return resultados
 
+
 # =============================================================================
-# 🔒 4. BLOQUEIO FREEMIUM E LOGIN
+# 🔒 5. BLOQUEIO FREEMIUM E TELA DE LOGIN
 # =============================================================================
 def exibir_bloqueio_premium(funcionalidade):
     st.markdown(f"""
@@ -331,7 +299,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # =============================================================================
-# 🎨 5. DESIGN, LISTAS E RELÓGIO
+# 🎨 6. DESIGN E RELÓGIO
 # =============================================================================
 st.markdown("""
 <style>
@@ -353,6 +321,7 @@ LISTA_CRIPTO = ["BTC-BRL", "ETH-BRL", "SOL-BRL", "USDT-BRL", "DOGE-BRL", "XRP-BR
 LISTA_EUA = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BRK-B", "JNJ", "V", "VOO", "IVV", "QQQ"]
 LISTA_COMPLETA_B3 = sorted(list(set(TOP_20_ACOES + TOP_20_FII + ["ALPA4", "ALSO3", "ALUP11", "AMBP3", "ARZZ4", "ASAI3", "AURE3", "AZUL4", "BBDC3", "BEEF3", "BPAC11", "BRAP4", "BRFS3", "BRKM5", "CASH3", "CCRO3", "CEAB3", "CGAS4", "CIEL3", "CMIG4", "COGN3", "CPFE6", "CPLE6", "CRFB3", "CSAN3", "CSMG3", "CSNA3", "CVCB3", "CXSE3", "CYRE3", "DIRR3", "EGIE3", "ELET6", "ENBR3", "ENEV3", "ENGI11", "EZTC3", "FLRY3", "GGBR4", "GOAU4", "GOLL4", "HYPE3", "IGTI11", "INTB3", "ITSA4", "JHSF3", "KLBN11", "LWSA3", "MGLU3", "MRFG3", "MRVE3", "MULT3", "NTCO3", "PCAR3", "PETR3", "PETZ3", "POMO4", "PSSA3", "QUAL3", "RAPT4", "RDOR3", "RECV3", "RRRP3", "SANB11", "SANB4", "SAPR11", "SAPR4", "SLCE3", "SMFT3", "SOMA3", "TAEE11", "TIMS3", "TOTS3", "TRPL4", "UGPA3", "USIM4", "VIVT3", "YDUQ3", "ARRI11", "BRCR11", "BRCO11", "BTAL11", "CACR11", "CVBI11", "DEVA11", "FEXC11", "GGRC11", "HCTR11", "HGCR11", "HSML11", "JSRE11", "KFOF11", "KNCA11", "MALL11", "PLCR11", "PVBI11", "RBRL11", "RBRP11", "RBVA11", "RBRF11", "RECR11", "RECT11", "SARE11", "SNCI11", "TGAR11", "URPR11", "VCJR11", "VGIP11", "VILG11", "VINO11", "VRTA11", "XPCI11", "XPPR11", "XPSF11"])))
 
+# --- AQUI ESTÁ A VARIÁVEL DE CORES SALVADORA ---
 PLOTLY_DARK = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8', family='DM Sans'), xaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), yaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), legend=dict(bgcolor='rgba(0,0,0,0)', bordercolor='#1e293b'))
 
 def get_image_base64(path):
@@ -361,7 +330,6 @@ def get_image_base64(path):
     except: return None
 
 col_logo, col_titulo, col_clock = st.columns([0.6, 2.5, 1])
-
 with col_logo:
     img_b64 = get_image_base64("logo.png")
     if img_b64: st.markdown(f'<img src="data:image/png;base64,{img_b64}" width="80">', unsafe_allow_html=True)
@@ -377,7 +345,7 @@ with col_clock:
 st.divider()
 
 # =============================================================================
-# 📥 6. CARREGAMENTO DE DADOS COM IDENTIFICADOR CEGO DE CRIPTO
+# 📥 7. CARREGAR DADOS DA NUVEM (COM IDENTIFICADOR CEGO DE CRIPTO)
 # =============================================================================
 def carregar_dados_nuvem():
     if "usuario_id" not in st.session_state or st.session_state.usuario_id == "":
@@ -395,23 +363,19 @@ def carregar_dados_nuvem():
                 'data_operacao': 'Data',
                 'tipo': 'Tipo'
             })
-            # A MAGIA ESTÁ AQUI: Cripto é detectado não só pela lista, mas pelo formato!
             def define_cat(t):
                 t_str = str(t).strip().upper()
                 if t_str.endswith('-BRL') or t_str.endswith('-USD') or t_str in LISTA_CRIPTO:
                     return "Criptomoedas"
                 elif t_str in LISTA_EUA: 
                     return "Exterior (EUA)"
-                
                 acoes_falsos_fiis = ['TAEE11', 'KLBN11', 'SANB11', 'ALUP11', 'BPAC11', 'ENGI11', 'SULA11']
                 if t_str.endswith('11') and t_str not in acoes_falsos_fiis:
                     return "FIIs"
                 else:
                     return "Ações"
-                    
             if 'Categoria' not in df.columns:
                 df['Categoria'] = df['Ticker'].apply(define_cat)
-            
         return df
     except Exception as e:
         st.error(f"Erro ao carregar dados da nuvem: {e}")
@@ -422,24 +386,21 @@ if "df_geral" not in st.session_state:
 df_geral = st.session_state.df_geral
 
 # =============================================================================
-# 🎛️ 7. SIDEBAR E LANÇAMENTO DE OPERAÇÕES
+# 🎛️ 8. SIDEBAR E LANÇAMENTO DE OPERAÇÕES
 # =============================================================================
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.usuario_logado}")
-    
     with st.expander("🔐 Alterar Login e Senha"):
         n_usr = st.text_input("Novo Usuário:", value=st.session_state.usuario_logado)
         n_pwd = st.text_input("Nova Senha:", type="password")
         c_pwd = st.text_input("Confirme a Senha:", type="password")
-        
         if st.button("Atualizar Credenciais", use_container_width=True):
             if n_pwd == c_pwd and n_pwd != "":
                 try:
                     supabase.table("usuarios").update({"email": n_usr, "senha": n_pwd}).eq("id", st.session_state.usuario_id).execute()
                     st.success("✅ Atualizado! Faça login novamente.")
                     time.sleep(1.5); st.session_state.autenticado = False; st.rerun()
-                except Exception as e:
-                    st.error("Erro ao atualizar credenciais na nuvem.")
+                except: st.error("Erro ao atualizar.")
             elif n_pwd != c_pwd: st.error("As senhas não conferem.")
             else: st.error("A senha não pode ser vazia.")
     
@@ -452,7 +413,7 @@ with st.sidebar:
         st.cache_data.clear(); st.session_state.df_geral = carregar_dados_nuvem(); st.rerun()
 
     st.divider()
-    st.markdown("### 🛒 Lançar Operação (Nuvem)")
+    st.markdown("### 🛒 Lançar Operação")
     classe_ativo = st.selectbox("Classe:", ["Bolsa (Ações/FIIs)", "Renda Fixa (CDB/Tesouro)", "Criptomoedas", "Exterior (EUA)"])
     tipo = st.radio("Tipo:", ["Compra", "Venda"], horizontal=True)
     data_op = st.date_input("Data:", datetime.now())
@@ -495,8 +456,7 @@ with st.sidebar:
                     st.session_state.df_geral = carregar_dados_nuvem()
                     st.success(f"✅ {t_in.upper()} salvo com sucesso!")
                     time.sleep(1.2); st.rerun()
-                except Exception as e:
-                    st.error(f"Falha ao salvar no banco: {e}")
+                except Exception as e: st.error(f"Falha ao salvar: {e}")
         else: st.error("Digite um código válido.")
 
     st.divider()
@@ -505,7 +465,7 @@ with st.sidebar:
     ibov_anual = st.number_input("Meta Ibovespa (% a.a.):", min_value=0.1, max_value=50.0, value=12.0, step=0.1) / 100
 
 # =============================================================================
-# ⚙️ 8. MOTOR DE CÁLCULO CENTRAL E CONSOLIDAÇÃO
+# ⚙️ 9. MOTOR DE CÁLCULO E CONSOLIDAÇÃO
 # =============================================================================
 df_g = pd.DataFrame()
 if not df_geral.empty:
@@ -532,12 +492,9 @@ if not df_geral.empty:
 
         df_g.fillna({"P_VP": 0.0, "P_L": 0.0, "Rend": 0.0, "Var_Dia": 0.0, "DY_12M": "-", "DY_Mensal": "-", "Status": "Offline"}, inplace=True)
         
-        # O TRUQUE: Força tudo que tem "TESOURO" no nome a virar Renda Fixa na marra
         df_g.loc[df_g["Ticker"].str.contains("TESOURO", case=False, na=False), "Categoria"] = "Renda Fixa"
 
-        # Renda Fixa logic (Mantive precos manuais caso esteja no motor)
-        try:
-            precos_manuais = carregar_precos_manuais()
+        try: precos_manuais = carregar_precos_manuais()
         except: precos_manuais = {}
         
         mask_rf = df_g["Categoria"] == "Renda Fixa"
@@ -548,7 +505,6 @@ if not df_geral.empty:
 
         df_g["Total_Atual"] = df_g["Qtd"] * df_g["Preço"]
         df_g["Custo_Pos"] = df_g["Qtd"] * df_g["Preco_Medio"]
-
         df_g["Setor"] = df_g.apply(lambda r: descobrir_setor(r["Ticker"], r["Categoria"]), axis=1)
 
         hoje_str = datetime.now().strftime("%Y-%m-%d")
@@ -561,7 +517,7 @@ if not df_geral.empty:
         except: pass
 
 # =============================================================================
-# 📑 9. TODAS AS 14 ABAS DO SISTEMA
+# 📑 10. AS 14 ABAS DO SISTEMA
 # =============================================================================
 tabs = st.tabs(["🌍 Visão Global", "🏢 FIIs", "📈 Ações", "🌎 Exterior", "🛡️ Renda Fixa", "🪙 Cripto", "💰 Dividendos", "⚖️ Rebalanceamento", "🔍 Radar", "🧮 Simuladores", "🤖 ValorPro IA", "🧾 IR", "🎯 Metas", "📝 Histórico"])
 tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_rad, tab_sim, tab_ia, tab_ir, tab_metas, tab_edit = tabs
@@ -744,16 +700,8 @@ with tab_cripto:
             criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]
             criptos["L/P (%)"] = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
 
-            # RECUPERANDO A COLUNA DE CUSTO TOTAL DA FRAÇÃO E VARIÁVEIS DO V7
             df_vcripto = criptos[["Ticker","Qtd","Preco_Medio","Custo_Pos","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","Status"]].copy()
-            
-            df_vcripto.rename(columns={
-                "Preco_Medio": "PM (1 Moeda)", 
-                "Custo_Pos": "Total Investido (R$)", # <- O valor da fração que você pagou
-                "Preço": "Preço Atual", 
-                "Var_Dia": "Var. Dia %", 
-                "Total_Atual": "Patrimônio (R$)"
-            }, inplace=True)
+            df_vcripto.rename(columns={"Preco_Medio":"PM (1 Moeda)", "Custo_Pos":"Total Investido (R$)", "Preço":"Preço Atual", "Var_Dia":"Var. Dia %", "Total_Atual":"Patrimônio (R$)"}, inplace=True)
             
             df_vcripto["Var. Dia %"] = df_vcripto["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
             df_vcripto["L/P (R$)"] = df_vcripto["L/P (R$)"].apply(lambda x: formatar_delta(x))
@@ -767,17 +715,13 @@ with tab_cripto:
             df_vcripto["Qtd"] = df_vcripto["Qtd"].apply(formatar_qtd)
             
             st.dataframe(df_vcripto, hide_index=True, use_container_width=True)
-        else: 
-            st.info("Nenhuma Criptomoeda registrada.")
-    else: 
-        st.info("Sua carteira está vazia.")
-
+        else: st.info("Nenhuma Criptomoeda registrada.")
+    else: st.info("Sua carteira está vazia.")
 
 # --- ABA 7: DIVIDENDOS ---
 with tab_div:
     st.markdown("#### 💰 Registro de Renda Passiva")
-    try:
-        df_divs = carregar_dividendos()
+    try: df_divs = carregar_dividendos()
     except: df_divs = pd.DataFrame()
 
     with st.expander("➕ Lançar novo recebimento", expanded=df_divs.empty):
@@ -1157,38 +1101,3 @@ with tab_edit:
             if not df_log.empty: st.dataframe(df_log.sort_index(ascending=False), hide_index=True, use_container_width=True)
             else: st.info("Nenhuma reavaliação de preço registrada ainda.")
         except: st.info("Nenhuma reavaliação de preço registrada ainda.")
-
-
-es(textposition="inside", textinfo="percent+label", textfont_color="white")
-                st.plotly_chart(fig_cripto, use_container_width=True)
-
-            criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]
-            criptos["L/P (%)"] = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
-
-            # RECUPERANDO A COLUNA DE CUSTO TOTAL DA FRAÇÃO E VARIÁVEIS DO V7
-            df_vcripto = criptos[["Ticker","Qtd","Preco_Medio","Custo_Pos","Preço","Var_Dia","Total_Atual","L/P (R$)","L/P (%)","Status"]].copy()
-            
-            df_vcripto.rename(columns={
-                "Preco_Medio": "PM (1 Moeda)", 
-                "Custo_Pos": "Total Investido (R$)", # <- O valor da fração que você pagou
-                "Preço": "Preço Atual", 
-                "Var_Dia": "Var. Dia %", 
-                "Total_Atual": "Patrimônio (R$)"
-            }, inplace=True)
-            
-            df_vcripto["Var. Dia %"] = df_vcripto["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
-            df_vcripto["L/P (R$)"] = df_vcripto["L/P (R$)"].apply(lambda x: formatar_delta(x))
-            df_vcripto["L/P (%)"]  = df_vcripto["L/P (%)"].apply(lambda x: formatar_delta(x, True))
-            
-            df_vcripto["Total Investido (R$)"] = df_vcripto["Total Investido (R$)"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["PM (1 Moeda)"] = df_vcripto["PM (1 Moeda)"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["Preço Atual"] = df_vcripto["Preço Atual"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["Patrimônio (R$)"] = df_vcripto["Patrimônio (R$)"].apply(lambda x: f"R$ {x:,.2f}")
-            
-            df_vcripto["Qtd"] = df_vcripto["Qtd"].apply(formatar_qtd)
-            
-            st.dataframe(df_vcripto, hide_index=True, use_container_width=True)
-        else: 
-            st.info("Nenhuma Criptomoeda registrada.")
-    else: 
-        st.info("Sua carteira está vazia.")
