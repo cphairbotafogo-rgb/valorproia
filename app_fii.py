@@ -149,9 +149,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     variacao_dia = 0.0
     dy_12m = "0,00%"
 
-    # =====================================================
-    # 1. MOTOR CRIPTO
-    # =====================================================
+    # 1. MOTOR CRIPTO (Você disse que está perfeito, não mexi)
     if is_crypto:
         symbol_binance = ticker.replace("-", "")
         try:
@@ -164,14 +162,11 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
         if preco == 0.0:
             preco, variacao_dia = _yf_fetch_full(ticker)
 
-    # =====================================================
-    # 2. MOTOR AÇÕES E FIIS (COM DIVIDENDOS NATIVOS YAHOO)
-    # =====================================================
+    # 2. MOTOR AÇÕES/FIIS PREÇO (Você disse que está perfeito, não mexi)
     else:
         symbol = ticker if is_us else f"{ticker}.SA"
         preco, variacao_dia = _yf_fetch_full(symbol)
         
-        # Puxa P/VP, P/L, e Rendimentos direto da fonte segura do Yahoo
         try:
             tk = yf.Ticker(symbol)
             info = tk.info
@@ -181,59 +176,48 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 dy_raw = _safe_float(info.get('dividendYield', 0))
                 if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
             
-            # A MÁGICA DOS FIIS: Pega o último rendimento do histórico do Yahoo (Imune a bloqueios)
             divs = tk.dividends
             if not divs.empty:
                 rend_ultimo = _safe_float(divs.iloc[-1])
         except: pass
 
- # =====================================================
-        # 3. BUSCA DE FUNDAMENTOS (FIIs E AÇÕES BRASIL)
+        # =====================================================
+        # 3. FALLBACK RENDIMENTOS FIIS E FUNDAMENTOS (O SEU BLOCO NOVO)
         # =====================================================
         if not is_us and not is_crypto:
-            # Tenta StatusInvest com um disfarce mais forte
-            try:
-                headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'}
-                url_cat = "fundos-imobiliarios" if is_fii else "acoes"
-                r_si = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=6)
-                
-                if r_si.status_code == 200:
-                    import re
-                    html = r_si.text
-                    # Busca Rendimento (FII)
-                    if is_fii and rend_ultimo == 0.0:
-                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', html, re.IGNORECASE | re.DOTALL)
-                        if m_rend: rend_ultimo = _safe_float(m_rend.group(1).replace(",", "."))
-                    
-                    # Busca P/VP e P/L se estiverem zerados
-                    if p_vp == 0.0:
-                        m_pvp = re.search(r'P/VP.*?<strong[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                        if m_pvp: p_vp = _safe_float(m_pvp.group(1).replace(".", "").replace(",", "."))
-                    
-                    if p_l == 0.0:
-                        m_pl = re.search(r'P/L.*?<strong[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
-                        if m_pl: p_l = _safe_float(m_pl.group(1).replace(".", "").replace(",", "."))
-            except: pass
-
-            # 🟢 SEGUNDA CHANCE: Se o StatusInvest bloqueou, tenta o Fundamentus (Muito estável)
-            if (is_fii and rend_ultimo == 0.0) or p_vp == 0.0:
+            
+            # 🟢 O SALVADOR DO FII: Pula a letra "R$" e pega só o número do rendimento
+            if is_fii and rend_ultimo == 0.0:
                 try:
-                    url_f = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
-                    r_f = requests.get(url_f, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
-                    if r_f.status_code == 200:
+                    r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                    if r_si.status_code == 200:
                         import re
-                        f_html = r_f.text
-                        if p_vp == 0.0:
-                            m = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', f_html, re.IGNORECASE | re.DOTALL)
-                            if m: p_vp = _safe_float(m.group(1).replace(".", "").replace(",", "."))
-                        if is_fii and rend_ultimo == 0.0:
-                            # Fundamentus às vezes tem o rendimento em tabelas secundárias
-                            m = re.search(r'Último rendimento.*?([0-9]+,[0-9]+)', f_html, re.IGNORECASE | re.DOTALL)
-                            if m: rend_ultimo = _safe_float(m.group(1).replace(",", "."))
+                        # A MÁGICA: [^0-9]* faz o sistema ignorar o "R$ " e focar no número (ex: 0,10)
+                        m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', r_si.text, re.IGNORECASE | re.DOTALL)
+                        if m_rend: 
+                            rend_ultimo = _safe_float(m_rend.group(1).replace(".", "").replace(",", "."))
                 except: pass
-    # =====================================================
+
+            # Fallback Fundamentus para P/VP, P/L e DY
+            if p_vp == 0.0 or p_l == 0.0 or dy_12m == "0,00%":
+                try:
+                    url_fund = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
+                    r4 = requests.get(url_fund, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5)
+                    if r4.status_code == 200:
+                        import re
+                        html = r4.text
+                        if p_vp == 0.0:
+                            m = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
+                            if m: p_vp = _safe_float(m.group(1).replace(".", "").replace(",", "."))
+                        if p_l == 0.0:
+                            m = re.search(r'P/L.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+)', html, re.IGNORECASE | re.DOTALL)
+                            if m: p_l = _safe_float(m.group(1).replace(".", "").replace(",", "."))
+                        if dy_12m == "0,00%":
+                            m = re.search(r'Div. Yield.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.]+%)', html, re.IGNORECASE | re.DOTALL)
+                            if m: dy_12m = m.group(1)
+                except: pass
+
     # 4. CONSOLIDA E RETORNA
-    # =====================================================
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
         return {
