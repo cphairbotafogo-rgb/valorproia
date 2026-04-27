@@ -131,18 +131,16 @@ def _yf_fetch_full(ticker: str):
     except:
         return 0.0, 0.0
 
-# --- 1. MOTOR EXCLUSIVO PARA FIIS (O "ESPECIALISTA") ---
+# --- 1. MOTOR ESPECIALISTA EM FIIS (StatusInvest) ---
 def _motor_fii_especifico(ticker):
     rend = p_vp = 0.0
     dy = "0,00%"
     try:
         url = f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}"
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            # Varre as caixinhas de info do StatusInvest (onde ficam os números)
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            soup = BeautifulSoup(r.text, 'html.parser')
             for div in soup.find_all("div", class_="info"):
                 label = div.get_text().lower()
                 val_tag = div.find("strong", class_="value")
@@ -154,13 +152,16 @@ def _motor_fii_especifico(ticker):
     except: pass
     return rend, p_vp, dy
 
-# --- 2. FUNÇÃO PRINCIPAL ---
+# --- 2. MOTOR PRINCIPAL DE BUSCA (Ações, Cripto, EUA e FII) ---
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
     is_us = (categoria_sugerida == "Exterior (EUA)")
-    is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
+    
+    # Identifica se é FII
+    if categoria_sugerida in ["Ações", "Acao", "BDR"]: is_fii = False
+    else: is_fii = (categoria_sugerida in ["FIIs", "Fiagro", "FII"]) if categoria_sugerida else ticker.endswith("11")
     
     if is_crypto: categoria = "Criptomoedas"
     elif is_us: categoria = "Exterior (EUA)"
@@ -170,51 +171,59 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     preco = variacao_dia = p_vp = p_l = rend_ultimo = 0.0
     dy_12m = "0,00%"
 
-    # PREÇO E VARIAÇÃO (Sempre via Yahoo)
-    symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
-    preco, variacao_dia = _yf_fetch_full(symbol)
-
-    # LÓGICA DE FIIS (Usa o Motor Especialista)
-    if is_fii:
-        rend_fii, pvp_fii, dy_fii = _motor_fii_especifico(ticker)
-        rend_ultimo = rend_fii
-        p_vp = pvp_fii
-        dy_12m = dy_fii if dy_fii else "0,00%"
-        
-    # LÓGICA DE AÇÕES E CRIPTO (Usa o Yahoo nativo)
-    else:
+    # --- BUSCA PARA CRIPTOMOEDAS (Binance) ---
+    if is_crypto:
         try:
-            tk = yf.Ticker(symbol)
+            symbol_bin = ticker.replace("-", "")
+            r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_bin}", timeout=4)
+            if r_bin.status_code == 200:
+                data = r_bin.json()
+                preco = _safe_float(data.get("lastPrice"))
+                variacao_dia = _safe_float(data.get("priceChangePercent"))
+        except: pass
+        if preco == 0.0: preco, variacao_dia = _yf_fetch_full(ticker)
+
+    # --- BUSCA PARA FIIS (Motor Especialista) ---
+    elif is_fii:
+        symbol_yf = f"{ticker}.SA"
+        preco, variacao_dia = _yf_fetch_full(symbol_yf)
+        rend_ultimo, p_vp, dy_12m = _motor_fii_especifico(ticker)
+
+    # --- BUSCA PARA AÇÕES E EUA (Yahoo Finance) ---
+    else:
+        symbol_yf = ticker if is_us else f"{ticker}.SA"
+        preco, variacao_dia = _yf_fetch_full(symbol_yf)
+        try:
+            tk = yf.Ticker(symbol_yf)
             info = tk.info
             p_vp = _safe_float(info.get('priceToBook', 0))
-            p_l = _safe_float(info.get('trailingPE', 0))
+            p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
             dy_raw = _safe_float(info.get('dividendYield', 0))
             if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
-    # RETORNO FINAL
+    # --- RETORNO CONSOLIDADO ---
     if preco > 0 or is_crypto:
-        dy_m = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
+        dy_m_calc = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
         return {
             "Ticker": ticker, "Categoria": categoria, "Preço": preco, 
-            "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m:.2f}%", 
+            "Var_Dia": variacao_dia, "DY_12M": dy_12m, "DY_Mensal": f"{dy_m_calc:.2f}%", 
             "Rend": rend_ultimo, "P_VP": p_vp, "P_L": p_l, 
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
 
+# --- 3. EXECUTOR MULTIPLOS (Threading) ---
 def buscar_multiplos(itens):
     resultados = []
     with ThreadPoolExecutor(max_workers=6) as ex:
-        futures = {}
-        for item in itens:
-            if isinstance(item, tuple) or isinstance(item, list): futures[ex.submit(buscar_mercado, item[0], item[1])] = item[0]
-            else: futures[ex.submit(buscar_mercado, item)] = item
+        futures = {ex.submit(buscar_mercado, (i[0] if isinstance(i, (tuple, list)) else i), 
+                   (i[1] if isinstance(i, (tuple, list)) else None)): i for i in itens}
         for fut in as_completed(futures):
             res = fut.result()
             if res: resultados.append(res)
     return resultados
-    
+
 # =============================================================================
 # 🔒 5. BLOQUEIO FREEMIUM E TELA DE LOGIN
 # =============================================================================
