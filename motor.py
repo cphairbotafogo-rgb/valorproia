@@ -90,7 +90,9 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
         # ---------------------------------------------------------
         # PASSO 1: PEGANDO O PREÇO DE FORMA SEGURA (SEM USAR .INFO)
         # ---------------------------------------------------------
-        df_hist = dat.history(period="1d")
+        # BLINDAGEM APLICADA: 5 dias para evitar falha no final de semana + actions=False
+        df_hist = dat.history(period="5d", actions=False, auto_adjust=False)
+        
         if df_hist.empty:
             return None
             
