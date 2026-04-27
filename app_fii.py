@@ -595,14 +595,15 @@ with tab_cripto:
                 return df
 
             # ==========================================
-            # 🔄 4. ATUALIZAÇÃO (Usa a função que está lá em cima)
+            # 🔄 4. ATUALIZAÇÃO 
             # ==========================================
             def atualizar_precos(df):
                 precos = []
                 totais = []
 
                 for _, row in df.iterrows():
-                    preco_live = buscar_preco(row["Ticker"])
+                    # 👇 AQUI ESTÁ A MUDANÇA: Usando o motor da Binance!
+                    preco_live = buscar_preco_binance(row["Ticker"])
 
                     if preco_live is None:
                         preco_live = row["Preço"]
