@@ -256,7 +256,6 @@ def buscar_multiplos(itens):
             res = fut.result()
             if res: resultados.append(res)
     return resultados
-s
 
 # =============================================================================
 # 🔒 5. BLOQUEIO FREEMIUM E TELA DE LOGIN
