@@ -149,52 +149,43 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     variacao_dia = 0.0
     dy_12m = "0,00%"
 
-    # 1. CRIPTO (Binance Rápido)
-    if is_crypto:
+    # 1. DEFINE O SÍMBOLO CORRETO PARA O YAHOO FINANCE
+    symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
+    
+    # 2. BUSCA UNIFICADA VIA YFINANCE (Ações, FIIs, Cripto e EUA)
+    preco, variacao_dia = _yf_fetch_full(symbol)
+    
+    try:
+        tk = yf.Ticker(symbol)
+        info = tk.info
+        if info:
+            p_vp = _safe_float(info.get('priceToBook', 0))
+            p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
+            dy_raw = _safe_float(info.get('dividendYield', 0))
+            if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
+    except: pass
+
+    # 3. FALLBACK STATUSINVEST (APENAS PARA AÇÕES E FIIS DO BRASIL)
+    if preco == 0.0 and not is_us and not is_crypto:
         try:
-            symbol_binance = ticker.replace("-", "") 
-            r_bin = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol_binance}", timeout=4)
-            if r_bin.status_code == 200:
-                data = r_bin.json()
-                preco = _safe_float(data.get("lastPrice"))
-                variacao_dia = _safe_float(data.get("priceChangePercent"))
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            url_cat = "fundos-imobiliarios" if is_fii else "acoes"
+            r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
+            if r3.status_code == 200:
+                soup = BeautifulSoup(r3.text, "html.parser")
+                def _ext_val(termos):
+                    for tag in soup.find_all(["h3", "span", "div"]):
+                        if tag.get_text(strip=True).lower() in termos:
+                            strong = tag.find_next("strong")
+                            if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
+                    return 0.0
+                if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
+                if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
+                if p_l == 0.0: p_l = _ext_val(["p/l"])
+                rend_ultimo = _ext_val(["último rendimento", "rendimento"])
         except: pass
 
-    # 2. AÇÕES E FIIs (Yfinance Resolve o Problema)
-    else:
-        symbol = ticker if is_us else f"{ticker}.SA"
-        preco, variacao_dia = _yf_fetch_full(symbol)
-        
-        try:
-            tk = yf.Ticker(symbol)
-            info = tk.info
-            if info:
-                p_vp = _safe_float(info.get('priceToBook', 0))
-                p_l = _safe_float(info.get('trailingPE', info.get('forwardPE', 0)))
-                dy_raw = _safe_float(info.get('dividendYield', 0))
-                if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
-        except: pass
-
-        # 3. Fallback StatusInvest (Apenas Brasil)
-        if preco == 0.0 and not is_us:
-            try:
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                url_cat = "fundos-imobiliarios" if is_fii else "acoes"
-                r3 = requests.get(f"https://statusinvest.com.br/{url_cat}/{ticker.lower()}", headers=headers, timeout=5)
-                if r3.status_code == 200:
-                    soup = BeautifulSoup(r3.text, "html.parser")
-                    def _ext_val(termos):
-                        for tag in soup.find_all(["h3", "span", "div"]):
-                            if tag.get_text(strip=True).lower() in termos:
-                                strong = tag.find_next("strong")
-                                if strong: return _safe_float(strong.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", "."))
-                        return 0.0
-                    if preco == 0.0: preco = _ext_val(["valor atual", "cotação"])
-                    if p_vp == 0.0: p_vp = _ext_val(["p/vp", "vpa"])
-                    if p_l == 0.0: p_l = _ext_val(["p/l"])
-                    rend_ultimo = _ext_val(["último rendimento", "rendimento"])
-            except: pass
-
+    # 4. CONSOLIDA E RETORNA OS DADOS
     if preco > 0.0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if rend_ultimo > 0 and preco > 0 else 0.0
         return {
@@ -204,7 +195,6 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             "Status": classificar_ativo(categoria, p_vp, p_l)
         }
     return None
-
 def buscar_multiplos(itens):
     resultados = []
     with ThreadPoolExecutor(max_workers=6) as ex:
