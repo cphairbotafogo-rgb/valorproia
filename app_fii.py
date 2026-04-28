@@ -1079,9 +1079,10 @@ with tab_ir:
     col_ir1, col_ir2 = st.columns([2, 1])
     
     with col_ir2:
+        # CORREÇÃO DA CAIXA BRANCA: Agora com cores próprias para o Modo Escuro
         st.markdown("""
-        <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid #1e3a8a;">
-            <h5 style="margin-top:0;">📌 Regras de Isenção (Vendas/Mês)</h5>
+        <div style="background-color: #1e293b; color: #f8fafc; padding: 15px; border-radius: 10px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h5 style="margin-top:0; color: #60a5fa;">📌 Regras de Isenção (Vendas/Mês)</h5>
             <ul style="font-size: 13px;">
                 <li><b>Ações:</b> Isento até R$ 20.000,00</li>
                 <li><b>Cripto:</b> Isento até R$ 35.000,00</li>
@@ -1097,7 +1098,7 @@ with tab_ir:
         # Lógica de agrupamento para Preço Médio REAL
         df_ir_calc = df_geral.groupby('Ticker').agg({
             'Qtd': 'sum',
-            'Preco_Pago': 'mean', # Simplificado para exibição
+            'Preco_Pago': 'mean',
             'Categoria': 'first'
         }).reset_index()
         
@@ -1105,18 +1106,54 @@ with tab_ir:
         df_ir_calc = pd.merge(df_ir_calc, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
         df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
         
+        # 🟢 BOTÃO DE RELATÓRIO PARA O CONTADOR
+        def gerar_relatorio_contador(df):
+            texto = "====================================================\n"
+            texto += "        RELATÓRIO FISCAL PARA CONTADOR - VALORPRO   \n"
+            texto += "====================================================\n\n"
+            texto += "1. POSIÇÃO EM BENS E DIREITOS (31/12)\n"
+            texto += "----------------------------------------------------\n"
+            for _, row in df.iterrows():
+                txt = f"Ativo: {row['Ticker']} ({row['Categoria']})\n"
+                txt += f"Quantidade: {formatar_qtd(row['Qtd'])}\n"
+                txt += f"Custo Médio Unitário: R$ {row['Preco_Pago']:,.2f}\n"
+                txt += f"Valor Total de Aquisição: R$ {row['Custo_Total']:,.2f}\n"
+                txt += "-> Sugestão de Descrição para a DIRPF:\n"
+                txt += f"Posição de {formatar_qtd(row['Qtd'])} unidades de {row['Ticker']}, custodiadas na corretora, com custo médio de R$ {row['Preco_Pago']:,.2f} e valor total de aquisição de R$ {row['Custo_Total']:,.2f}.\n\n"
+                texto += txt
+            
+            texto += "----------------------------------------------------\n"
+            texto += "2. REGRAS DE ISENÇÃO E TRIBUTAÇÃO APLICÁVEIS\n"
+            texto += "----------------------------------------------------\n"
+            texto += "- Ações: Vendas até R$ 20.000,00 no mês são ISENTAS de IR.\n"
+            texto += "- Criptomoedas: Vendas até R$ 35.000,00 no mês são ISENTAS de IR.\n"
+            texto += "- FIIs: NÃO possuem isenção para ganhos de capital (Alíquota 20%).\n"
+            texto += "- Dividendos (Ações/FIIs): Rendimentos Isentos e Não Tributáveis.\n"
+            texto += "- JCP (Ações): Rendimentos Sujeitos à Tributação Exclusiva.\n"
+            return texto.encode('utf-8')
+
+        st.download_button(
+            label="📄 Baixar Relatório Completo p/ Contador (TXT)",
+            data=gerar_relatorio_contador(df_ir_calc),
+            file_name="Relatorio_IR_Investimentos.txt",
+            mime="text/plain",
+            type="primary"
+        )
+        st.write("")
+
         st.dataframe(df_ir_calc.rename(columns={
             'Preco_Pago': 'Preço Médio',
             'Custo_Total': 'Custo de Aquisição',
             'Preço': 'Cotação Atual'
-        }), hide_index=True, use_container_width=True)
+        }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo de Aquisição': 'R$ {:,.2f}', 'Cotação Atual': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
         
         st.divider()
-        st.subheader("📝 Sugestão de Texto para Declaração")
+        st.subheader("📝 Textos para Declaração (Copiar e Colar)")
         for _, row in df_ir_calc.iterrows():
-            with st.expander(f"Texto para {row['Ticker']}"):
+            with st.expander(f"Ficha para {row['Ticker']}"):
                 txt = f"Posição de {formatar_qtd(row['Qtd'])} unidades de {row['Ticker']} ({row['Categoria']}), custodiadas na corretora X, com custo médio de R$ {row['Preco_Pago']:,.2f} e valor total de aquisição de R$ {row['Custo_Total']:,.2f}."
                 st.code(txt, language="text")
+    else: st.info("Nenhum dado para exibir.")
 
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
