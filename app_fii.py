@@ -759,8 +759,9 @@ with tab_cripto:
             
             with col_pie_cripto:
                 fig_cripto = px.pie(criptos, values="Total_Atual", names="Ticker", hole=0.4, color_discrete_sequence=["#eab308", "#ca8a04", "#854d0e"])
-                fig_cripto.update_layout(**PLOTLY_DARK, height=200, showlegend=False)
-                fig_cripto.update_traces(textposition="inside", textinfo="percent+label", textfont_color="white")
+                fig_cripto.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
+                # Configuração espelhada dos FIIs
+                fig_cripto.update_layout(height=220, margin=dict(t=10, b=10, l=10, r=10), showlegend=False, uniformtext_minsize=12, uniformtext_mode='hide', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
                 st.plotly_chart(fig_cripto, use_container_width=True)
 
             criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]
