@@ -254,7 +254,7 @@ def tela_login():
                 if entrar:
                     with st.spinner("Autenticando..."):
                         try:
-                            resposta = supabase.table("usuarios").select("*").eq("email", u).eq("senha", p).execute()
+                            resposta = supabase.table("usuarios").select("*").eq("e-mail", u).eq("senha", p).execute()
                             if len(resposta.data) > 0:
                                 dados = resposta.data[0]
                                 st.session_state.autenticado = True
