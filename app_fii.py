@@ -57,16 +57,19 @@ if CHAVE_API_GOOGLE:
         ia_pronta = False
 
 # =============================================================================
-# 🔧 3. FUNÇÕES UTILITÁRIAS
+# 🔧 3. FUNÇÕES UTILITÁRIAS (COM A MATEMÁTICA CORRIGIDA)
 # =============================================================================
 def _safe_float(val, default=0.0):
     try:
         if val is None: return default
         if isinstance(val, (int, float)): return float(val)
         s = str(val).replace("R$", "").replace("%", "").strip()
-        s = s.replace(".", "").replace(",", ".")
+        # 🟢 A MÁGICA SALVADORA: Só converte padrão brasileiro (1.000,50). 
+        # Criptos (0.000045) passam direto sem perder o ponto!
+        if "," in s:
+            s = s.replace(".", "").replace(",", ".")
         return float(s)
-    except (TypeError, ValueError): return default
+    except: return default
 
 def formatar_qtd(valor):
     if pd.isna(valor) or valor == "": return "0"
@@ -145,10 +148,10 @@ def _motor_fii_br(ticker):
                 label = div.get_text().lower()
                 val_tag = div.find("strong", class_="value")
                 if val_tag:
-                    val_txt = val_tag.get_text(strip=True).replace("R$", "").replace("%", "").replace(".", "").replace(",", ".").strip()
+                    val_txt = val_tag.get_text(strip=True)
                     if "p/vp" in label: p_vp = _safe_float(val_txt)
                     elif "último rendimento" in label or "rendimento" in label: rend = _safe_float(val_txt)
-                    elif "dividend yield" in label: dy = val_tag.get_text(strip=True)
+                    elif "dividend yield" in label: dy = val_txt.replace("R$", "").strip()
     except: pass
     return rend, p_vp, dy
 
@@ -254,6 +257,7 @@ def tela_login():
                 if entrar:
                     with st.spinner("Autenticando..."):
                         try:
+                            # 🟢 CORREÇÃO DO BANCO: 'e-mail' COM HÍFEN APLICADA
                             resposta = supabase.table("usuarios").select("*").eq("e-mail", u).eq("senha", p).execute()
                             if len(resposta.data) > 0:
                                 dados = resposta.data[0]
@@ -392,7 +396,7 @@ with st.sidebar:
         if st.button("Atualizar Credenciais", use_container_width=True):
             if n_pwd == c_pwd and n_pwd != "":
                 try:
-                    supabase.table("usuarios").update({"email": n_usr, "senha": n_pwd}).eq("id", st.session_state.usuario_id).execute()
+                    supabase.table("usuarios").update({"e-mail": n_usr, "senha": n_pwd}).eq("id", st.session_state.usuario_id).execute()
                     st.success("✅ Atualizado! Faça login novamente.")
                     time.sleep(1.5); st.session_state.autenticado = False; st.rerun()
                 except: st.error("Erro ao atualizar.")
