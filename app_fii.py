@@ -1076,73 +1076,101 @@ with tab_ia:
 with tab_ir:
     st.markdown("#### 🧾 Gestão Fiscal de Bens e Direitos")
     
-    # 1. Informações e Regras (Resumo Superior)
     col_ir1, col_ir2 = st.columns([2, 1])
     with col_ir2:
-        st.markdown("""
-        <div style="background-color: #1e293b; color: #f8fafc; padding: 15px; border-radius: 10px; border-left: 5px solid #3b82f6;">
-            <h5 style="margin-top:0; color: #60a5fa; font-size: 14px;">⚖️ Resumo de Isenções</h5>
-            <p style="font-size: 12px; margin-bottom: 5px;">• <b>Ações:</b> Isento até R$ 20k/mês</p>
-            <p style="font-size: 12px; margin-bottom: 5px;">• <b>Cripto:</b> Isento até R$ 35k/mês</p>
-            <p style="font-size: 12px; margin-bottom: 0;">• <b>FIIs:</b> Sem isenção (20%)</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.info("""
+        **📌 Regras de Isenção (Vendas/Mês)**
+        * **Ações:** Isento até R$ 20.000,00
+        * **Cripto:** Isento até R$ 35.000,00
+        * **FIIs:** SEM ISENÇÃO (20% sobre lucro)
+        """)
     
     with col_ir1:
-        st.info("Consulte os dados consolidados ou selecione um ativo para gerar o texto da declaração.")
+        st.write("Selecione um ou mais ativos para gerar as fichas detalhadas de declaração.")
+        
+        if not df_geral.empty and not df_g.empty:
+            # Lógica de consolidação
+            df_ir_calc = df_geral.groupby('Ticker').agg({
+                'Qtd': 'sum',
+                'Preco_Pago': 'mean', 
+                'Categoria': 'first'
+            }).reset_index()
+            
+            df_ir_calc = pd.merge(df_ir_calc, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
+            df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
+            
+            def preparar_txt_geral(df):
+                t = "RELATÓRIO GERAL PARA O CONTADOR\n" + "="*30 + "\n"
+                for _, r in df.iterrows():
+                    t += f"\nAtivo: {r['Ticker']} | Qtd: {formatar_qtd(r['Qtd'])} | Total: R$ {r['Custo_Total']:,.2f}"
+                return t.encode('utf-8')
+
+            st.download_button("📄 Baixar Resumo Geral (Todos os Ativos)", preparar_txt_geral(df_ir_calc), "Relatorio_Geral_IR.txt", "text/plain")
+
+    st.divider()
 
     if not df_geral.empty and not df_g.empty:
-        # Lógica de cálculo do Preço Médio e Totais
-        df_ir_calc = df_geral.groupby('Ticker').agg({
-            'Qtd': 'sum',
-            'Preco_Pago': 'mean', # Simplificado: o ideal é o PM ponderado, mas mantendo sua lógica
-            'Categoria': 'first'
-        }).reset_index()
+        st.markdown("#### 🎯 Fichas de Declaração Individuais")
         
-        df_ir_calc = pd.merge(df_ir_calc, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
-        df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
-        
-        # Botão para Relatório Geral (Sempre útil ter o completo)
-        def preparar_txt_geral(df):
-            t = "RELATÓRIO GERAL PARA O CONTADOR\n" + "="*30 + "\n"
-            for _, r in df.iterrows():
-                t += f"\nAtivo: {r['Ticker']} | Qtd: {formatar_qtd(r['Qtd'])} | Total: R$ {r['Custo_Total']:,.2f}"
-            return t.encode('utf-8')
-
-        st.download_button("📄 Baixar Tudo (Relatório Geral)", preparar_txt_geral(df_ir_calc), "Relatorio_Geral_IR.txt", "text/plain")
-
-        st.write("---")
-
-        # 🟢 A MÁGICA: SELETOR INDIVIDUAL (MENOS INFORMAÇÃO NA TELA)
-        st.subheader("🎯 Detalhar Ativo Individual")
-        
-        col_sel, col_btn_ind = st.columns([2, 1])
-        
-        with col_sel:
-            ativo_selecionado = st.selectbox("Escolha um ativo da sua carteira:", options=df_ir_calc['Ticker'].tolist())
-        
-        # Filtra os dados apenas do ativo escolhido
-        dados_ativos = df_ir_calc[df_ir_calc['Ticker'] == ativo_selecionado].iloc[0]
-        
-        texto_declaracao = (
-            f"Posição de {formatar_qtd(dados_ativos['Qtd'])} unidades de {dados_ativos['Ticker']} "
-            f"({dados_ativos['Categoria']}), custodiadas na corretora, com custo médio de "
-            f"R$ {dados_ativos['Preco_Pago']:,.2f} e valor total de aquisição de "
-            f"R$ {dados_ativos['Custo_Total']:,.2f}."
+        # 🟢 A MÁGICA: MULTISELECT PARA MÚLTIPLOS ATIVOS
+        ativos_selecionados = st.multiselect(
+            "Selecione os ativos que deseja visualizar:", 
+            options=df_ir_calc['Ticker'].tolist(),
+            default=df_ir_calc['Ticker'].tolist()[:1] # Deixa o primeiro selecionado por padrão
         )
+        
+        if ativos_selecionados:
+            for ticker in ativos_selecionados:
+                # Busca dados do ativo atual no loop
+                dados = df_ir_calc[df_ir_calc['Ticker'] == ticker].iloc[0]
+                
+                texto_declaracao = (
+                    f"Posição de {formatar_qtd(dados['Qtd'])} unidades de {dados['Ticker']} "
+                    f"({dados['Categoria']}), custodiadas na corretora, com custo médio de "
+                    f"R$ {dados['Preco_Pago']:,.2f} e valor total de aquisição de "
+                    f"R$ {dados['Custo_Total']:,.2f}."
+                )
 
-        with st.container():
-            st.markdown(f"**Descrição para a Ficha de Bens e Direitos ({ativo_selecionado}):**")
-            st.code(texto_declaracao, language="text")
-            
-            # Botão individual para o ativo selecionado
-            st.download_button(
-                label=f"📥 Baixar Ficha de {ativo_selecionado}",
-                data=texto_declaracao.encode('utf-8'),
-                file_name=f"Declaração_{ativo_selecionado}.txt",
-                mime="text/plain",
-                key=f"btn_{ativo_selecionado}"
-            )
+                # Card Premium Repetível
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h4 style="color: #60a5fa; margin: 0;">{ticker}</h4>
+                        <span style="background: #334155; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 12px;">{dados['Categoria']}</span>
+                    </div>
+                    
+                    <div style="display: flex; gap: 30px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 15px;">
+                        <div>
+                            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Qtd</span><br>
+                            <b style="font-size: 16px; color: white;">{formatar_qtd(dados['Qtd'])}</b>
+                        </div>
+                        <div>
+                            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Preço Médio</span><br>
+                            <b style="font-size: 16px; color: white;">R$ {dados['Preco_Pago']:,.2f}</b>
+                        </div>
+                        <div>
+                            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Total Pago</span><br>
+                            <b style="font-size: 16px; color: #22c55e;">R$ {dados['Custo_Total']:,.2f}</b>
+                        </div>
+                    </div>
+                    
+                    <div style="background-color: #000000; padding: 12px; border-radius: 8px; border: 1px solid #334155; color: #a5b4fc; font-size: 14px; line-height: 1.4; font-family: monospace;">
+                        {texto_declaracao}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Botão de download individual dentro do loop (cada um com sua Key única)
+                st.download_button(
+                    label=f"📥 Baixar Texto de {ticker}",
+                    data=texto_declaracao.encode('utf-8'),
+                    file_name=f"Declaracao_{ticker}.txt",
+                    mime="text/plain",
+                    key=f"dl_{ticker}"
+                )
+                st.write("") # Espaçamento entre os cards
+        else:
+            st.warning("Selecione pelo menos um ativo acima para ver os detalhes.")
 
         st.write("---")
         with st.expander("📊 Ver Tabela Resumo (Todos os Ativos)"):
@@ -1154,7 +1182,6 @@ with tab_ir:
 
     else:
         st.info("Sua carteira está vazia ou sem dados para declaração.")
-
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
     st.markdown("#### 🎯 Acompanhamento de Metas de Patrimônio")
