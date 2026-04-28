@@ -1089,7 +1089,6 @@ with tab_ir:
         st.write("Selecione um ou mais ativos para gerar as fichas detalhadas de declaração.")
         
         if not df_geral.empty and not df_g.empty:
-            # Lógica de consolidação
             df_ir_calc = df_geral.groupby('Ticker').agg({
                 'Qtd': 'sum',
                 'Preco_Pago': 'mean', 
@@ -1112,16 +1111,14 @@ with tab_ir:
     if not df_geral.empty and not df_g.empty:
         st.markdown("#### 🎯 Fichas de Declaração Individuais")
         
-        # 🟢 A MÁGICA: MULTISELECT PARA MÚLTIPLOS ATIVOS
         ativos_selecionados = st.multiselect(
             "Selecione os ativos que deseja visualizar:", 
             options=df_ir_calc['Ticker'].tolist(),
-            default=df_ir_calc['Ticker'].tolist()[:1] # Deixa o primeiro selecionado por padrão
+            default=df_ir_calc['Ticker'].tolist()[:1]
         )
         
         if ativos_selecionados:
             for ticker in ativos_selecionados:
-                # Busca dados do ativo atual no loop
                 dados = df_ir_calc[df_ir_calc['Ticker'] == ticker].iloc[0]
                 
                 texto_declaracao = (
@@ -1131,36 +1128,35 @@ with tab_ir:
                     f"R$ {dados['Custo_Total']:,.2f}."
                 )
 
-                # Card Premium Repetível
+                # 🟢 MÁGICA AQUI: O HTML está colado na esquerda para não virar "texto de código"
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                        <h4 style="color: #60a5fa; margin: 0;">{ticker}</h4>
-                        <span style="background: #334155; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 12px;">{dados['Categoria']}</span>
-                    </div>
-                    
-                    <div style="display: flex; gap: 30px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 15px;">
-                        <div>
-                            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Qtd</span><br>
-                            <b style="font-size: 16px; color: white;">{formatar_qtd(dados['Qtd'])}</b>
-                        </div>
-                        <div>
-                            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Preço Médio</span><br>
-                            <b style="font-size: 16px; color: white;">R$ {dados['Preco_Pago']:,.2f}</b>
-                        </div>
-                        <div>
-                            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Total Pago</span><br>
-                            <b style="font-size: 16px; color: #22c55e;">R$ {dados['Custo_Total']:,.2f}</b>
-                        </div>
-                    </div>
-                    
-                    <div style="background-color: #000000; padding: 12px; border-radius: 8px; border: 1px solid #334155; color: #a5b4fc; font-size: 14px; line-height: 1.4; font-family: monospace;">
-                        {texto_declaracao}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+<div style="background: linear-gradient(135deg, #1e293b, #0f172a); padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 15px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h4 style="color: #60a5fa; margin: 0;">{ticker}</h4>
+        <span style="background: #334155; color: #94a3b8; padding: 4px 12px; border-radius: 20px; font-size: 12px;">{dados['Categoria']}</span>
+    </div>
+    
+    <div style="display: flex; gap: 30px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 15px;">
+        <div>
+            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Quantidade</span><br>
+            <b style="font-size: 16px; color: white;">{formatar_qtd(dados['Qtd'])}</b>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Preço Médio</span><br>
+            <b style="font-size: 16px; color: white;">R$ {dados['Preco_Pago']:,.2f}</b>
+        </div>
+        <div>
+            <span style="color: #94a3b8; font-size: 11px; text-transform: uppercase;">Total Pago</span><br>
+            <b style="font-size: 16px; color: #22c55e;">R$ {dados['Custo_Total']:,.2f}</b>
+        </div>
+    </div>
+    
+    <div style="background-color: #000000; padding: 12px; border-radius: 8px; border: 1px solid #334155; color: #a5b4fc; font-size: 14px; line-height: 1.4; font-family: monospace;">
+        {texto_declaracao}
+    </div>
+</div>
+""", unsafe_allow_html=True)
                 
-                # Botão de download individual dentro do loop (cada um com sua Key única)
                 st.download_button(
                     label=f"📥 Baixar Texto de {ticker}",
                     data=texto_declaracao.encode('utf-8'),
@@ -1168,7 +1164,7 @@ with tab_ir:
                     mime="text/plain",
                     key=f"dl_{ticker}"
                 )
-                st.write("") # Espaçamento entre os cards
+                st.write("")
         else:
             st.warning("Selecione pelo menos um ativo acima para ver os detalhes.")
 
@@ -1182,6 +1178,7 @@ with tab_ir:
 
     else:
         st.info("Sua carteira está vazia ou sem dados para declaração.")
+        
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
     st.markdown("#### 🎯 Acompanhamento de Metas de Patrimônio")
