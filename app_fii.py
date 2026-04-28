@@ -1074,86 +1074,86 @@ with tab_ia:
 
 # --- ABA 12: IMPOSTO DE RENDA ---
 with tab_ir:
-    st.markdown("#### 🧾 Bens e Direitos & Guia Fiscal")
+    st.markdown("#### 🧾 Gestão Fiscal de Bens e Direitos")
     
+    # 1. Informações e Regras (Resumo Superior)
     col_ir1, col_ir2 = st.columns([2, 1])
-    
     with col_ir2:
-        # CORREÇÃO DA CAIXA BRANCA: Agora com cores próprias para o Modo Escuro
         st.markdown("""
-        <div style="background-color: #1e293b; color: #f8fafc; padding: 15px; border-radius: 10px; border-left: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-            <h5 style="margin-top:0; color: #60a5fa;">📌 Regras de Isenção (Vendas/Mês)</h5>
-            <ul style="font-size: 13px;">
-                <li><b>Ações:</b> Isento até R$ 20.000,00</li>
-                <li><b>Cripto:</b> Isento até R$ 35.000,00</li>
-                <li><b>FIIs:</b> SEM ISENÇÃO (20% sobre lucro)</li>
-            </ul>
+        <div style="background-color: #1e293b; color: #f8fafc; padding: 15px; border-radius: 10px; border-left: 5px solid #3b82f6;">
+            <h5 style="margin-top:0; color: #60a5fa; font-size: 14px;">⚖️ Resumo de Isenções</h5>
+            <p style="font-size: 12px; margin-bottom: 5px;">• <b>Ações:</b> Isento até R$ 20k/mês</p>
+            <p style="font-size: 12px; margin-bottom: 5px;">• <b>Cripto:</b> Isento até R$ 35k/mês</p>
+            <p style="font-size: 12px; margin-bottom: 0;">• <b>FIIs:</b> Sem isenção (20%)</p>
         </div>
         """, unsafe_allow_html=True)
-
+    
     with col_ir1:
-        st.info("Utilize os dados abaixo para preencher a ficha de **Bens e Direitos**.")
+        st.info("Consulte os dados consolidados ou selecione um ativo para gerar o texto da declaração.")
 
     if not df_geral.empty and not df_g.empty:
-        # Lógica de agrupamento para Preço Médio REAL
+        # Lógica de cálculo do Preço Médio e Totais
         df_ir_calc = df_geral.groupby('Ticker').agg({
             'Qtd': 'sum',
-            'Preco_Pago': 'mean',
+            'Preco_Pago': 'mean', # Simplificado: o ideal é o PM ponderado, mas mantendo sua lógica
             'Categoria': 'first'
         }).reset_index()
         
-        # Merge com preços atuais para ver valor de mercado
         df_ir_calc = pd.merge(df_ir_calc, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
         df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
         
-        # 🟢 BOTÃO DE RELATÓRIO PARA O CONTADOR
-        def gerar_relatorio_contador(df):
-            texto = "====================================================\n"
-            texto += "        RELATÓRIO FISCAL PARA CONTADOR - VALORPRO   \n"
-            texto += "====================================================\n\n"
-            texto += "1. POSIÇÃO EM BENS E DIREITOS (31/12)\n"
-            texto += "----------------------------------------------------\n"
-            for _, row in df.iterrows():
-                txt = f"Ativo: {row['Ticker']} ({row['Categoria']})\n"
-                txt += f"Quantidade: {formatar_qtd(row['Qtd'])}\n"
-                txt += f"Custo Médio Unitário: R$ {row['Preco_Pago']:,.2f}\n"
-                txt += f"Valor Total de Aquisição: R$ {row['Custo_Total']:,.2f}\n"
-                txt += "-> Sugestão de Descrição para a DIRPF:\n"
-                txt += f"Posição de {formatar_qtd(row['Qtd'])} unidades de {row['Ticker']}, custodiadas na corretora, com custo médio de R$ {row['Preco_Pago']:,.2f} e valor total de aquisição de R$ {row['Custo_Total']:,.2f}.\n\n"
-                texto += txt
-            
-            texto += "----------------------------------------------------\n"
-            texto += "2. REGRAS DE ISENÇÃO E TRIBUTAÇÃO APLICÁVEIS\n"
-            texto += "----------------------------------------------------\n"
-            texto += "- Ações: Vendas até R$ 20.000,00 no mês são ISENTAS de IR.\n"
-            texto += "- Criptomoedas: Vendas até R$ 35.000,00 no mês são ISENTAS de IR.\n"
-            texto += "- FIIs: NÃO possuem isenção para ganhos de capital (Alíquota 20%).\n"
-            texto += "- Dividendos (Ações/FIIs): Rendimentos Isentos e Não Tributáveis.\n"
-            texto += "- JCP (Ações): Rendimentos Sujeitos à Tributação Exclusiva.\n"
-            return texto.encode('utf-8')
+        # Botão para Relatório Geral (Sempre útil ter o completo)
+        def preparar_txt_geral(df):
+            t = "RELATÓRIO GERAL PARA O CONTADOR\n" + "="*30 + "\n"
+            for _, r in df.iterrows():
+                t += f"\nAtivo: {r['Ticker']} | Qtd: {formatar_qtd(r['Qtd'])} | Total: R$ {r['Custo_Total']:,.2f}"
+            return t.encode('utf-8')
 
-        st.download_button(
-            label="📄 Baixar Relatório Completo p/ Contador (TXT)",
-            data=gerar_relatorio_contador(df_ir_calc),
-            file_name="Relatorio_IR_Investimentos.txt",
-            mime="text/plain",
-            type="primary"
-        )
-        st.write("")
+        st.download_button("📄 Baixar Tudo (Relatório Geral)", preparar_txt_geral(df_ir_calc), "Relatorio_Geral_IR.txt", "text/plain")
 
-        st.dataframe(df_ir_calc.rename(columns={
-            'Preco_Pago': 'Preço Médio',
-            'Custo_Total': 'Custo de Aquisição',
-            'Preço': 'Cotação Atual'
-        }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo de Aquisição': 'R$ {:,.2f}', 'Cotação Atual': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
+        st.write("---")
+
+        # 🟢 A MÁGICA: SELETOR INDIVIDUAL (MENOS INFORMAÇÃO NA TELA)
+        st.subheader("🎯 Detalhar Ativo Individual")
         
-        st.divider()
-        st.subheader("📝 Textos para Declaração (Copiar e Colar)")
-        for _, row in df_ir_calc.iterrows():
-            with st.expander(f"Ficha para {row['Ticker']}"):
-                txt = f"Posição de {formatar_qtd(row['Qtd'])} unidades de {row['Ticker']} ({row['Categoria']}), custodiadas na corretora X, com custo médio de R$ {row['Preco_Pago']:,.2f} e valor total de aquisição de R$ {row['Custo_Total']:,.2f}."
-                st.code(txt, language="text")
-    else: st.info("Nenhum dado para exibir.")
+        col_sel, col_btn_ind = st.columns([2, 1])
+        
+        with col_sel:
+            ativo_selecionado = st.selectbox("Escolha um ativo da sua carteira:", options=df_ir_calc['Ticker'].tolist())
+        
+        # Filtra os dados apenas do ativo escolhido
+        dados_ativos = df_ir_calc[df_ir_calc['Ticker'] == ativo_selecionado].iloc[0]
+        
+        texto_declaracao = (
+            f"Posição de {formatar_qtd(dados_ativos['Qtd'])} unidades de {dados_ativos['Ticker']} "
+            f"({dados_ativos['Categoria']}), custodiadas na corretora, com custo médio de "
+            f"R$ {dados_ativos['Preco_Pago']:,.2f} e valor total de aquisição de "
+            f"R$ {dados_ativos['Custo_Total']:,.2f}."
+        )
+
+        with st.container():
+            st.markdown(f"**Descrição para a Ficha de Bens e Direitos ({ativo_selecionado}):**")
+            st.code(texto_declaracao, language="text")
+            
+            # Botão individual para o ativo selecionado
+            st.download_button(
+                label=f"📥 Baixar Ficha de {ativo_selecionado}",
+                data=texto_declaracao.encode('utf-8'),
+                file_name=f"Declaração_{ativo_selecionado}.txt",
+                mime="text/plain",
+                key=f"btn_{ativo_selecionado}"
+            )
+
+        st.write("---")
+        with st.expander("📊 Ver Tabela Resumo (Todos os Ativos)"):
+            st.dataframe(df_ir_calc.rename(columns={
+                'Preco_Pago': 'Preço Médio',
+                'Custo_Total': 'Custo Aquisição',
+                'Preço': 'Cotação Atual'
+            }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo Aquisição': 'R$ {:,.2f}', 'Cotação Atual': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
+
+    else:
+        st.info("Sua carteira está vazia ou sem dados para declaração.")
 
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
