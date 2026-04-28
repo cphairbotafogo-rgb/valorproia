@@ -108,17 +108,14 @@ def formatar_delta(valor, is_percent=False):
     except: return "-"
 
 # =============================================================================
-# 📡 4. NOVO MOTOR DE BUSCA YFINANCE + BINANCE E STATUSINVEST
+# 📡 4. NOVO MOTOR DE BUSCA: YFINANCE + BINANCE + FUNDAMENTUS
 # =============================================================================
 def _yf_fetch_full(ticker: str):
-    """Busca o preço e a variação diária via YFinance contornando o bloqueio do Yahoo"""
+    """Busca o preço e a variação diária via YFinance"""
     try:
         data = yf.download(ticker, period="5d", interval="1d", progress=False, auto_adjust=True)
         if data is None or data.empty: return 0.0, 0.0
-        
-        if isinstance(data.columns, pd.MultiIndex):
-            data.columns = data.columns.get_level_values(0)
-            
+        if isinstance(data.columns, pd.MultiIndex): data.columns = data.columns.get_level_values(0)
         if "Close" not in data.columns: return 0.0, 0.0
         
         close = data["Close"].dropna()
@@ -128,32 +125,56 @@ def _yf_fetch_full(ticker: str):
         var_dia = 0.0
         if len(close) > 1:
             preco_ant = float(close.iloc[-2])
-            if preco_ant > 0:
-                var_dia = ((preco / preco_ant) - 1) * 100
-                
+            if preco_ant > 0: var_dia = ((preco / preco_ant) - 1) * 100
         return preco, var_dia
-    except:
-        return 0.0, 0.0
+    except: return 0.0, 0.0
 
-def _motor_fii_br(ticker):
-    rend = p_vp = 0.0
+def _motor_fundamentos_br(ticker, is_fii):
+    """Busca P/VP, P/L e DY direto do Fundamentus (Muito Estável)"""
+    p_vp = p_l = rend = 0.0
     dy = "0,00%"
     try:
-        url = f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0'}
-        r = requests.get(url, headers=headers, timeout=10)
+        url = f"https://www.fundamentus.com.br/detalhes.php?papel={ticker}"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0'}
+        r = requests.get(url, headers=headers, timeout=6)
         if r.status_code == 200:
-            soup = BeautifulSoup(r.text, 'html.parser')
-            for div in soup.find_all("div", class_="info"):
-                label = div.get_text().lower()
-                val_tag = div.find("strong", class_="value")
-                if val_tag:
-                    val_txt = val_tag.get_text(strip=True)
-                    if "p/vp" in label: p_vp = _safe_float(val_txt)
-                    elif "último rendimento" in label or "rendimento" in label: rend = _safe_float(val_txt)
-                    elif "dividend yield" in label: dy = val_txt.replace("R$", "").strip()
+            html = r.text
+            import re
+            
+            # P/VP (Ações e FIIs)
+            m_pvp = re.search(r'P/VP.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.-]+)', html, re.IGNORECASE | re.DOTALL)
+            if m_pvp: p_vp = _safe_float(m_pvp.group(1))
+            
+            # P/L (Apenas Ações)
+            if not is_fii:
+                m_pl = re.search(r'P/L.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.-]+)', html, re.IGNORECASE | re.DOTALL)
+                if m_pl: p_l = _safe_float(m_pl.group(1))
+            
+            # DY (Ações e FIIs)
+            m_dy = re.search(r'Div\. Yield.*?<td[^>]*>\s*<span[^>]*>\s*([0-9,.-]+)%?', html, re.IGNORECASE | re.DOTALL)
+            if m_dy: 
+                v_dy = m_dy.group(1)
+                dy = f"{v_dy}%" if "%" not in v_dy else v_dy
     except: pass
-    return rend, p_vp, dy
+
+    # Busca Rendimento para FIIs (Tenta Yahoo primeiro, depois StatusInvest)
+    if is_fii:
+        try:
+            tk = yf.Ticker(f"{ticker}.SA")
+            divs = tk.dividends
+            if not divs.empty: rend = float(divs.iloc[-1])
+        except: pass
+        
+        if rend == 0.0:
+            try:
+                r_si = requests.get(f"https://statusinvest.com.br/fundos-imobiliarios/{ticker.lower()}", headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0'}, timeout=5)
+                if r_si.status_code == 200:
+                    import re
+                    m_rend = re.search(r'Último rendimento.*?<strong[^>]*>[^0-9]*([0-9]+,[0-9]+)', r_si.text, re.IGNORECASE | re.DOTALL)
+                    if m_rend: rend = _safe_float(m_rend.group(1))
+            except: pass
+
+    return p_vp, p_l, dy, rend
 
 @st.cache_data(ttl=60, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
@@ -166,9 +187,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     preco = variacao_dia = p_vp = p_l = rend_ultimo = 0.0
     dy_12m = "0,00%"
 
-    symbol = ticker if (is_crypto or is_us) else f"{ticker}.SA"
-    preco, variacao_dia = _yf_fetch_full(symbol)
-
+    # 1. Criptomoedas (Binance)
     if is_crypto:
         symbol_binance = ticker.replace("-", "")
         try:
@@ -178,16 +197,19 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
                 preco = _safe_float(data.get("lastPrice"))
                 variacao_dia = _safe_float(data.get("priceChangePercent"))
         except: pass
-        if preco == 0.0:
-            preco, variacao_dia = _yf_fetch_full(ticker)
+        if preco == 0.0: preco, variacao_dia = _yf_fetch_full(ticker)
             
-    elif is_fii:
-        rend_f, pvp_f, dy_f = _motor_fii_br(ticker)
-        rend_ultimo, p_vp, dy_12m = rend_f, pvp_f, dy_f
+    # 2. Mercado Brasileiro (Ações e FIIs) - Usa o Fundamentus
+    elif not is_us:
+        symbol = f"{ticker}.SA"
+        preco, variacao_dia = _yf_fetch_full(symbol)
+        p_vp, p_l, dy_12m, rend_ultimo = _motor_fundamentos_br(ticker, is_fii)
         
+    # 3. Exterior (EUA) - Usa Yahoo
     else:
+        preco, variacao_dia = _yf_fetch_full(ticker)
         try:
-            tk = yf.Ticker(symbol)
+            tk = yf.Ticker(ticker)
             info = tk.info
             p_vp = _safe_float(info.get('priceToBook', 0))
             p_l = _safe_float(info.get('trailingPE', 0))
@@ -195,6 +217,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             if dy_raw > 0: dy_12m = f"{dy_raw * 100:.2f}%"
         except: pass
 
+    # 4. Retorno Consolidado
     if preco > 0 or is_crypto:
         dy_m = (rend_ultimo / preco * 100) if (rend_ultimo > 0 and preco > 0) else 0.0
         return {
