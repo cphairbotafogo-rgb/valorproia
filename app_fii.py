@@ -1086,14 +1086,13 @@ with tab_ir:
         """)
     
     with col_ir1:
-        st.write("A vantagem da Nuvem: Selecione o ano abaixo e o sistema calcula seu patrimônio exato no último dia daquele ano, sem precisar de salvamentos manuais!")
+        st.write("O **ValorPro IA** facilita sua vida na época da declaração. As informações que você precisará ficam salvas e consolidadas automaticamente no final do ano selecionado.")
         
-        # 🟢 A MÁGICA DO DIA 31/12: Seletor de Ano-Calendário
         anos_disponiveis = [datetime.now().year, datetime.now().year - 1, datetime.now().year - 2]
         ano_base = st.selectbox("📅 Selecione o Ano-Calendário da Declaração:", anos_disponiveis)
+        st.success(f"🕰️ **Status Ativo:** O sistema está programado para reter e calcular sua carteira exata até **31/12/{ano_base}**.")
         
         if not df_geral.empty:
-            # O sistema viaja no tempo: filtra apenas operações até 31/12 do ano escolhido
             data_limite = pd.to_datetime(f"{ano_base}-12-31")
             df_ir_filtrado = df_geral[df_geral['Data'] <= data_limite].copy()
             
@@ -1104,33 +1103,78 @@ with tab_ir:
                     'Categoria': 'first'
                 }).reset_index()
                 
-                # Oculta ativos que você vendeu totalmente até aquela data
                 df_ir_calc = df_ir_calc[df_ir_calc['Qtd'] > 0.0001]
                 
                 if not df_ir_calc.empty:
-                    if not df_g.empty:
-                        df_ir_calc = pd.merge(df_ir_calc, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
-                    else:
-                        df_ir_calc['Preço'] = 0.0
-                        
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
                     
-                    def preparar_txt_geral(df):
-                        t = f"RELATÓRIO GERAL PARA O CONTADOR - ANO BASE {ano_base}\n" + "="*45 + "\n"
-                        for _, r in df.iterrows():
-                            t += f"\nAtivo: {r['Ticker']} | Qtd: {formatar_qtd(r['Qtd'])} | Total Pago: R$ {r['Custo_Total']:,.2f}"
-                        return t.encode('utf-8')
+                    # 🟢 O MOTOR GERADOR DE PDF
+                    def gerar_pdf_contador(df, ano):
+                        from fpdf import FPDF
+                        pdf = FPDF()
+                        pdf.add_page()
+                        
+                        # Tenta adicionar sua logo (se não achar, pula sem dar erro)
+                        try:
+                            pdf.image("logo.png", x=85, y=10, w=40)
+                            pdf.ln(35)
+                        except:
+                            pdf.ln(10)
 
-                    st.download_button(f"📄 Baixar Resumo Geral ({ano_base})", preparar_txt_geral(df_ir_calc), f"Relatorio_IR_{ano_base}.txt", "text/plain")
+                        # Títulos Centralizados
+                        pdf.set_font("Arial", 'B', 18)
+                        pdf.set_text_color(30, 58, 138) # Azul institucional
+                        pdf.cell(0, 10, f"RELATÓRIO FISCAL - BENS E DIREITOS", ln=True, align='C')
+                        pdf.set_font("Arial", 'B', 12)
+                        pdf.set_text_color(100, 100, 100)
+                        pdf.cell(0, 10, f"Ano Calendário: {ano}", ln=True, align='C')
+                        pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+                        pdf.ln(10)
+
+                        # Loop dos Ativos
+                        pdf.set_text_color(0, 0, 0)
+                        for _, r in df.iterrows():
+                            pdf.set_font("Arial", 'B', 12)
+                            pdf.cell(0, 8, f"{r['Ticker']} ({r['Categoria']})", ln=True, align='C')
+                            
+                            pdf.set_font("Arial", '', 11)
+                            texto = (f"Posição de {formatar_qtd(r['Qtd'])} unidades de {r['Ticker']}, "
+                                     f"custodiadas na corretora, com custo médio de R$ {r['Preco_Pago']:,.2f} "
+                                     f"e valor total de aquisição de R$ {r['Custo_Total']:,.2f} em 31/12/{ano}.")
+                            
+                            pdf.multi_cell(0, 6, texto, align='C')
+                            pdf.ln(5)
+                            pdf.line(40, pdf.get_y(), 170, pdf.get_y())
+                            pdf.ln(5)
+
+                        # Regras de Isenção no Final do PDF
+                        pdf.add_page()
+                        pdf.set_font("Arial", 'B', 14)
+                        pdf.set_text_color(30, 58, 138)
+                        pdf.cell(0, 10, "Guia Rápido de Regras (Contador)", ln=True, align='C')
+                        pdf.set_font("Arial", '', 11)
+                        pdf.set_text_color(0, 0, 0)
+                        pdf.multi_cell(0, 8, "• AÇÕES (B3): Vendas até R$ 20.000 no mês são ISENTAS.\n• CRIPTOMOEDAS: Vendas até R$ 35.000 no mês são ISENTAS.\n• FIIs: Sem isenção (20% sobre lucro em vendas).\n• PREÇO MÉDIO: É imperativo o uso do Preço Médio nas declarações, ignorando o preço de mercado na virada do ano.", align='C')
+
+                        # Retorna os bytes do PDF
+                        return bytes(pdf.output())
+
+                    # Botão para baixar o PDF
+                    st.download_button(
+                        label=f"📄 Gerar PDF Oficial p/ Contador ({ano_base})", 
+                        data=gerar_pdf_contador(df_ir_calc, ano_base), 
+                        file_name=f"Relatorio_ValorPro_{ano_base}.pdf", 
+                        mime="application/pdf",
+                        type="primary"
+                    )
 
     st.divider()
 
-    # Só mostra os ativos se sobrou algum após o filtro do tempo
     if not df_geral.empty and 'df_ir_calc' in locals() and not df_ir_calc.empty:
-        st.markdown("#### 🎯 Fichas de Declaração Individuais")
+        st.markdown("#### 🎯 Fichas de Declaração Individuais (Visualização)")
         
         ativos_selecionados = st.multiselect(
-            "Selecione os ativos que deseja visualizar:", 
+            "Selecione os ativos que deseja visualizar na tela:", 
             options=df_ir_calc['Ticker'].tolist(),
             default=df_ir_calc['Ticker'].tolist()[:1]
         )
@@ -1139,7 +1183,6 @@ with tab_ir:
             for ticker in ativos_selecionados:
                 dados = df_ir_calc[df_ir_calc['Ticker'] == ticker].iloc[0]
                 
-                # Texto adaptado para o ano correto
                 texto_declaracao = (
                     f"Posição de {formatar_qtd(dados['Qtd'])} unidades de {dados['Ticker']} "
                     f"({dados['Categoria']}), custodiadas na corretora, com custo médio de "
@@ -1156,16 +1199,7 @@ with tab_ir:
                     cc3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
                     
                     st.markdown("**Texto para a Receita:**")
-                    # 🟢 A CORREÇÃO DA FONTE: st.info substitui o st.code, deixando a fonte limpa e elegante.
                     st.info(texto_declaracao)
-                    
-                    st.download_button(
-                        label=f"📥 Baixar Ficha ({ticker})",
-                        data=texto_declaracao.encode('utf-8'),
-                        file_name=f"Declaracao_{ticker}_{ano_base}.txt",
-                        mime="text/plain",
-                        key=f"dl_{ticker}_{ano_base}"
-                    )
                     st.write("---") 
         else:
             st.warning("Selecione pelo menos um ativo acima para ver os detalhes.")
@@ -1174,14 +1208,10 @@ with tab_ir:
             st.dataframe(df_ir_calc.rename(columns={
                 'Preco_Pago': 'Preço Médio',
                 'Custo_Total': 'Custo Aquisição',
-                'Preço': 'Cotação (Hoje)'
-            }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo Aquisição': 'R$ {:,.2f}', 'Cotação (Hoje)': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
+            }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo Aquisição': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
 
     else:
-        if not df_geral.empty:
-            st.info(f"Você não possuía ativos cadastrados até 31/12/{ano_base}.")
-        else:
-            st.info("Sua carteira está vazia ou sem dados para declaração.")
+        st.info("Sua carteira está vazia ou sem dados para declaração.")
         
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
