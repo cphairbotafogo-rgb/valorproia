@@ -979,20 +979,37 @@ with tab_sim:
         if rend_r > 0: cotas_n = meta_r / rend_r; st.success(f"🎯 Acumule **{int(cotas_n)} cotas**."); st.info(f"💼 Patrimônio Alvo Estimado: **R$ {cotas_n * preco_r:,.2f}**")
         
     with s4:
-        st.markdown("Cálculo do DARF para Day Trade (20%)"); dd1, dd2 = st.columns(2)
-        with dd1: bruto = st.number_input("Lucro Bruto (R$):", value=0.0, step=10.0); custos = st.number_input("Custos (R$):", min_value=0.0, value=0.0, step=5.0)
-        with dd2: prej = st.number_input("Prejuízo Anterior (R$):", min_value=0.0, value=0.0, step=10.0); irrf = st.number_input("IRRF (R$):", min_value=0.0, value=0.0, step=1.0)
-        if st.button("🧮 Calcular", type="primary"):
-            liq = bruto - custos; st.write("---"); st.write(f"**Resultado Líquido:** R$ {liq:.2f}")
-            if liq > 0:
-                base = liq - prej
-                if base > 0:
-                    darf = (base * 0.20) - irrf
-                    if darf <= 0: st.info("✅ Sem DARF.")
-                    elif darf < 10: st.warning(f"⚠️ DARF R$ {darf:.2f} — Abaixo de R$ 10. Acumule.")
-                    else: st.error(f"🚨 **DARF: R$ {darf:.2f}** | Cód 6015")
-                else: st.warning(f"Lucro absorvido. Novo prejuízo acumulado: R$ {abs(base):.2f}")
-            else: st.error(f"Mês no prejuízo.")
+        st.markdown("#### 🧾 Simulador de Venda e Cálculo de DARF")
+        sd1, sd2, sd3 = st.columns(3)
+        with sd1: cat_venda = st.selectbox("O que você vendeu?", ["Ações (B3)", "FIIs", "Criptomoedas"])
+        with sd2: total_venda = st.number_input("Total Vendido no Mês (R$):", min_value=0.0)
+        with sd3: lucro_venda = st.number_input("Lucro Líquido Realizado (R$):", min_value=0.0)
+        
+        if st.button("🧮 Calcular Imposto", type="primary"):
+            imposto = 0.0
+            msg = ""
+            
+            if cat_venda == "Ações (B3)":
+                if total_venda <= 20000: 
+                    msg = "✅ **ISENTO.** Vendas abaixo de R$ 20k no mês."
+                else:
+                    imposto = lucro_venda * 0.15
+                    msg = f"🚨 **DARF DEVIDO (15%): R$ {imposto:,.2f}** | Cód 6015"
+            
+            elif cat_venda == "FIIs":
+                imposto = lucro_venda * 0.20
+                msg = f"🚨 **DARF DEVIDO (20%): R$ {imposto:,.2f}** | Cód 6015 (FIIs não têm isenção)"
+                
+            elif cat_venda == "Criptomoedas":
+                if total_venda <= 35000:
+                    msg = "✅ **ISENTO.** Vendas abaixo de R$ 35k no mês."
+                else:
+                    imposto = lucro_venda * 0.15
+                    msg = f"🚨 **DARF DEVIDO (15%): R$ {imposto:,.2f}** (Alíquota base para ganhos de capital)"
+            
+            st.markdown("---")
+            if imposto > 0: st.error(msg)
+            else: st.success(msg)
 
 # --- ABA 11: CONSULTOR IA ---
 with tab_ia:
@@ -1057,44 +1074,49 @@ with tab_ia:
 
 # --- ABA 12: IMPOSTO DE RENDA ---
 with tab_ir:
-    st.markdown("#### 🧾 Bens e Direitos & Histórico de Aquisição")
-    st.info("📌 **Nota:** Esta tabela detalha cada compra individual para facilitar sua declaração e controle de valor real por data.")
+    st.markdown("#### 🧾 Bens e Direitos & Guia Fiscal")
+    
+    col_ir1, col_ir2 = st.columns([2, 1])
+    
+    with col_ir2:
+        st.markdown("""
+        <div style="background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid #1e3a8a;">
+            <h5 style="margin-top:0;">📌 Regras de Isenção (Vendas/Mês)</h5>
+            <ul style="font-size: 13px;">
+                <li><b>Ações:</b> Isento até R$ 20.000,00</li>
+                <li><b>Cripto:</b> Isento até R$ 35.000,00</li>
+                <li><b>FIIs:</b> SEM ISENÇÃO (20% sobre lucro)</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_ir1:
+        st.info("Utilize os dados abaixo para preencher a ficha de **Bens e Direitos**.")
 
     if not df_geral.empty and not df_g.empty:
-        df_ir_detalhado = df_geral[['Data', 'Ticker', 'Categoria', 'Qtd', 'Preco_Pago']].copy()
-        df_ir_detalhado['Custo_Aquisicao'] = df_ir_detalhado['Qtd'] * df_ir_detalhado['Preco_Pago']
+        # Lógica de agrupamento para Preço Médio REAL
+        df_ir_calc = df_geral.groupby('Ticker').agg({
+            'Qtd': 'sum',
+            'Preco_Pago': 'mean', # Simplificado para exibição
+            'Categoria': 'first'
+        }).reset_index()
         
-        df_ir_display = pd.merge(df_ir_detalhado, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
-        df_ir_display['Valor_Atual_Lote'] = df_ir_display['Qtd'] * df_ir_display['Preço']
+        # Merge com preços atuais para ver valor de mercado
+        df_ir_calc = pd.merge(df_ir_calc, df_g[['Ticker', 'Preço']], on='Ticker', how='left')
+        df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
         
-        categorias_puras = [str(c) for c in df_ir_display['Categoria'].unique() if pd.notnull(c)]
-        cats_ir = sorted(categorias_puras)
+        st.dataframe(df_ir_calc.rename(columns={
+            'Preco_Pago': 'Preço Médio',
+            'Custo_Total': 'Custo de Aquisição',
+            'Preço': 'Cotação Atual'
+        }), hide_index=True, use_container_width=True)
         
-        cats_ir_sel = st.multiselect("Filtrar por Classe:", options=cats_ir, default=cats_ir, key="ir_cat_filter_vfinal")
-        
-        df_ir_final = df_ir_display[df_ir_display['Categoria'].isin(cats_ir_sel)].copy() if cats_ir_sel else pd.DataFrame()
-
-        if not df_ir_final.empty:
-            st.markdown("##### 📅 Detalhamento por Data de Compra")
-            
-            df_view = df_ir_final[['Data', 'Ticker', 'Categoria', 'Qtd', 'Preco_Pago', 'Custo_Aquisicao', 'Valor_Atual_Lote']].copy()
-            df_view.rename(columns={'Preco_Pago': 'Preço Pago (Un)', 'Custo_Aquisicao': 'Total Pago (R$)', 'Valor_Atual_Lote': 'Valor Hoje (R$)'}, inplace=True)
-
-            st.dataframe(
-                df_view.style.format({'Total Pago (R$)': 'R$ {:,.2f}', 'Valor Hoje (R$)': 'R$ {:,.2f}', 'Preço Pago (Un)': 'R$ {:,.2f}', 'Qtd': formatar_qtd }), 
-                hide_index=True, use_container_width=True
-            )
-
-            st.divider()
-            st.subheader("💡 Como declarar no Programa da Receita")
-            df_grouped = df_ir_final.groupby('Ticker').agg({'Qtd': 'sum', 'Custo_Aquisicao': 'sum', 'Data': lambda x: list(x)}).reset_index()
-            for _, g in df_grouped.iterrows():
-                datas_u = sorted(list(set([d.strftime('%d/%m/%Y') if hasattr(d, 'strftime') else str(d) for d in g['Data']])))
-                with st.expander(f"📝 Texto para {g['Ticker']}"):
-                    st.write(f"**Discriminação:** {formatar_qtd(g['Qtd'])} unidades de {g['Ticker']}, adquiridas em {', '.join(datas_u)}, pelo custo total de R$ {g['Custo_Aquisicao']:,.2f}.")
-                    st.write(f"**Situação em 31/12:** R$ {g['Custo_Aquisicao']:,.2f}")
-        else: st.warning("Selecione uma categoria no filtro.")
-    else: st.info("Nenhum dado para exibir.")
+        st.divider()
+        st.subheader("📝 Sugestão de Texto para Declaração")
+        for _, row in df_ir_calc.iterrows():
+            with st.expander(f"Texto para {row['Ticker']}"):
+                txt = f"Posição de {formatar_qtd(row['Qtd'])} unidades de {row['Ticker']} ({row['Categoria']}), custodiadas na corretora X, com custo médio de R$ {row['Preco_Pago']:,.2f} e valor total de aquisição de R$ {row['Custo_Total']:,.2f}."
+                st.code(txt, language="text")
 
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
