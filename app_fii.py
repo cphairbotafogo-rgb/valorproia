@@ -577,19 +577,7 @@ with col_clock:
 
 st.write("---")
     
-    # O padding-top: 25px empurra o relógio para baixo para alinhar perfeitamente com o meio da logo
-    st.markdown(f"""
-        <div style='text-align: right; padding-top: 25px;'>
-            <span style='font-family: "DM Mono", monospace; font-size: 14px; font-weight: 600; color: #f8fafc; background-color: #0f172a; padding: 8px 16px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
-                <span style='color: #ef4444; font-size: 10px; vertical-align: middle;'>🔴</span> 
-                <span style='font-size: 11px; color: #94a3b8; margin-right: 8px; vertical-align: middle;'>B3 FECHADA</span> 
-                <span style='vertical-align: middle;'>{agora}</span>
-            </span>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.write("---") # Linha divisória separando o cabeçalho do resto da página
-
+    
 # =============================================================================
 # 📑 10. AS 14 ABAS DO SISTEMA
 # =============================================================================
