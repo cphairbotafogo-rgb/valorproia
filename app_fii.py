@@ -1108,7 +1108,7 @@ with tab_ir:
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
                     
-                    # 🟢 O MOTOR GERADOR DE PDF
+                    # 🟢 O MOTOR GERADOR DE PDF (Corrigido para evitar erro de caracteres)
                     def gerar_pdf_contador(df, ano):
                         from fpdf import FPDF
                         pdf = FPDF()
@@ -1124,10 +1124,10 @@ with tab_ir:
                         # Títulos Centralizados
                         pdf.set_font("Arial", 'B', 18)
                         pdf.set_text_color(30, 58, 138) # Azul institucional
-                        pdf.cell(0, 10, f"RELATÓRIO FISCAL - BENS E DIREITOS", ln=True, align='C')
+                        pdf.cell(0, 10, "RELATORIO FISCAL - BENS E DIREITOS", ln=True, align='C')
                         pdf.set_font("Arial", 'B', 12)
                         pdf.set_text_color(100, 100, 100)
-                        pdf.cell(0, 10, f"Ano Calendário: {ano}", ln=True, align='C')
+                        pdf.cell(0, 10, f"Ano Calendario: {ano}", ln=True, align='C')
                         pdf.line(20, pdf.get_y(), 190, pdf.get_y())
                         pdf.ln(10)
 
@@ -1138,9 +1138,10 @@ with tab_ir:
                             pdf.cell(0, 8, f"{r['Ticker']} ({r['Categoria']})", ln=True, align='C')
                             
                             pdf.set_font("Arial", '', 11)
-                            texto = (f"Posição de {formatar_qtd(r['Qtd'])} unidades de {r['Ticker']}, "
-                                     f"custodiadas na corretora, com custo médio de R$ {r['Preco_Pago']:,.2f} "
-                                     f"e valor total de aquisição de R$ {r['Custo_Total']:,.2f} em 31/12/{ano}.")
+                            # Removi os acentos fortes para garantir que o PDF não trave em nenhum servidor
+                            texto = (f"Posicao de {formatar_qtd(r['Qtd'])} unidades de {r['Ticker']}, "
+                                     f"custodiadas na corretora, com custo medio de R$ {r['Preco_Pago']:,.2f} "
+                                     f"e valor total de aquisicao de R$ {r['Custo_Total']:,.2f} em 31/12/{ano}.")
                             
                             pdf.multi_cell(0, 6, texto, align='C')
                             pdf.ln(5)
@@ -1151,10 +1152,19 @@ with tab_ir:
                         pdf.add_page()
                         pdf.set_font("Arial", 'B', 14)
                         pdf.set_text_color(30, 58, 138)
-                        pdf.cell(0, 10, "Guia Rápido de Regras (Contador)", ln=True, align='C')
+                        pdf.cell(0, 10, "Guia Rapido de Regras (Contador)", ln=True, align='C')
                         pdf.set_font("Arial", '', 11)
                         pdf.set_text_color(0, 0, 0)
-                        pdf.multi_cell(0, 8, "• AÇÕES (B3): Vendas até R$ 20.000 no mês são ISENTAS.\n• CRIPTOMOEDAS: Vendas até R$ 35.000 no mês são ISENTAS.\n• FIIs: Sem isenção (20% sobre lucro em vendas).\n• PREÇO MÉDIO: É imperativo o uso do Preço Médio nas declarações, ignorando o preço de mercado na virada do ano.", align='C')
+                        
+                        # 🟢 A CORREÇÃO: Trocamos a "bolinha (•)" por "hífen (-)"
+                        regras = (
+                            "- ACOES (B3): Vendas ate R$ 20.000 no mes sao ISENTAS.\n"
+                            "- CRIPTOMOEDAS: Vendas ate R$ 35.000 no mes sao ISENTAS.\n"
+                            "- FIIs: Sem isencao (20% sobre lucro em vendas).\n"
+                            "- PRECO MEDIO: E imperativo o uso do Preco Medio nas declaracoes, "
+                            "ignorando o preco de mercado na virada do ano."
+                        )
+                        pdf.multi_cell(0, 8, regras, align='C')
 
                         # Retorna os bytes do PDF
                         return bytes(pdf.output())
