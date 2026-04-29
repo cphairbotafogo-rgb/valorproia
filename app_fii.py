@@ -18,7 +18,20 @@ import yfinance as yf
 # =============================================================================
 # 0. CONFIGURAÇÃO DE PÁGINA
 # =============================================================================
-st.set_page_config(page_title="ValorPro IA", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="ValorPro IA", page_icon="📈", layout="wide", initial_sidebar_state="expanded")      
+
+# =============================================================================
+# 0.1 NOVO CABEÇALHO COM A LOGO (SUPABASE)
+# =============================================================================
+# Coloque o link que você pegou lá no Supabase aqui embaixo:
+URL_LOGO_NOVA = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_29_06.png"
+
+col_logo, col_vazia = st.columns([1, 1])
+with col_logo:
+    # Tamanho 350 fica perfeito para logos horizontais e com texto
+    st.image(URL_LOGO_NOVA, width=350) 
+
+st.write("---") # Linha de divisão para ficar elegante
 
 from banco import *
 from motor import *
