@@ -551,7 +551,6 @@ with col_clock:
     import streamlit.components.v1 as components
     
     # Este código usa JavaScript para atualizar os segundos em tempo real
-    # O padding-top: 25px mantém o alinhamento perfeito com a sua logo
     components.html("""
         <div style='text-align: right; padding-top: 25px;'>
             <span style='font-family: "DM Mono", monospace; font-size: 14px; font-weight: 600; color: #f8fafc; background-color: #0f172a; padding: 8px 16px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
@@ -571,13 +570,12 @@ with col_clock:
                 document.getElementById('relogio_vivo').innerText = horas + ':' + minutos + ':' + segundos;
             }
             
-            // Atualiza a cada 1 segundo (1000 milissegundos)
             setInterval(atualizarRelogio, 1000);
-            atualizarRelogio(); // Chama imediatamente na primeira vez
+            atualizarRelogio();
         </script>
     """, height=80)
 
-st.write("---") # Linha divisória separando o cabeçalho do resto da página
+st.write("---")
     
     # O padding-top: 25px empurra o relógio para baixo para alinhar perfeitamente com o meio da logo
     st.markdown(f"""
