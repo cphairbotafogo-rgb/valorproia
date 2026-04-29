@@ -610,17 +610,17 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
     with st.expander("ℹ️ Como usar o Terminal de Mercado", expanded=False):
-    st.markdown(""")
-    ### Visão Geral da Bolsa de Valores 📊
-    Acompanhe o termômetro do mercado em tempo real.
-    
-    **O que você encontra aqui:**
-    1. **Cotações ao vivo:** Veja as maiores altas e baixas do dia.
-    2. **Gráficos de Tendência:** Analise o comportamento do IFIX e do Ibovespa.
-    3. **Notícias:** Fique por dentro dos fatos relevantes que podem impactar a sua carteira.
-    
-    *💡 Dica: Use o Terminal para identificar o humor do mercado antes de realizar grandes aportes.*
-    """)
+        st.markdown("""
+        ### Visão Geral da Bolsa de Valores 📊
+        Acompanhe o termômetro do mercado em tempo real.
+        
+        **O que você encontra aqui:**
+        1. **Cotações ao vivo:** Veja as maiores altas e baixas do dia.
+        2. **Gráficos de Tendência:** Analise o comportamento do IFIX e do Ibovespa.
+        3. **Notícias:** Fique por dentro dos fatos relevantes que podem impactar a sua carteira.
+        
+        *💡 Dica: Use o Terminal para identificar o humor do mercado antes de realizar grandes aportes.*
+        """)
     if not df_geral.empty and not df_g.empty:
         st.markdown("#### 🔍 Filtrar Visão de Patrimônio")
         cats_v_sel = st.multiselect("Selecione as classes:", options=sorted(df_g['Categoria'].unique().tolist()), default=sorted(df_g['Categoria'].unique().tolist()))
