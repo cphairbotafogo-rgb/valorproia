@@ -551,11 +551,15 @@ with col_clock:
     import streamlit.components.v1 as components
     
     # Este código usa JavaScript para atualizar os segundos em tempo real
+   with col_clock:
+    import streamlit.components.v1 as components
+    
+    # Este código usa JavaScript para atualizar o relógio E o status da B3
     components.html("""
         <div style='text-align: right; padding-top: 25px;'>
             <span style='font-family: "DM Mono", monospace; font-size: 14px; font-weight: 600; color: #f8fafc; background-color: #0f172a; padding: 8px 16px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
-                <span style='color: #ef4444; font-size: 10px; vertical-align: middle;'>🔴</span> 
-                <span style='font-size: 11px; color: #94a3b8; margin-right: 8px; vertical-align: middle;'>B3 FECHADA</span> 
+                <span id='b3_dot' style='font-size: 10px; vertical-align: middle;'>🔴</span> 
+                <span id='b3_status' style='font-size: 11px; color: #94a3b8; margin-right: 8px; vertical-align: middle;'>B3 FECHADA</span> 
                 <span id='relogio_vivo' style='vertical-align: middle;'></span>
             </span>
         </div>
@@ -563,15 +567,36 @@ with col_clock:
         <script>
             function atualizarRelogio() {
                 var agora = new Date();
-                var horas = String(agora.getHours()).padStart(2, '0');
-                var minutos = String(agora.getMinutes()).padStart(2, '0');
-                var segundos = String(agora.getSeconds()).padStart(2, '0');
+                var horas = agora.getHours();
+                var diaSemana = agora.getDay(); // 0 é Domingo, 6 é Sábado
                 
-                document.getElementById('relogio_vivo').innerText = horas + ':' + minutos + ':' + segundos;
+                var strHoras = String(horas).padStart(2, '0');
+                var strMinutos = String(agora.getMinutes()).padStart(2, '0');
+                var strSegundos = String(agora.getSeconds()).padStart(2, '0');
+                
+                // Atualiza os números do relógio
+                document.getElementById('relogio_vivo').innerText = strHoras + ':' + strMinutos + ':' + strSegundos;
+                
+                // LÓGICA DE ABERTURA DA B3 (Segunda a Sexta, das 10h às 17h)
+                var dot = document.getElementById('b3_dot');
+                var status = document.getElementById('b3_status');
+                
+                if (diaSemana >= 1 && diaSemana <= 5 && horas >= 10 && horas < 17) {
+                    // Mercado Aberto
+                    dot.innerText = '🟢';
+                    status.innerText = 'B3 ABERTA';
+                    status.style.color = '#4ade80'; // Verde
+                } else {
+                    // Mercado Fechado
+                    dot.innerText = '🔴';
+                    status.innerText = 'B3 FECHADA';
+                    status.style.color = '#94a3b8'; // Cinza original
+                }
             }
             
+            // Atualiza a cada 1 segundo
             setInterval(atualizarRelogio, 1000);
-            atualizarRelogio();
+            atualizarRelogio(); // Chama imediatamente na primeira vez
         </script>
     """, height=80)
 
