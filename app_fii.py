@@ -1181,8 +1181,14 @@ with tab_ir:
                     c3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
                     
                     st.markdown("**Texto para a Receita:**")
-                    # 🟢 A SOLUÇÃO: O uso do "> " obriga o sistema a puxar a fonte original (DM Sans)
-                    st.markdown(f"> {texto_declaracao}")
+                    
+                    # 🟢 A MÁGICA: Bloco Azul com a Fonte DM Sans travada
+                    st.markdown(f"""
+                    <div style="background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.5;">
+                        {texto_declaracao}
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
                     st.write("---")
         else:
             st.warning("Selecione ativos acima para gerar o PDF e visualizar os cards.")
