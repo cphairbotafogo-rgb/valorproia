@@ -15,18 +15,20 @@ import json
 import base64
 import yfinance as yf
 
-# =============================================================================
-# 0. CONFIGURAÇÃO DE PÁGINA
-# =============================================================================
-# --- NOVO CABEÇALHO DE INÍCIO DE SESSÃO (CENTRALIZADO) ---
-col_esq, col_meio, col_dir = st.columns([1, 2, 1]) # Colunas para forçar a imagem a ficar no meio
+# --- NOVO CABEÇALHO DO PAINEL INTERNO (ALINHADO) ---
+# Usamos apenas 2 colunas: A Logo (espaço 3) e o Relógio (espaço 1, no canto)
+col_logo, col_clock = st.columns([3, 1]) 
 
-with col_meio:
-    # Insira aqui o link do seu Supabase
-    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
+with col_logo:
+    # A sua nova logo vai preencher o lado esquerdo
+    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", width=280)
+
+with col_clock:
+    # Um pequeno truque de design: esse espaço invisível empurra o relógio um pouquinho 
+    # para baixo, para ele ficar perfeitamente alinhado com o centro da logo!
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
-    # O subtítulo cinzento logo por baixo
-    #st.markdown("<p style='text-align: center; color: #888; font-size: 14px;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
+    # ... COLE O CÓDIGO DO SEU RELÓGIO LOGO ABAIXO DESTA LINHA ...
 
 st.write("---") # Linha de divisão
 from banco import *
