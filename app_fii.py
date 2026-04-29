@@ -364,22 +364,23 @@ LISTA_COMPLETA_B3 = sorted(list(set(TOP_20_ACOES + TOP_20_FII + ["ALPA4", "ALSO3
 
 PLOTLY_DARK = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8', family='DM Sans'), xaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), yaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), legend=dict(bgcolor='rgba(0,0,0,0)', bordercolor='#1e293b'))
 
-def get_image_base64(path):
-    try:
-        with open(path, "rb") as img_file: return base64.b64encode(img_file.read()).decode()
-    except: return None
 
 # --- NOVO CABEÇALHO DO PAINEL INTERNO ---
 # Ajustámos as proporções (1.5) para dar mais espaço à sua logo horizontal
 col_logo, col_titulo, col_clock = st.columns([1.5, 1.6, 1]) 
 
+# --- NOVO CABEÇALHO DO PAINEL INTERNO (ALINHADO) ---
+col_logo, col_clock = st.columns([3, 1]) 
+
 with col_logo:
-    # Insira aqui o seu link do Supabase
-    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", width=250)
+    # A sua logo oficial do Supabase na esquerda
+    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", width=280)
 
 with col_clock:
-    html_clock = """<style>@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=DM+Sans:wght@500&display=swap');body{margin:0;padding:0;background:transparent;}.clock-wrap{font-family:'DM Sans',sans-serif; background:linear-gradient(135deg,#161b27,#1a2235); border:1px solid #1e3a5f;border-radius:10px; padding:10px 16px;display:flex;align-items:center; justify-content:space-between;margin-top:4px; box-shadow:0 4px 20px rgba(0,0,0,0.2);}.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}.dot.open{background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,0.6);animation:pulse 2s infinite;}.dot.closed{background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,0.5);}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}.status-txt{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-left:8px;}.time-txt{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:#f0f9ff;}</style><div class="clock-wrap"><div style="display:flex;align-items:center;gap:0"><div class="dot" id="dot"></div><span class="status-txt" id="stxt">--</span></div><div class="time-txt" id="ttxt">--:--:--</div></div><script>function tick(){var n=new Date(),h=n.getHours(),m=n.getMinutes(),s=n.getSeconds(),dw=n.getDay();document.getElementById('ttxt').textContent=(h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;var open=dw>=1&&dw<=5&&h>=10&&h<17;document.getElementById('dot').className='dot '+(open?'open':'closed');document.getElementById('stxt').textContent=open?'B3 ABERTA':'B3 FECHADA';}setInterval(tick,1000);tick();</script>"""
-    st.components.v1.html(html_clock, height=58)
+    # Este pequeno truque empurra o relógio para baixo para alinhar com a logo
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+    
+    # (Atenção: não apague o código do seu relógio que deve estar logo abaixo desta parte!)
 
 st.divider()
 
@@ -1129,15 +1130,17 @@ with tab_ir:
                         pdf.add_page()
                         
                         # 1. Logo Centralizada (Tamanho 80 conforme o Programa)
-                        try:
-                            # x=65 centraliza uma logo de 80mm em uma página de 210mm
-                            pdf.image("logo.png", x=65, y=10, w=80) 
-                            pdf.ln(35)
-                        except:
-                            pdf.set_font("Arial", 'B', 24)
-                            pdf.set_text_color(30, 58, 138)
-                            pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
-                            pdf.ln(5)
+                        # 1. Logo Centralizada (Tamanho 80 conforme o Programa)
+        try:
+            url_logo = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
+            # x=55 centraliza uma logo de 100mm numa página de 210mm
+            pdf.image(url_logo, x=55, y=10, w=100)
+            pdf.ln(40)
+        except Exception as e:
+            pdf.set_font("Arial", 'B', 24)
+            pdf.set_text_color(30, 58, 138)
+            pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
+            pdf.ln(5)
 
                         # 2. Título com Símbolo » (chr 187)
                         pdf.set_font("Arial", 'B', 16)
