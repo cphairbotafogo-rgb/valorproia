@@ -1,29 +1,47 @@
-# -*- coding: utf-8 -*-
+# =============================================================================
+# 1. IMPORTAÇÕES (BIBLIOTECAS E MÓDULOS)
+# =============================================================================
+import os
+import json
+import time
+import math
+import base64
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import streamlit as st
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
-import time
-import math
 import google.generativeai as genai
-import json
-import base64
 import yfinance as yf
-    
-    # ... COLE O CÓDIGO DO SEU RELÓGIO LOGO ABAIXO DESTA LINHA ...
-# --- RELÓGIO (CABEÇALHO REMOVIDO) ---
-col_vazia, col_clock = st.columns([5, 1]) # O 5 empurra o relógio todo para o canto direito
+
+# Importação dos seus arquivos de lógica (Mantenha aqui)
+from banco import *
+from motor import *
+
+# =============================================================================
+# 2. CONFIGURAÇÃO DA PÁGINA (Aba do Navegador + Logo Supabase)
+# =============================================================================
+URL_LOGO_OFICIAL = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
+
+st.set_page_config(
+    page_title="ValorPro IA", 
+    page_icon=URL_LOGO_OFICIAL, 
+    layout="wide", 
+    initial_sidebar_state="expanded"
+)
+
+# =============================================================================
+# 3. LAYOUT DO TOPO (Relógio no Canto Direito - Sem Cabeçalho de Imagem)
+# =============================================================================
+# Criamos duas colunas: uma grande vazia (5) e uma pequena para o relógio (1)
+col_vazia, col_clock = st.columns([5, 1])
 
 with col_clock:
-    # Como o seu relógio sumiu, aqui está um código novo e elegante para ele:
-    from datetime import datetime
     agora = datetime.now().strftime("%d/%m/%Y - %H:%M")
-    
     st.markdown(f"""
         <div style='text-align: right; padding-top: 10px;'>
             <span style='font-size: 14px; font-weight: 600; color: #64748b; background-color: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0;'>
@@ -32,7 +50,11 @@ with col_clock:
         </div>
     """, unsafe_allow_html=True)
 
-st.write("---") # Linha divisória fina para separar o relógio do resto do painel
+st.write("---") # Linha divisória fina que separa o topo do conteúdo
+
+# =============================================================================
+# 4. RESTO DO CÓDIGO (Design, CSS e Funções)
+# =============================================================================
 
 st.write("---") # Linha de divisão
 from banco import *
