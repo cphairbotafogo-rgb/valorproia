@@ -1142,23 +1142,39 @@ with tab_ir:
             pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
             pdf.ln(5)
 
+ # 🟢 MOTOR DE PDF PREMIUM
+                    def gerar_pdf_valorpro(df_filtrado, ano, titulo_relatorio):
+                        from fpdf import FPDF
+                        pdf = FPDF()
+                        pdf.add_page()
+                        
+                        # 1. Ícone da ValorPro IA do Supabase
+                        try:
+                            url_logo = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
+                            pdf.image(url_logo, x=55, y=10, w=100) 
+                            pdf.ln(40) 
+                        except Exception as e:
+                            pdf.set_font("Arial", 'B', 24)
+                            pdf.set_text_color(30, 58, 138)
+                            pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
+                            pdf.ln(5)
+
                         # 2. Título com Símbolo » (chr 187)
-                        pdf.set_font("Arial", 'B', 16)
+                        pdf.set_font("Arial", 'B', 15)
                         pdf.set_text_color(30, 58, 138)
-                        # O símbolo » ajuda na estética institucional
                         titulo_com_simbolo = f"{chr(187)} RELATORIO DE BENS E DIREITOS"
                         pdf.cell(0, 10, titulo_com_simbolo, ln=True, align='C')
                         
                         # Subtítulo Cinza
                         pdf.set_font("Arial", '', 10)
                         pdf.set_text_color(120, 120, 120)
-                        pdf.cell(0, 8, titulo_relatorio, ln=True, align='C')
+                        pdf.cell(0, 6, titulo_relatorio, ln=True, align='C')
                         
                         # 3. Linha Azul Divisória
                         pdf.set_draw_color(30, 58, 138)
                         pdf.set_line_width(0.6)
                         pdf.line(20, pdf.get_y() + 2, 190, pdf.get_y() + 2)
-                        pdf.ln(12)
+                        pdf.ln(10)
                         
                         # Ano Base
                         pdf.set_font("Arial", 'B', 11)
