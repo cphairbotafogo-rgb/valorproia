@@ -276,14 +276,14 @@ def tela_login():
     EMAIL_ADMIN = "aripeixotooficial@outlook.com"
     
     # Se NÃO estiver logado, desenha a interface de login
-    if not st.session_state.get("autenticado", False):
-        st.markdown("---") # 4 espaços aqui
-                # Criamos as colunas para centralizar a logo
-        col_esq, col_meio, col_dir = st.columns([1, 1.8, 1]) # 4 espaços aqui
-                with col_meio: # 4 espaços aqui
-            # A logo agora está "dentro" do if e do with
-            st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True) # 8 espaços aqui
+   if not st.session_state.get("autenticado", False):
+        st.markdown("---")
         
+        col_esq, col_meio, col_dir = st.columns([1, 1.8, 1])
+        
+        with col_meio:
+            st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
+            
         st.markdown("---") # 4 espaços aqui
         # Daqui para baixo seguem as abas de Login/Cadastro (mantenha como estava)
         # As abas de login continuam aqui em baixo
