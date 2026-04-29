@@ -26,10 +26,9 @@ with col_meio:
     st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
     
     # O subtítulo cinzento logo por baixo
-    st.markdown("<p style='text-align: center; color: #888; font-size: 14px;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
+    #st.markdown("<p style='text-align: center; color: #888; font-size: 14px;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
 
 st.write("---") # Linha de divisão
-
 from banco import *
 from motor import *
 
