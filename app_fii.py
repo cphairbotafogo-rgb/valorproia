@@ -31,17 +31,9 @@ URL_LOGO_OFICIAL = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/p
 # 2. Depois você usa ela na configuração
 st.set_page_config(
     page_title="ValorPro IA", 
-     
+    page_icon=URL_LOGO_OFICIAL, 
     layout="wide", 
-    initial_sidebar_state="expanded"
-)
-
-st.set_page_config(
-    page_title="ValorPro IA", 
-     
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+    initial_sidebar_state="expanded")
 
 try:
     from supabase import create_client, Client
