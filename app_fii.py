@@ -1123,43 +1123,25 @@ with tab_ir:
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
 
-                    # 🟢 MOTOR DE PDF PREMIUM (Logo 80 e Símbolo »)
+                    # 🟢 MOTOR DE PDF PREMIUM
                     def gerar_pdf_valorpro(df_filtrado, ano, titulo_relatorio):
                         from fpdf import FPDF
                         pdf = FPDF()
                         pdf.add_page()
                         
-                        # 1. Logo Centralizada (Tamanho 80 conforme o Programa)
-                        # 1. Logo Centralizada (Tamanho 80 conforme o Programa)
-        try:
-            url_logo = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
-            # x=55 centraliza uma logo de 100mm numa página de 210mm
-            pdf.image(url_logo, x=55, y=10, w=100)
-            pdf.ln(40)
-        except Exception as e:
-            pdf.set_font("Arial", 'B', 24)
-            pdf.set_text_color(30, 58, 138)
-            pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
-            pdf.ln(5)
-
- # 🟢 MOTOR DE PDF PREMIUM
-                    def gerar_pdf_valorpro(df_filtrado, ano, titulo_relatorio):
-                        from fpdf import FPDF
-                        pdf = FPDF()
-                        pdf.add_page()
-                        
-                        # 1. Ícone da ValorPro IA do Supabase
+                        # 1. Logo Centralizada do Supabase
                         try:
                             url_logo = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
-                            pdf.image(url_logo, x=55, y=10, w=100) 
-                            pdf.ln(40) 
+                            # x=55 centraliza uma logo de 100mm numa página A4 (210mm)
+                            pdf.image(url_logo, x=55, y=10, w=100)
+                            pdf.ln(40)
                         except Exception as e:
                             pdf.set_font("Arial", 'B', 24)
                             pdf.set_text_color(30, 58, 138)
                             pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
                             pdf.ln(5)
 
-                        # 2. Título com Símbolo » (chr 187)
+                        # 2. Título com Símbolo »
                         pdf.set_font("Arial", 'B', 15)
                         pdf.set_text_color(30, 58, 138)
                         titulo_com_simbolo = f"{chr(187)} RELATORIO DE BENS E DIREITOS"
@@ -1182,7 +1164,7 @@ with tab_ir:
                         pdf.cell(0, 10, f"Ano Base: {ano}", ln=True, align='C')
                         pdf.ln(5)
 
-                        # 4. Listagem de Ativos (Centralizada)
+                        # 4. Listagem de Ativos
                         pdf.set_text_color(0, 0, 0)
                         for _, r in df_filtrado.iterrows():
                             pdf.set_font("Arial", 'B', 12)
@@ -1200,7 +1182,7 @@ with tab_ir:
                             pdf.line(60, pdf.get_y(), 150, pdf.get_y())
                             pdf.ln(5)
                             
-                        # 5. Rodapé de Regras
+                        # 5. Rodapé
                         pdf.ln(10)
                         pdf.set_font("Arial", 'I', 9)
                         pdf.set_text_color(140, 140, 140)
@@ -1220,6 +1202,7 @@ with tab_ir:
 
     st.divider()
 
+    # Área das Fichas e Cards Individuais
     if not df_geral.empty and 'df_ir_calc' in locals() and not df_ir_calc.empty:
         st.markdown("#### 🎯 Fichas de Declaração Selecionadas")
         
