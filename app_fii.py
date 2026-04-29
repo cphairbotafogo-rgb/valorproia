@@ -14,20 +14,25 @@ import google.generativeai as genai
 import json
 import base64
 import yfinance as yf
-
-# --- CABEÇALHO DO LOGIN CENTRALIZADO ---
-st.markdown("---")
-
-# Proporção que deixa a logo centralizada e num tamanho elegante
-col_esq, col_meio, col_dir = st.columns([1, 1.8, 1]) 
-
-with col_meio:
-    # Sua logo oficial do Supabase
-    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
-
-st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
     # ... COLE O CÓDIGO DO SEU RELÓGIO LOGO ABAIXO DESTA LINHA ...
+# --- RELÓGIO (CABEÇALHO REMOVIDO) ---
+col_vazia, col_clock = st.columns([5, 1]) # O 5 empurra o relógio todo para o canto direito
+
+with col_clock:
+    # Como o seu relógio sumiu, aqui está um código novo e elegante para ele:
+    from datetime import datetime
+    agora = datetime.now().strftime("%d/%m/%Y - %H:%M")
+    
+    st.markdown(f"""
+        <div style='text-align: right; padding-top: 10px;'>
+            <span style='font-size: 14px; font-weight: 600; color: #64748b; background-color: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0;'>
+                🕰️ {agora}
+            </span>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.write("---") # Linha divisória fina para separar o relógio do resto do painel
 
 st.write("---") # Linha de divisão
 from banco import *
