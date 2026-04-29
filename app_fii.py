@@ -18,8 +18,6 @@ import yfinance as yf
 # =============================================================================
 # 0. CONFIGURAÇÃO DE PÁGINA
 # =============================================================================
-st.set_page_config(page_title="ValorPro IA", page_icon="📈", layout="wide", initial_sidebar_state="expanded")      
-
 # --- NOVO CABEÇALHO DE INÍCIO DE SESSÃO (CENTRALIZADO) ---
 col_esq, col_meio, col_dir = st.columns([1, 2, 1]) # Colunas para forçar a imagem a ficar no meio
 
