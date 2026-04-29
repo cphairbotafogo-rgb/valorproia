@@ -365,26 +365,6 @@ LISTA_COMPLETA_B3 = sorted(list(set(TOP_20_ACOES + TOP_20_FII + ["ALPA4", "ALSO3
 
 PLOTLY_DARK = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8', family='DM Sans'), xaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), yaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), legend=dict(bgcolor='rgba(0,0,0,0)', bordercolor='#1e293b'))
 
-
-# --- NOVO CABEÇALHO DO PAINEL INTERNO ---
-# Ajustámos as proporções (1.5) para dar mais espaço à sua logo horizontal
-col_logo, col_titulo, col_clock = st.columns([1.5, 1.6, 1]) 
-
-# --- NOVO CABEÇALHO DO PAINEL INTERNO (ALINHADO) ---
-col_logo, col_clock = st.columns([3, 1]) 
-
-with col_logo:
-    # A sua logo oficial do Supabase na esquerda
-    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", width=280)
-
-with col_clock:
-    # Este pequeno truque empurra o relógio para baixo para alinhar com a logo
-    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
-    
-    # (Atenção: não apague o código do seu relógio que deve estar logo abaixo desta parte!)
-
-st.divider()
-
 # =============================================================================
 # 📥 7. CARREGAR DADOS DA NUVEM
 # =============================================================================
