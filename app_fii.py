@@ -550,10 +550,6 @@ with col_logo:
 with col_clock:
     import streamlit.components.v1 as components
     
-    # Este código usa JavaScript para atualizar os segundos em tempo real
-   with col_clock:
-    import streamlit.components.v1 as components
-    
     # Este código usa JavaScript para atualizar o relógio E o status da B3
     components.html("""
         <div style='text-align: right; padding-top: 25px;'>
@@ -599,6 +595,8 @@ with col_clock:
             atualizarRelogio(); // Chama imediatamente na primeira vez
         </script>
     """, height=80)
+
+st.write("---")
 
 st.write("---")
     
