@@ -1105,25 +1105,42 @@ with tab_ir:
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
 
-                    # 🟢 FUNÇÃO MESTRE DE PDF
-                    def gerar_pdf_valorpro(df_filtrado, ano):
+                    # 🟢 NOVO MOTOR DE PDF (Idêntico à foto enviada)
+                    def gerar_pdf_valorpro(df_filtrado, ano, titulo_pdf):
                         from fpdf import FPDF
                         pdf = FPDF()
                         pdf.add_page()
+                        
+                        # 1. Tenta carregar a Logo Centralizada
                         try:
-                            pdf.image("logo.png", x=85, y=10, w=40)
-                            pdf.ln(35)
-                        except: pdf.ln(10)
+                            pdf.image("logo.png", x=80, y=15, w=50)
+                            pdf.ln(25)
+                        except:
+                            # Caso a imagem falhe, usa texto com as mesmas cores
+                            pdf.set_font("Arial", 'B', 28)
+                            pdf.set_text_color(30, 58, 138)
+                            pdf.cell(0, 20, "ValorPro IA", ln=True, align='C')
+                            pdf.ln(5)
 
-                        pdf.set_font("Arial", 'B', 16)
-                        pdf.set_text_color(30, 58, 138)
-                        pdf.cell(0, 10, "RELATORIO DE BENS E DIREITOS", ln=True, align='C')
-                        pdf.set_font("Arial", '', 12)
+                        # 2. Subtítulo e Ano
+                        pdf.set_font("Arial", '', 10)
+                        pdf.set_text_color(120, 120, 120)
+                        pdf.cell(0, 8, titulo_pdf, ln=True, align='C')
+                        
+                        # 3. Linha Azul de Separação
+                        pdf.set_draw_color(30, 58, 138)
+                        pdf.set_line_width(0.6)
+                        y_linha = pdf.get_y() + 2
+                        pdf.line(20, y_linha, 190, y_linha)
+                        pdf.ln(10)
+                        
+                        # Ano Base em destaque
+                        pdf.set_font("Arial", 'B', 11)
                         pdf.set_text_color(100, 100, 100)
                         pdf.cell(0, 10, f"Ano Base: {ano}", ln=True, align='C')
-                        pdf.line(20, pdf.get_y(), 190, pdf.get_y())
-                        pdf.ln(10)
+                        pdf.ln(5)
 
+                        # 4. Ativos
                         pdf.set_text_color(0, 0, 0)
                         for _, r in df_filtrado.iterrows():
                             pdf.set_font("Arial", 'B', 12)
@@ -1133,12 +1150,30 @@ with tab_ir:
                             texto = (f"Posicao de {formatar_qtd(r['Qtd'])} unidades, "
                                      f"custo medio de R$ {r['Preco_Pago']:,.2f} "
                                      f"e valor total de R$ {r['Custo_Total']:,.2f} em 31/12/{ano}.")
-                            pdf.multi_cell(0, 7, texto, align='C')
-                            pdf.ln(5)
+                            pdf.multi_cell(0, 6, texto, align='C')
+                            pdf.ln(4)
+                            
+                            # Linha cinza fina entre ativos
+                            pdf.set_draw_color(200, 200, 200)
+                            pdf.set_line_width(0.2)
                             pdf.line(50, pdf.get_y(), 160, pdf.get_y())
                             pdf.ln(5)
+                            
+                        # 5. Regras no Rodapé
+                        pdf.ln(10)
+                        pdf.set_font("Arial", 'I', 9)
+                        pdf.set_text_color(150, 150, 150)
+                        pdf.multi_cell(0, 5, "Regras Fiscais Basicas:\n- Acoes (B3): Isento ate R$ 20.000/mes em vendas.\n- Criptomoedas: Isento ate R$ 35.000/mes em vendas.\n- FIIs: Sem isencao (20% sobre o lucro).", align='C')
                         
                         return bytes(pdf.output())
+
+                    # Botão para baixar TUDO em formato PDF Premium
+                    st.download_button(
+                        label=f"📄 Baixar Relatório Geral em PDF ({ano_base})", 
+                        data=gerar_pdf_valorpro(df_ir_calc, ano_base, "RELATORIO CONSOLIDADO PARA IMPOSTO DE RENDA"), 
+                        file_name=f"Relatorio_Geral_IR_{ano_base}.pdf", 
+                        mime="application/pdf",
+                    )
 
     st.divider()
 
@@ -1156,7 +1191,7 @@ with tab_ir:
             with col_pdf1:
                 st.download_button(
                     label="📄 Gerar PDF dos Selecionados",
-                    data=gerar_pdf_valorpro(df_para_pdf, ano_base),
+                    data=gerar_pdf_valorpro(df_para_pdf, ano_base, "RELATORIO DE ATIVOS SELECIONADOS"),
                     file_name=f"Relatorio_Selecionados_{ano_base}.pdf",
                     mime="application/pdf",
                     type="primary",
@@ -1182,7 +1217,7 @@ with tab_ir:
                     
                     st.markdown("**Texto para a Receita:**")
                     
-                    # 🟢 A MÁGICA: Bloco Azul com a Fonte DM Sans travada
+                    # Bloco Azul Elegante com Fonte Padronizada
                     st.markdown(f"""
                     <div style="background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.5;">
                         {texto_declaracao}
