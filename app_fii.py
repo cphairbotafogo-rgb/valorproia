@@ -25,7 +25,7 @@ col_esq, col_meio, col_dir = st.columns([1, 2, 1]) # Colunas para forçar a imag
 
 with col_meio:
     # Insira aqui o link do seu Supabase
-    st.image("https://COLE_AQUI_O_SEU_LINK_DO_SUPABASE.jpg", use_container_width=True)
+    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
     
     # O subtítulo cinzento logo por baixo
     st.markdown("<p style='text-align: center; color: #888; font-size: 14px;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
