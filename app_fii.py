@@ -26,6 +26,8 @@ from motor import *
 # 2. CONFIGURAÇÃO DA PÁGINA (Aba do Navegador + Logo Supabase)
 # =============================================================================
 
+st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
+
 st.set_page_config(
     page_title="ValorPro IA", 
     page_icon=URL_LOGO_OFICIAL, 
