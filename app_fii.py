@@ -609,6 +609,18 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
+    with st.expander("ℹ️ Como usar o Terminal de Mercado", expanded=False):
+    st.markdown("""
+    ### Visão Geral da Bolsa de Valores 📊
+    Acompanhe o termômetro do mercado em tempo real.
+    
+    **O que você encontra aqui:**
+    1. **Cotações ao vivo:** Veja as maiores altas e baixas do dia.
+    2. **Gráficos de Tendência:** Analise o comportamento do IFIX e do Ibovespa.
+    3. **Notícias:** Fique por dentro dos fatos relevantes que podem impactar a sua carteira.
+    
+    *💡 Dica: Use o Terminal para identificar o humor do mercado antes de realizar grandes aportes.*
+    """)
     if not df_geral.empty and not df_g.empty:
         st.markdown("#### 🔍 Filtrar Visão de Patrimônio")
         cats_v_sel = st.multiselect("Selecione as classes:", options=sorted(df_g['Categoria'].unique().tolist()), default=sorted(df_g['Categoria'].unique().tolist()))
@@ -674,6 +686,18 @@ with tab_glo:
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
+    with st.expander("ℹ️ Como usar a Análise de FIIs", expanded=False):
+    st.markdown("""
+    ### Encontre as melhores oportunidades do mercado 🏢
+    Nesta aba, você tem acesso aos dados completos dos Fundos Imobiliários para tomar decisões inteligentes.
+    
+    **Passo a passo:**
+    1. **Selecione o Fundo:** Use a barra lateral para escolher o FII que deseja analisar (ex: MXRF11).
+    2. **Analise os Indicadores:** Fique de olho no **P/VP** (para saber se está caro ou barato) e no **Dividend Yield** (rendimento mensal).
+    3. **Histórico de Dividendos:** Avalie os gráficos para ver se o fundo é um bom pagador consistente.
+    
+    *💡 Dica: Compare fundos do mesmo setor (ex: Galpões Logísticos vs. Shoppings) para entender qual se destaca.*
+    """)
     if not df_g.empty:
         f = df_g[df_g["Categoria"].isin(["FII", "FIIs", "Fiagro"])].copy()
         if not f.empty:
@@ -718,6 +742,18 @@ with tab_fii:
 
 # --- ABA 3: MINHAS AÇÕES ---
 with tab_aco:
+    with st.expander("ℹ️ Como usar a Análise de Ações", expanded=False):
+    st.markdown("""
+    ### Torne-se sócio das melhores empresas 📈
+    Aqui você analisa os fundamentos das empresas listadas na bolsa para investir com segurança.
+    
+    **Passo a passo:**
+    1. **Escolha o Ativo:** Busque pelo código da empresa (ex: PETR4, VALE3, WEGE3).
+    2. **Avalie a Saúde Financeira:** Fique de olho em indicadores como Lucro Líquido, Dívida e Margens.
+    3. **Análise de Preço:** Verifique o P/L (Preço sobre Lucro) para entender se a ação está descontada no momento.
+    
+    *💡 Dica: Foque em empresas com lucros consistentes e bons fundamentos para o longo prazo!*
+    """)
     if not df_g.empty:
         a = df_g[df_g["Categoria"].isin(["Acao", "Ações", "BDR"])].copy()
         if not a.empty:
@@ -758,6 +794,18 @@ with tab_aco:
 
 # --- ABA 4: EXTERIOR (EUA) ---
 with tab_ext:
+    with st.expander("ℹ️ Como usar a aba de Exterior", expanded=False):
+    st.markdown("""
+    ### Diversifique o seu patrimônio globalmente 🌎
+    Proteja a sua carteira investindo nas maiores empresas do mundo e ganhando exposição a moedas fortes como o Dólar.
+    
+    **Passo a passo:**
+    1. **Acompanhe o Câmbio:** Fique de olho na cotação do Dólar (USD) para identificar bons momentos de enviar aportes.
+    2. **Analise os Ativos:** Explore Stocks (Ações americanas), REITs (Fundos Imobiliários dos EUA) e ETFs globais.
+    3. **Proteção Geográfica:** Use esta visão para garantir que parte do seu dinheiro está segura e blindada contra o risco local (Risco Brasil).
+    
+    *💡 Dica: Ter investimentos no exterior não é apenas buscar maior rentabilidade, mas sim proteger o seu poder de compra a longo prazo!*
+    """)
     if not df_g.empty:
         ext = df_g[df_g["Categoria"] == "Exterior (EUA)"].copy()
         if not ext.empty:
@@ -797,6 +845,16 @@ with tab_ext:
 
 # --- ABA 5: RENDA FIXA ---
 with tab_rf:
+    with st.expander("ℹ️ Como usar a aba de Renda Fixa", expanded=False):
+    st.markdown("""
+    ### A base segura da sua carteira 🛡️
+    Planeie os seus investimentos mais conservadores, como Tesouro Direto, CDBs, LCIs e LCAs.
+    
+    **Passo a passo:**
+    1. **Acompanhe as Taxas:** Veja os valores atuais da taxa Selic, CDI e da inflação (IPCA).
+    2. **Projeção de Rendimentos:** Simule quanto um título vai render até a data de vencimento.
+    3. **Marcação a Mercado:** Entenda como as variações nos juros afetam o preço atual dos seus títulos prefixados ou atrelados à inflação.
+    """)
     if not df_g.empty:
         crf = df_g[df_g["Categoria"] == "Renda Fixa"].copy()
         if not crf.empty:
@@ -811,6 +869,16 @@ with tab_rf:
 
 # --- ABA 6: CRIPTOMOEDAS ---
 with tab_cripto:
+    with st.expander("ℹ️ Como usar a aba de Criptomoedas", expanded=False):
+    st.markdown("""
+    ### O futuro do dinheiro digital ₿
+    Acompanhe as maiores moedas digitais do mundo e analise o mercado de criptoativos.
+    
+    **Passo a passo:**
+    1. **Cotações em Tempo Real:** Acompanhe o preço atualizado 24h por dia do Bitcoin (BTC), Ethereum (ETH), entre outros.
+    2. **Análise de Volatilidade:** Verifique as variações de 24 horas e de 7 dias para entender as tendências.
+    3. **Gestão de Risco:** Lembre-se que este é um mercado altamente volátil; avalie o peso ideal de cripto na sua carteira geral.
+    """)
     if not df_g.empty:
         criptos = df_g[df_g["Categoria"] == "Criptomoedas"].copy()
         if not criptos.empty:
@@ -850,6 +918,16 @@ with tab_cripto:
 
 # --- ABA 7: DIVIDENDOS ---
 with tab_div:
+    with st.expander("ℹ️ Como usar o painel de Dividendos", expanded=False):
+    st.markdown("""
+    ### Controle a sua Renda Passiva 💸
+    Acompanhe o dinheiro que cai na sua conta e projete os seus próximos recebimentos.
+    
+    **O que você pode fazer aqui:**
+    1. **Calendário de Pagamentos:** Veja quais ativos vão pagar rendimentos nos próximos dias.
+    2. **Histórico de Recebimentos:** Acompanhe a evolução da sua renda passiva mês a mês com os gráficos.
+    3. **Efeito Bola de Neve:** Use esta visão para se motivar a reinvestir os dividendos e acelerar a sua independência financeira.
+    """)
     st.markdown("#### 💰 Registro de Renda Passiva")
     try: df_divs = carregar_dividendos()
     except: df_divs = pd.DataFrame()
@@ -914,6 +992,16 @@ with tab_div:
 
 # --- ABA 8: REBALANCEAMENTO ---
 with tab_reb:
+    with st.expander("ℹ️ Como usar o Rebalanceamento", expanded=False):
+    st.markdown("""
+    ### Mantenha a sua estratégia alinhada ⚖️
+    Esta ferramenta diz-lhe exatamente onde você deve aportar o seu dinheiro este mês.
+    
+    **Passo a passo:**
+    1. **Defina os Pesos:** Estabeleça a percentagem ideal para cada classe de ativo (ex: 40% FIIs, 30% Ações, 30% Renda Fixa).
+    2. **Atualize o Patrimônio:** Veja como a sua carteira atual se compara com a sua meta ideal.
+    3. **Siga a Sugestão:** O sistema calculará matematicamente quais ativos ficaram para trás e sugerirá as ordens de compra precisas para reequilibrar a sua carteira sem dor de cabeça.
+    """)
     st.markdown("#### ⚖️ Rebalanceamento Inteligente")
     if not df_geral.empty and not df_g.empty:
         cr1, cr2, cr3, cr4, cr5 = st.columns(5)
@@ -965,6 +1053,16 @@ with tab_reb:
 
 # --- ABA 9: RADAR ---
 with tab_rad:
+    with st.expander("ℹ️ Como usar o Radar de Mercado", expanded=False):
+    st.markdown("""
+    ### Encontre oportunidades escondidas 🎯
+    O Radar é a sua ferramenta de rastreamento (Screener) para filtrar os ativos que cumprem os seus critérios.
+    
+    **Passo a passo:**
+    1. **Ajuste os Filtros:** Defina o mínimo de Dividend Yield, limites de P/VP ou setores específicos.
+    2. **Explore a Lista:** O sistema vai gerar automaticamente uma lista de ativos que passaram no seu filtro.
+    3. **Aprofunde a Análise:** Encontrou algo interessante? Leve o código do ativo para as abas de Análise (Ações ou FIIs) para ver os detalhes.
+    """)
     st.markdown("#### 🔍 Central de Pesquisa e Oportunidades")
     ativos_sel = st.multiselect("Selecione ativos para analisar:", LISTA_COMPLETA_B3)
     extras     = st.text_input("Outros códigos (separados por vírgula):")
@@ -999,6 +1097,18 @@ with tab_rad:
 
 # --- ABA 10: SIMULADORES ---
 with tab_sim:
+    with st.expander("ℹ️ Como usar os Simuladores", expanded=False):
+    st.markdown("""
+    ### Projete o seu Futuro Financeiro 🚀
+    Use esta ferramenta para entender o poder dos juros compostos e traçar a sua meta de independência financeira.
+    
+    **Passo a passo:**
+    1. **Valor Inicial:** Insira o capital que você já tem disponível para começar.
+    2. **Aporte Mensal:** Defina quanto consegue investir todos os meses.
+    3. **Taxa e Tempo:** Ajuste a rentabilidade anual esperada e o prazo do investimento.
+    
+    *💡 Dica: Brinque com os valores! Veja como aumentar o seu aporte em apenas R$ 100 por mês pode encurtar a sua aposentadoria em vários anos.*
+    """)
     st.markdown("#### 🧮 Laboratório de Projeções")
     s1, s2, s3, s4 = st.tabs(["⚡ Simulador Rápido", "📈 Juros Compostos", "🎯 Renda Alvo", "🧾 Calc. DARF"])
     
@@ -1076,6 +1186,16 @@ with tab_sim:
 
 # --- ABA 11: CONSULTOR IA ---
 with tab_ia:
+    with st.expander("ℹ️ Como conversar com a ValorPro IA", expanded=False):
+    st.markdown("""
+    ### O seu Assistente Financeiro Pessoal 🤖
+    Nossa Inteligência Artificial analisa dados reais do mercado para tirar as suas dúvidas em segundos.
+    
+    **Como extrair o melhor da IA:**
+    * **Seja direto e específico:** Em vez de "Fale sobre fundos", pergunte "Quais os riscos do FII HGLG11 hoje?".
+    * **Peça comparações:** "Compare o MXRF11 com o CPTS11 e me diga qual pagou mais dividendos este ano."
+    * **Tempo de Resposta:** Como a IA lê dezenas de dados reais antes de escrever, aguarde alguns segundos (5s a 15s) para receber uma resposta completa e precisa.
+    """)
     st.markdown("#### 🤖 ValorPro IA Intelligence")
     ARQUIVO_CHAT = "historico_ia.json"
     
@@ -1137,6 +1257,18 @@ with tab_ia:
 
 # --- ABA 12: IMPOSTO DE RENDA ---
 with tab_ir:
+    with st.expander("ℹ️ Como usar a aba de Imposto de Renda", expanded=False):
+    st.markdown("""
+    ### Facilite a sua Declaração Anual 🦁
+    Ajudamos você a organizar as suas informações para a Receita Federal sem dores de cabeça.
+    
+    **Passo a passo:**
+    1. **Selecione o Ano:** Escolha o ano-calendário que você precisa declarar.
+    2. **Verifique as Operações:** Confira o resumo de compras, vendas e rendimentos recebidos.
+    3. **Atenção aos DARFs:** Verifique se houve vendas de FIIs com lucro (estas operações não têm isenção e geram imposto de 20%).
+    
+    *⚠️ Aviso Legal: O sistema facilita a organização dos seus dados, mas recomendamos sempre que a declaração final seja validada por um contador de confiança.*
+    """)
     st.markdown("#### 🧾 Gestão Fiscal de Bens e Direitos")
     
     col_ir1, col_ir2 = st.columns([2, 1])
@@ -1307,6 +1439,16 @@ with tab_ir:
         
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
+    with st.expander("ℹ️ Como usar o Meta e Histórico", expanded=False):
+    st.markdown("""
+    ### Acompanhe a sua evolução 🏆
+    Aqui você visualiza se está no caminho certo para atingir a sua Independência Financeira.
+    
+    **O que você encontra aqui:**
+    1. **Progresso da Meta:** Veja a percentagem já alcançada do seu objetivo financeiro principal.
+    2. **Evolução Patrimonial:** Acompanhe o crescimento do seu capital acumulado ao longo dos anos.
+    3. **Rentabilidade da Carteira:** Compare o desempenho geral dos seus investimentos com índices de referência (como o Ibovespa ou CDI).
+    """)
     st.markdown("#### 🎯 Acompanhamento de Metas de Patrimônio")
     if not df_geral.empty and not df_g.empty:
         col_meta1, col_meta2 = st.columns([1, 1.5])
