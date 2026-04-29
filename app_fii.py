@@ -34,14 +34,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# =============================================================================
-# 4. RESTO DO CÓDIGO (Design, CSS e Funções)
-# =============================================================================
-
-st.write("---") # Linha de divisão
-from banco import *
-from motor import *
-
 try:
     from supabase import create_client, Client
 except ImportError:
