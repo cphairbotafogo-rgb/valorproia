@@ -1105,7 +1105,7 @@ with tab_ir:
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
 
-                    # 🟢 FUNÇÃO MESTRE DE PDF (Centralizado e Sem Erro de Acento)
+                    # 🟢 FUNÇÃO MESTRE DE PDF
                     def gerar_pdf_valorpro(df_filtrado, ano):
                         from fpdf import FPDF
                         pdf = FPDF()
@@ -1119,13 +1119,14 @@ with tab_ir:
                         pdf.set_text_color(30, 58, 138)
                         pdf.cell(0, 10, "RELATORIO DE BENS E DIREITOS", ln=True, align='C')
                         pdf.set_font("Arial", '', 12)
+                        pdf.set_text_color(100, 100, 100)
                         pdf.cell(0, 10, f"Ano Base: {ano}", ln=True, align='C')
                         pdf.line(20, pdf.get_y(), 190, pdf.get_y())
                         pdf.ln(10)
 
+                        pdf.set_text_color(0, 0, 0)
                         for _, r in df_filtrado.iterrows():
                             pdf.set_font("Arial", 'B', 12)
-                            pdf.set_text_color(0, 0, 0)
                             pdf.cell(0, 8, f"{r['Ticker']} - {r['Categoria']}", ln=True, align='C')
                             
                             pdf.set_font("Arial", '', 11)
@@ -1149,7 +1150,6 @@ with tab_ir:
                                      default=df_ir_calc['Ticker'].tolist()[:1])
         
         if ativos_sel:
-            # 🟢 BOTÃO EXCLUSIVO PARA OS SELECIONADOS
             df_para_pdf = df_ir_calc[df_ir_calc['Ticker'].isin(ativos_sel)]
             
             col_pdf1, col_pdf2 = st.columns([1, 2])
@@ -1163,7 +1163,7 @@ with tab_ir:
                     use_container_width=True
                 )
             
-            st.write("") # Espaço
+            st.write("") 
 
             for ticker in ativos_sel:
                 dados = df_ir_calc[df_ir_calc['Ticker'] == ticker].iloc[0]
@@ -1173,15 +1173,28 @@ with tab_ir:
                                     f"R$ {dados['Custo_Total']:,.2f} em 31/12/{ano_base}.")
 
                 with st.container():
-                    st.markdown(f"<h3 style='color: #60a5fa;'>{ticker}</h3>", unsafe_allow_html=True)
+                    # 🟢 CORREÇÃO: Usando Markdown nativo para herdar a fonte DM Sans
+                    st.markdown(f"### 🔷 {ticker} | *{dados['Categoria']}*")
+                    
                     c1, c2, c3 = st.columns(3)
                     c1.metric("Qtd", formatar_qtd(dados['Qtd']))
                     c2.metric("P. Médio", f"R$ {dados['Preco_Pago']:,.2f}")
                     c3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
+                    
+                    st.markdown("**Texto para a Receita:**")
                     st.info(texto_declaracao)
                     st.write("---")
         else:
             st.warning("Selecione ativos acima para gerar o PDF e visualizar os cards.")
+            
+        with st.expander("📊 Ver Tabela Resumo (Todos os Ativos)"):
+            st.dataframe(df_ir_calc.rename(columns={
+                'Preco_Pago': 'Preço Médio',
+                'Custo_Total': 'Custo Aquisição',
+            }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo Aquisição': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
+
+    else:
+        st.info("Sua carteira está vazia ou sem dados para declaração.")
         
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
