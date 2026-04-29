@@ -176,7 +176,7 @@ def _motor_fundamentos_br(ticker, is_fii):
 
     return p_vp, p_l, dy, rend
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=10, show_spinner=False)
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
