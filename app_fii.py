@@ -275,8 +275,7 @@ if 'autenticado' not in st.session_state:
 def tela_login():
     EMAIL_ADMIN = "aripeixotooficial@outlook.com"
     
-    # Se NÃO estiver logado, desenha a interface de login
-   if not st.session_state.get("autenticado", False):
+    if not st.session_state.get("autenticado", False):
         st.markdown("---")
         
         col_esq, col_meio, col_dir = st.columns([1, 1.8, 1])
@@ -284,7 +283,7 @@ def tela_login():
         with col_meio:
             st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
             
-        st.markdown("---") # 4 espaços aqui
+        st.markdown("---")
         # Daqui para baixo seguem as abas de Login/Cadastro (mantenha como estava)
         # As abas de login continuam aqui em baixo
     aba_login, aba_planos = st.tabs(["🔒 Acessar Terminal", "🛒 Planos Premium"])
