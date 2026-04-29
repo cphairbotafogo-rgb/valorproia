@@ -1181,7 +1181,7 @@ with tab_ir:
                     c3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
                     
                     st.markdown("**Texto para a Receita:**")
-                    # 🟢 A SOLUÇÃO DEFINITIVA: Blockquote do Markdown herda a fonte padrão 100%
+                    # 🟢 A SOLUÇÃO: O uso do "> " obriga o sistema a puxar a fonte original (DM Sans)
                     st.markdown(f"> {texto_declaracao}")
                     st.write("---")
         else:
