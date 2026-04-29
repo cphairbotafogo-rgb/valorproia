@@ -24,7 +24,7 @@ st.set_page_config(page_title="ValorPro IA", page_icon="📈", layout="wide", in
 # 0.1 NOVO CABEÇALHO COM A LOGO (SUPABASE)
 # =============================================================================
 # Coloque o link que você pegou lá no Supabase aqui embaixo:
-URL_LOGO_NOVA = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_43_49.png"
+URL_LOGO_NOVA = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
 
 col_logo, col_vazia = st.columns([1, 1])
 with col_logo:
