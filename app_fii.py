@@ -743,14 +743,14 @@ with tab_fii:
 # --- ABA 3: MINHAS AÇÕES ---
 with tab_aco:
     with st.expander("ℹ️ Como usar a Análise de Ações", expanded=False):
-    st.markdown(""")
-    ### Torne-se sócio das melhores empresas 📈
-    Aqui você analisa os fundamentos das empresas listadas na bolsa para investir com segurança.
+        st.markdown(""")
+        ### Torne-se sócio das melhores empresas 📈
+        Aqui você analisa os fundamentos das empresas listadas na bolsa para investir com segurança.
     
-    **Passo a passo:**
-    1. **Escolha o Ativo:** Busque pelo código da empresa (ex: PETR4, VALE3, WEGE3).
-    2. **Avalie a Saúde Financeira:** Fique de olho em indicadores como Lucro Líquido, Dívida e Margens.
-    3. **Análise de Preço:** Verifique o P/L (Preço sobre Lucro) para entender se a ação está descontada no momento.
+        **Passo a passo:**
+        1. **Escolha o Ativo:** Busque pelo código da empresa (ex: PETR4, VALE3, WEGE3).
+        2. **Avalie a Saúde Financeira:** Fique de olho em indicadores como Lucro Líquido, Dívida e Margens.
+        3. **Análise de Preço:** Verifique o P/L (Preço sobre Lucro) para entender se a ação está descontada no momento.
     
     *💡 Dica: Foque em empresas com lucros consistentes e bons fundamentos para o longo prazo!*
     """)
@@ -795,16 +795,16 @@ with tab_aco:
 # --- ABA 4: EXTERIOR (EUA) ---
 with tab_ext:
     with st.expander("ℹ️ Como usar a aba de Exterior", expanded=False):
-    st.markdown(""")
-    ### Diversifique o seu patrimônio globalmente 🌎
-    Proteja a sua carteira investindo nas maiores empresas do mundo e ganhando exposição a moedas fortes como o Dólar.
+        st.markdown(""")
+        ### Diversifique o seu patrimônio globalmente 🌎
+        Proteja a sua carteira investindo nas maiores empresas do mundo e ganhando exposição a moedas fortes como o Dólar.
     
-    **Passo a passo:**
-    1. **Acompanhe o Câmbio:** Fique de olho na cotação do Dólar (USD) para identificar bons momentos de enviar aportes.
-    2. **Analise os Ativos:** Explore Stocks (Ações americanas), REITs (Fundos Imobiliários dos EUA) e ETFs globais.
-    3. **Proteção Geográfica:** Use esta visão para garantir que parte do seu dinheiro está segura e blindada contra o risco local (Risco Brasil).
+        **Passo a passo:**
+        1. **Acompanhe o Câmbio:** Fique de olho na cotação do Dólar (USD) para identificar bons momentos de enviar aportes.
+        2. **Analise os Ativos:** Explore Stocks (Ações americanas), REITs (Fundos Imobiliários dos EUA) e ETFs globais.
+        3. **Proteção Geográfica:** Use esta visão para garantir que parte do seu dinheiro está segura e blindada contra o risco local (Risco Brasil).
     
-    *💡 Dica: Ter investimentos no exterior não é apenas buscar maior rentabilidade, mas sim proteger o seu poder de compra a longo prazo!*
+        *💡 Dica: Ter investimentos no exterior não é apenas buscar maior rentabilidade, mas sim proteger o seu poder de compra a longo prazo!*
     """)
     if not df_g.empty:
         ext = df_g[df_g["Categoria"] == "Exterior (EUA)"].copy()
@@ -846,14 +846,14 @@ with tab_ext:
 # --- ABA 5: RENDA FIXA ---
 with tab_rf:
     with st.expander("ℹ️ Como usar a aba de Renda Fixa", expanded=False):
-    st.markdown(""")
-    ### A base segura da sua carteira 🛡️
-    Planeie os seus investimentos mais conservadores, como Tesouro Direto, CDBs, LCIs e LCAs.
+        st.markdown(""")
+        ### A base segura da sua carteira 🛡️
+        Planeie os seus investimentos mais conservadores, como Tesouro Direto, CDBs, LCIs e LCAs.
     
-    **Passo a passo:**
-    1. **Acompanhe as Taxas:** Veja os valores atuais da taxa Selic, CDI e da inflação (IPCA).
-    2. **Projeção de Rendimentos:** Simule quanto um título vai render até a data de vencimento.
-    3. **Marcação a Mercado:** Entenda como as variações nos juros afetam o preço atual dos seus títulos prefixados ou atrelados à inflação.
+        **Passo a passo:**
+        1. **Acompanhe as Taxas:** Veja os valores atuais da taxa Selic, CDI e da inflação (IPCA).
+        2. **Projeção de Rendimentos:** Simule quanto um título vai render até a data de vencimento.
+        3. **Marcação a Mercado:** Entenda como as variações nos juros afetam o preço atual dos seus títulos prefixados ou atrelados à inflação.
     """)
     if not df_g.empty:
         crf = df_g[df_g["Categoria"] == "Renda Fixa"].copy()
@@ -870,7 +870,7 @@ with tab_rf:
 # --- ABA 6: CRIPTOMOEDAS ---
 with tab_cripto:
     with st.expander("ℹ️ Como usar a aba de Criptomoedas", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### O futuro do dinheiro digital ₿
     Acompanhe as maiores moedas digitais do mundo e analise o mercado de criptoativos.
     
@@ -919,7 +919,7 @@ with tab_cripto:
 # --- ABA 7: DIVIDENDOS ---
 with tab_div:
     with st.expander("ℹ️ Como usar o painel de Dividendos", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### Controle a sua Renda Passiva 💸
     Acompanhe o dinheiro que cai na sua conta e projete os seus próximos recebimentos.
     
@@ -993,7 +993,7 @@ with tab_div:
 # --- ABA 8: REBALANCEAMENTO ---
 with tab_reb:
     with st.expander("ℹ️ Como usar o Rebalanceamento", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### Mantenha a sua estratégia alinhada ⚖️
     Esta ferramenta diz-lhe exatamente onde você deve aportar o seu dinheiro este mês.
     
@@ -1054,7 +1054,7 @@ with tab_reb:
 # --- ABA 9: RADAR ---
 with tab_rad:
     with st.expander("ℹ️ Como usar o Radar de Mercado", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### Encontre oportunidades escondidas 🎯
     O Radar é a sua ferramenta de rastreamento (Screener) para filtrar os ativos que cumprem os seus critérios.
     
@@ -1098,7 +1098,7 @@ with tab_rad:
 # --- ABA 10: SIMULADORES ---
 with tab_sim:
     with st.expander("ℹ️ Como usar os Simuladores", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### Projete o seu Futuro Financeiro 🚀
     Use esta ferramenta para entender o poder dos juros compostos e traçar a sua meta de independência financeira.
     
@@ -1187,7 +1187,7 @@ with tab_sim:
 # --- ABA 11: CONSULTOR IA ---
 with tab_ia:
     with st.expander("ℹ️ Como conversar com a ValorPro IA", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### O seu Assistente Financeiro Pessoal 🤖
     Nossa Inteligência Artificial analisa dados reais do mercado para tirar as suas dúvidas em segundos.
     
@@ -1258,7 +1258,7 @@ with tab_ia:
 # --- ABA 12: IMPOSTO DE RENDA ---
 with tab_ir:
     with st.expander("ℹ️ Como usar a aba de Imposto de Renda", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### Facilite a sua Declaração Anual 🦁
     Ajudamos você a organizar as suas informações para a Receita Federal sem dores de cabeça.
     
@@ -1440,7 +1440,7 @@ with tab_ir:
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
     with st.expander("ℹ️ Como usar o Meta e Histórico", expanded=False):
-    st.markdown(""")
+        st.markdown(""")
     ### Acompanhe a sua evolução 🏆
     Aqui você visualiza se está no caminho certo para atingir a sua Independência Financeira.
     
