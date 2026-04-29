@@ -274,7 +274,7 @@ def tela_login():
     
     #st.markdown("<h1 style='text-align: center; color: #1e3a8a;'>📈 ValorPro IA</h1>", unsafe_allow_html=True)
     #st.markdown("<p style='text-align: center; opacity: 0.7;'>Terminal Institucional Nuvem V8</p>", unsafe_allow_html=True)
-    st.write("")
+    #st.write("")
     
     aba_login, aba_planos = st.tabs(["🔐 Acessar Terminal", "🛒 Planos Premium"])
     
