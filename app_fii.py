@@ -1086,11 +1086,11 @@ with tab_ir:
         """)
     
     with col_ir1:
-        st.write("O **ValorPro IA** facilita sua vida na época da declaração. As informações que você precisará ficam salvas e consolidadas automaticamente no final do ano selecionado.")
+        st.write("O **ValorPro IA** facilita sua vida. As informações para o seu Imposto de Renda ficam salvas automaticamente no final do ano selecionado.")
         
         anos_disponiveis = [datetime.now().year, datetime.now().year - 1, datetime.now().year - 2]
-        ano_base = st.selectbox("📅 Selecione o Ano-Calendário da Declaração:", anos_disponiveis)
-        st.success(f"🕰️ **Status Ativo:** O sistema está programado para reter e calcular sua carteira exata até **31/12/{ano_base}**.")
+        ano_base = st.selectbox("📅 Selecione o Ano-Calendário:", anos_disponiveis)
+        st.success(f"🕰️ **Status Ativo:** Sistema programado para o ano base **{ano_base}**.")
         
         if not df_geral.empty:
             data_limite = pd.to_datetime(f"{ano_base}-12-31")
@@ -1098,130 +1098,90 @@ with tab_ir:
             
             if not df_ir_filtrado.empty:
                 df_ir_calc = df_ir_filtrado.groupby('Ticker').agg({
-                    'Qtd': 'sum',
-                    'Preco_Pago': 'mean', 
-                    'Categoria': 'first'
+                    'Qtd': 'sum', 'Preco_Pago': 'mean', 'Categoria': 'first'
                 }).reset_index()
-                
                 df_ir_calc = df_ir_calc[df_ir_calc['Qtd'] > 0.0001]
                 
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
-                    
-                    # 🟢 O MOTOR GERADOR DE PDF (Corrigido para evitar erro de caracteres)
-                    def gerar_pdf_contador(df, ano):
+
+                    # 🟢 FUNÇÃO MESTRE DE PDF (Centralizado e Sem Erro de Acento)
+                    def gerar_pdf_valorpro(df_filtrado, ano):
                         from fpdf import FPDF
                         pdf = FPDF()
                         pdf.add_page()
-                        
-                        # Tenta adicionar sua logo (se não achar, pula sem dar erro)
                         try:
                             pdf.image("logo.png", x=85, y=10, w=40)
                             pdf.ln(35)
-                        except:
-                            pdf.ln(10)
+                        except: pdf.ln(10)
 
-                        # Títulos Centralizados
-                        pdf.set_font("Arial", 'B', 18)
-                        pdf.set_text_color(30, 58, 138) # Azul institucional
-                        pdf.cell(0, 10, "RELATORIO FISCAL - BENS E DIREITOS", ln=True, align='C')
-                        pdf.set_font("Arial", 'B', 12)
-                        pdf.set_text_color(100, 100, 100)
-                        pdf.cell(0, 10, f"Ano Calendario: {ano}", ln=True, align='C')
+                        pdf.set_font("Arial", 'B', 16)
+                        pdf.set_text_color(30, 58, 138)
+                        pdf.cell(0, 10, "RELATORIO DE BENS E DIREITOS", ln=True, align='C')
+                        pdf.set_font("Arial", '', 12)
+                        pdf.cell(0, 10, f"Ano Base: {ano}", ln=True, align='C')
                         pdf.line(20, pdf.get_y(), 190, pdf.get_y())
                         pdf.ln(10)
 
-                        # Loop dos Ativos
-                        pdf.set_text_color(0, 0, 0)
-                        for _, r in df.iterrows():
+                        for _, r in df_filtrado.iterrows():
                             pdf.set_font("Arial", 'B', 12)
-                            pdf.cell(0, 8, f"{r['Ticker']} ({r['Categoria']})", ln=True, align='C')
+                            pdf.set_text_color(0, 0, 0)
+                            pdf.cell(0, 8, f"{r['Ticker']} - {r['Categoria']}", ln=True, align='C')
                             
                             pdf.set_font("Arial", '', 11)
-                            # Removi os acentos fortes para garantir que o PDF não trave em nenhum servidor
-                            texto = (f"Posicao de {formatar_qtd(r['Qtd'])} unidades de {r['Ticker']}, "
-                                     f"custodiadas na corretora, com custo medio de R$ {r['Preco_Pago']:,.2f} "
-                                     f"e valor total de aquisicao de R$ {r['Custo_Total']:,.2f} em 31/12/{ano}.")
-                            
-                            pdf.multi_cell(0, 6, texto, align='C')
+                            texto = (f"Posicao de {formatar_qtd(r['Qtd'])} unidades, "
+                                     f"custo medio de R$ {r['Preco_Pago']:,.2f} "
+                                     f"e valor total de R$ {r['Custo_Total']:,.2f} em 31/12/{ano}.")
+                            pdf.multi_cell(0, 7, texto, align='C')
                             pdf.ln(5)
-                            pdf.line(40, pdf.get_y(), 170, pdf.get_y())
+                            pdf.line(50, pdf.get_y(), 160, pdf.get_y())
                             pdf.ln(5)
-
-                        # Regras de Isenção no Final do PDF
-                        pdf.add_page()
-                        pdf.set_font("Arial", 'B', 14)
-                        pdf.set_text_color(30, 58, 138)
-                        pdf.cell(0, 10, "Guia Rapido de Regras (Contador)", ln=True, align='C')
-                        pdf.set_font("Arial", '', 11)
-                        pdf.set_text_color(0, 0, 0)
                         
-                        # 🟢 A CORREÇÃO: Trocamos a "bolinha (•)" por "hífen (-)"
-                        regras = (
-                            "- ACOES (B3): Vendas ate R$ 20.000 no mes sao ISENTAS.\n"
-                            "- CRIPTOMOEDAS: Vendas ate R$ 35.000 no mes sao ISENTAS.\n"
-                            "- FIIs: Sem isencao (20% sobre lucro em vendas).\n"
-                            "- PRECO MEDIO: E imperativo o uso do Preco Medio nas declaracoes, "
-                            "ignorando o preco de mercado na virada do ano."
-                        )
-                        pdf.multi_cell(0, 8, regras, align='C')
-
-                        # Retorna os bytes do PDF
                         return bytes(pdf.output())
-
-                    # Botão para baixar o PDF
-                    st.download_button(
-                        label=f"📄 Gerar PDF Oficial p/ Contador ({ano_base})", 
-                        data=gerar_pdf_contador(df_ir_calc, ano_base), 
-                        file_name=f"Relatorio_ValorPro_{ano_base}.pdf", 
-                        mime="application/pdf",
-                        type="primary"
-                    )
 
     st.divider()
 
     if not df_geral.empty and 'df_ir_calc' in locals() and not df_ir_calc.empty:
-        st.markdown("#### 🎯 Fichas de Declaração Individuais (Visualização)")
+        st.markdown("#### 🎯 Fichas de Declaração Selecionadas")
         
-        ativos_selecionados = st.multiselect(
-            "Selecione os ativos que deseja visualizar na tela:", 
-            options=df_ir_calc['Ticker'].tolist(),
-            default=df_ir_calc['Ticker'].tolist()[:1]
-        )
+        ativos_sel = st.multiselect("Selecione os ativos para o PDF individual/grupo:", 
+                                     options=df_ir_calc['Ticker'].tolist(),
+                                     default=df_ir_calc['Ticker'].tolist()[:1])
         
-        if ativos_selecionados:
-            for ticker in ativos_selecionados:
-                dados = df_ir_calc[df_ir_calc['Ticker'] == ticker].iloc[0]
-                
-                texto_declaracao = (
-                    f"Posição de {formatar_qtd(dados['Qtd'])} unidades de {dados['Ticker']} "
-                    f"({dados['Categoria']}), custodiadas na corretora, com custo médio de "
-                    f"R$ {dados['Preco_Pago']:,.2f} e valor total de aquisição de "
-                    f"R$ {dados['Custo_Total']:,.2f} em 31/12/{ano_base}."
+        if ativos_sel:
+            # 🟢 BOTÃO EXCLUSIVO PARA OS SELECIONADOS
+            df_para_pdf = df_ir_calc[df_ir_calc['Ticker'].isin(ativos_sel)]
+            
+            col_pdf1, col_pdf2 = st.columns([1, 2])
+            with col_pdf1:
+                st.download_button(
+                    label="📄 Gerar PDF dos Selecionados",
+                    data=gerar_pdf_valorpro(df_para_pdf, ano_base),
+                    file_name=f"Relatorio_Selecionados_{ano_base}.pdf",
+                    mime="application/pdf",
+                    type="primary",
+                    use_container_width=True
                 )
+            
+            st.write("") # Espaço
+
+            for ticker in ativos_sel:
+                dados = df_ir_calc[df_ir_calc['Ticker'] == ticker].iloc[0]
+                texto_declaracao = (f"Posição de {formatar_qtd(dados['Qtd'])} unidades de {dados['Ticker']} "
+                                    f"({dados['Categoria']}), custodiadas na corretora, com custo médio de "
+                                    f"R$ {dados['Preco_Pago']:,.2f} e valor total de aquisição de "
+                                    f"R$ {dados['Custo_Total']:,.2f} em 31/12/{ano_base}.")
 
                 with st.container():
-                    st.markdown(f"<h3 style='color: #60a5fa;'>{ticker} <span style='font-size: 16px; color: #94a3b8;'>| {dados['Categoria']}</span></h3>", unsafe_allow_html=True)
-                    
-                    cc1, cc2, cc3 = st.columns(3)
-                    cc1.metric(f"Quantidade (31/12/{ano_base})", formatar_qtd(dados['Qtd']))
-                    cc2.metric("Preço Médio", f"R$ {dados['Preco_Pago']:,.2f}")
-                    cc3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
-                    
-                    st.markdown("**Texto para a Receita:**")
+                    st.markdown(f"<h3 style='color: #60a5fa;'>{ticker}</h3>", unsafe_allow_html=True)
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Qtd", formatar_qtd(dados['Qtd']))
+                    c2.metric("P. Médio", f"R$ {dados['Preco_Pago']:,.2f}")
+                    c3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
                     st.info(texto_declaracao)
-                    st.write("---") 
+                    st.write("---")
         else:
-            st.warning("Selecione pelo menos um ativo acima para ver os detalhes.")
-
-        with st.expander("📊 Ver Tabela Resumo (Todos os Ativos)"):
-            st.dataframe(df_ir_calc.rename(columns={
-                'Preco_Pago': 'Preço Médio',
-                'Custo_Total': 'Custo Aquisição',
-            }).style.format({'Preço Médio': 'R$ {:,.2f}', 'Custo Aquisição': 'R$ {:,.2f}', 'Qtd': formatar_qtd}), hide_index=True, use_container_width=True)
-
-    else:
-        st.info("Sua carteira está vazia ou sem dados para declaração.")
+            st.warning("Selecione ativos acima para gerar o PDF e visualizar os cards.")
         
 # --- ABA 13: METAS ANALYTICS ---
 with tab_metas:
