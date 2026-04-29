@@ -548,9 +548,36 @@ with col_logo:
     st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", width=250)
 
 with col_clock:
-    # Recriando o design exato do seu relógio antigo (Fundo escuro, bolinha vermelha)
-    from datetime import datetime
-    agora = datetime.now().strftime("%H:%M:%S") # Horas, minutos e segundos
+    import streamlit.components.v1 as components
+    
+    # Este código usa JavaScript para atualizar os segundos em tempo real
+    # O padding-top: 25px mantém o alinhamento perfeito com a sua logo
+    components.html("""
+        <div style='text-align: right; padding-top: 25px;'>
+            <span style='font-family: "DM Mono", monospace; font-size: 14px; font-weight: 600; color: #f8fafc; background-color: #0f172a; padding: 8px 16px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
+                <span style='color: #ef4444; font-size: 10px; vertical-align: middle;'>🔴</span> 
+                <span style='font-size: 11px; color: #94a3b8; margin-right: 8px; vertical-align: middle;'>B3 FECHADA</span> 
+                <span id='relogio_vivo' style='vertical-align: middle;'></span>
+            </span>
+        </div>
+        
+        <script>
+            function atualizarRelogio() {
+                var agora = new Date();
+                var horas = String(agora.getHours()).padStart(2, '0');
+                var minutos = String(agora.getMinutes()).padStart(2, '0');
+                var segundos = String(agora.getSeconds()).padStart(2, '0');
+                
+                document.getElementById('relogio_vivo').innerText = horas + ':' + minutos + ':' + segundos;
+            }
+            
+            // Atualiza a cada 1 segundo (1000 milissegundos)
+            setInterval(atualizarRelogio, 1000);
+            atualizarRelogio(); // Chama imediatamente na primeira vez
+        </script>
+    """, height=80)
+
+st.write("---") # Linha divisória separando o cabeçalho do resto da página
     
     # O padding-top: 25px empurra o relógio para baixo para alinhar perfeitamente com o meio da logo
     st.markdown(f"""
