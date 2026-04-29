@@ -1086,7 +1086,7 @@ with tab_ir:
         """)
     
     with col_ir1:
-        st.write("O **ValorPro IA** facilita sua vida. As informações para o seu Imposto de Renda ficam salvas automaticamente no final do ano selecionado.")
+        st.write("O **ValorPro IA** facilita sua vida na época da declaração. As informações para o seu Imposto de Renda ficam salvas automaticamente no final do ano selecionado.")
         
         anos_disponiveis = [datetime.now().year, datetime.now().year - 1, datetime.now().year - 2]
         ano_base = st.selectbox("📅 Selecione o Ano-Calendário:", anos_disponiveis)
@@ -1105,42 +1105,48 @@ with tab_ir:
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
 
-                    # 🟢 NOVO MOTOR DE PDF (Idêntico à foto enviada)
-                    def gerar_pdf_valorpro(df_filtrado, ano, titulo_pdf):
+                    # 🟢 MOTOR DE PDF PREMIUM (Logo 80 e Símbolo »)
+                    def gerar_pdf_valorpro(df_filtrado, ano, titulo_relatorio):
                         from fpdf import FPDF
                         pdf = FPDF()
                         pdf.add_page()
                         
-                        # 1. Tenta carregar a Logo Centralizada
+                        # 1. Logo Centralizada (Tamanho 80 conforme o Programa)
                         try:
-                            pdf.image("logo.png", x=80, y=15, w=50)
-                            pdf.ln(25)
+                            # x=65 centraliza uma logo de 80mm em uma página de 210mm
+                            pdf.image("logo.png", x=65, y=10, w=80) 
+                            pdf.ln(35)
                         except:
-                            # Caso a imagem falhe, usa texto com as mesmas cores
-                            pdf.set_font("Arial", 'B', 28)
+                            pdf.set_font("Arial", 'B', 24)
                             pdf.set_text_color(30, 58, 138)
-                            pdf.cell(0, 20, "ValorPro IA", ln=True, align='C')
+                            pdf.cell(0, 20, "VALORPRO IA", ln=True, align='C')
                             pdf.ln(5)
 
-                        # 2. Subtítulo e Ano
+                        # 2. Título com Símbolo » (chr 187)
+                        pdf.set_font("Arial", 'B', 16)
+                        pdf.set_text_color(30, 58, 138)
+                        # O símbolo » ajuda na estética institucional
+                        titulo_com_simbolo = f"{chr(187)} RELATORIO DE BENS E DIREITOS"
+                        pdf.cell(0, 10, titulo_com_simbolo, ln=True, align='C')
+                        
+                        # Subtítulo Cinza
                         pdf.set_font("Arial", '', 10)
                         pdf.set_text_color(120, 120, 120)
-                        pdf.cell(0, 8, titulo_pdf, ln=True, align='C')
+                        pdf.cell(0, 8, titulo_relatorio, ln=True, align='C')
                         
-                        # 3. Linha Azul de Separação
+                        # 3. Linha Azul Divisória
                         pdf.set_draw_color(30, 58, 138)
                         pdf.set_line_width(0.6)
-                        y_linha = pdf.get_y() + 2
-                        pdf.line(20, y_linha, 190, y_linha)
-                        pdf.ln(10)
+                        pdf.line(20, pdf.get_y() + 2, 190, pdf.get_y() + 2)
+                        pdf.ln(12)
                         
-                        # Ano Base em destaque
+                        # Ano Base
                         pdf.set_font("Arial", 'B', 11)
-                        pdf.set_text_color(100, 100, 100)
+                        pdf.set_text_color(80, 80, 80)
                         pdf.cell(0, 10, f"Ano Base: {ano}", ln=True, align='C')
                         pdf.ln(5)
 
-                        # 4. Ativos
+                        # 4. Listagem de Ativos (Centralizada)
                         pdf.set_text_color(0, 0, 0)
                         for _, r in df_filtrado.iterrows():
                             pdf.set_font("Arial", 'B', 12)
@@ -1153,25 +1159,26 @@ with tab_ir:
                             pdf.multi_cell(0, 6, texto, align='C')
                             pdf.ln(4)
                             
-                            # Linha cinza fina entre ativos
-                            pdf.set_draw_color(200, 200, 200)
+                            pdf.set_draw_color(220, 220, 220)
                             pdf.set_line_width(0.2)
-                            pdf.line(50, pdf.get_y(), 160, pdf.get_y())
+                            pdf.line(60, pdf.get_y(), 150, pdf.get_y())
                             pdf.ln(5)
                             
-                        # 5. Regras no Rodapé
+                        # 5. Rodapé de Regras
                         pdf.ln(10)
                         pdf.set_font("Arial", 'I', 9)
-                        pdf.set_text_color(150, 150, 150)
-                        pdf.multi_cell(0, 5, "Regras Fiscais Basicas:\n- Acoes (B3): Isento ate R$ 20.000/mes em vendas.\n- Criptomoedas: Isento ate R$ 35.000/mes em vendas.\n- FIIs: Sem isencao (20% sobre o lucro).", align='C')
+                        pdf.set_text_color(140, 140, 140)
+                        regras_texto = ("REGRAS FISCAIS: Acoes (Isento ate R$ 20k/mes) | "
+                                        "Cripto (Isento ate R$ 35k/mes) | FIIs (20% fixo s/ lucro).")
+                        pdf.multi_cell(0, 5, regras_texto, align='C')
                         
                         return bytes(pdf.output())
 
-                    # Botão para baixar TUDO em formato PDF Premium
+                    # Botão Relatório Geral
                     st.download_button(
                         label=f"📄 Baixar Relatório Geral em PDF ({ano_base})", 
-                        data=gerar_pdf_valorpro(df_ir_calc, ano_base, "RELATORIO CONSOLIDADO PARA IMPOSTO DE RENDA"), 
-                        file_name=f"Relatorio_Geral_IR_{ano_base}.pdf", 
+                        data=gerar_pdf_valorpro(df_ir_calc, ano_base, "RELATORIO CONSOLIDADO COMPLETO"), 
+                        file_name=f"Relatorio_Geral_ValorPro_{ano_base}.pdf", 
                         mime="application/pdf",
                     )
 
@@ -1192,7 +1199,7 @@ with tab_ir:
                 st.download_button(
                     label="📄 Gerar PDF dos Selecionados",
                     data=gerar_pdf_valorpro(df_para_pdf, ano_base, "RELATORIO DE ATIVOS SELECIONADOS"),
-                    file_name=f"Relatorio_Selecionados_{ano_base}.pdf",
+                    file_name=f"Relatorio_Custom_ValorPro_{ano_base}.pdf",
                     mime="application/pdf",
                     type="primary",
                     use_container_width=True
@@ -1216,14 +1223,11 @@ with tab_ir:
                     c3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
                     
                     st.markdown("**Texto para a Receita:**")
-                    
-                    # Bloco Azul Elegante com Fonte Padronizada
                     st.markdown(f"""
                     <div style="background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; padding: 16px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.5;">
                         {texto_declaracao}
                     </div>
                     """, unsafe_allow_html=True)
-                    
                     st.write("---")
         else:
             st.warning("Selecione ativos acima para gerar o PDF e visualizar os cards.")
