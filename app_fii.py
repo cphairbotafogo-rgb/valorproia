@@ -687,14 +687,14 @@ with tab_glo:
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
     with st.expander("ℹ️ Como usar a Análise de FIIs", expanded=False):
-    st.markdown(""")
-    ### Encontre as melhores oportunidades do mercado 🏢
-    Nesta aba, você tem acesso aos dados completos dos Fundos Imobiliários para tomar decisões inteligentes.
+        st.markdown(""")
+        ### Encontre as melhores oportunidades do mercado 🏢
+        Nesta aba, você tem acesso aos dados completos dos Fundos Imobiliários para tomar decisões inteligentes.
     
-    **Passo a passo:**
-    1. **Selecione o Fundo:** Use a barra lateral para escolher o FII que deseja analisar (ex: MXRF11).
-    2. **Analise os Indicadores:** Fique de olho no **P/VP** (para saber se está caro ou barato) e no **Dividend Yield** (rendimento mensal).
-    3. **Histórico de Dividendos:** Avalie os gráficos para ver se o fundo é um bom pagador consistente.
+        **Passo a passo:**
+        1. **Selecione o Fundo:** Use a barra lateral para escolher o FII que deseja analisar (ex: MXRF11).
+        2. **Analise os Indicadores:** Fique de olho no **P/VP** (para saber se está caro ou barato) e no **Dividend Yield** (rendimento mensal).
+        3. **Histórico de Dividendos:** Avalie os gráficos para ver se o fundo é um bom pagador consistente.
     
     *💡 Dica: Compare fundos do mesmo setor (ex: Galpões Logísticos vs. Shoppings) para entender qual se destaca.*
     """)
