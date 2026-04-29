@@ -35,22 +35,32 @@ st.set_page_config(
 )
 
 # =============================================================================
-# 3. LAYOUT DO TOPO (Relógio no Canto Direito - Sem Cabeçalho de Imagem)
+# 3. CABEÇALHO DO PAINEL INTERNO (Logo na Esquerda e Relógio na Direita)
 # =============================================================================
-# Criamos duas colunas: uma grande vazia (5) e uma pequena para o relógio (1)
-col_vazia, col_clock = st.columns([5, 1])
+# Criamos duas colunas: uma maior para a logo (3) e uma menor para o relógio (1)
+col_logo, col_clock = st.columns([3, 1])
+
+with col_logo:
+    # A sua logo oficial do Supabase
+    st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", width=250)
 
 with col_clock:
-    agora = datetime.now().strftime("%d/%m/%Y - %H:%M")
+    # Recriando o design exato do seu relógio antigo (Fundo escuro, bolinha vermelha)
+    from datetime import datetime
+    agora = datetime.now().strftime("%H:%M:%S") # Horas, minutos e segundos
+    
+    # O padding-top: 25px empurra o relógio para baixo para alinhar perfeitamente com o meio da logo
     st.markdown(f"""
-        <div style='text-align: right; padding-top: 10px;'>
-            <span style='font-size: 14px; font-weight: 600; color: #64748b; background-color: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0;'>
-                🕰️ {agora}
+        <div style='text-align: right; padding-top: 25px;'>
+            <span style='font-family: "DM Mono", monospace; font-size: 14px; font-weight: 600; color: #f8fafc; background-color: #0f172a; padding: 8px 16px; border-radius: 8px; border: 1px solid #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>
+                <span style='color: #ef4444; font-size: 10px; vertical-align: middle;'>🔴</span> 
+                <span style='font-size: 11px; color: #94a3b8; margin-right: 8px; vertical-align: middle;'>B3 FECHADA</span> 
+                <span style='vertical-align: middle;'>{agora}</span>
             </span>
         </div>
     """, unsafe_allow_html=True)
 
-st.write("---") # Linha divisória fina que separa o topo do conteúdo
+st.write("---") # Linha divisória separando o cabeçalho do resto da página
 
 # =============================================================================
 # 4. RESTO DO CÓDIGO (Design, CSS e Funções)
