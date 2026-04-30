@@ -1537,11 +1537,50 @@ with tab_edit:
         csv = df_geral.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Baixar Carteira em Excel (CSV)", data=csv, file_name="minha_carteira_nuvem.csv", mime="text/csv")
         
-    he1, he2 = st.tabs(["✏️ Visualizar Lançamentos (Nuvem)", "📜 Histórico de Marcação"])
-    with he1:
-        st.info("Este é o espelho exato das suas operações salvas na nuvem do Supabase.")
-        st.dataframe(df_geral.drop(columns=['id', 'usuario_id', 'criado_em'], errors='ignore'), hide_index=True, use_container_width=True)
+    st.info("💡 Edite os valores diretamente na tabela abaixo e clique no botão Salvar. (A coluna 'id' está bloqueada por segurança).")
+        
+        # Preparamos os dados ocultando o que não importa, MAS MANTENDO o 'id' para sabermos quem atualizar
+        colunas_ocultas = ['usuario_id', 'criado_em']
+        df_para_editar = df_geral.drop(columns=[c for c in colunas_ocultas if c in df_geral.columns])
+        
+        # Cria a tabela editável
+        df_editado = st.data_editor(
+            df_para_editar, 
+            hide_index=True, 
+            use_container_width=True,
+            key="editor_operacoes",
+            disabled=["id"] # Protege o ID contra alterações
+        )
 
+        # Botão para enviar as edições para o Supabase
+        if st.button("💾 Salvar Alterações na Nuvem"):
+            mudancas = st.session_state["editor_operacoes"]["edited_rows"]
+            
+            if mudancas:
+                try:
+                    sucesso = 0
+                    for index, campos_alterados in mudancas.items():
+                        # Pega o ID real da linha que foi alterada
+                        row_id = int(df_para_editar.iloc[int(index)]['id'])
+                        
+                        # Atualiza no banco de dados
+                        supabase.table("operacoes").update(campos_alterados).eq("id", row_id).execute()
+                        sucesso += 1
+                    
+                    st.success(f"✅ {sucesso} alteração(ões) salva(s) com sucesso na Nuvem!")
+                    
+                    # Atualiza os dados na tela
+                    if "df_geral" in st.session_state:
+                        st.session_state.df_geral = carregar_dados_nuvem()
+                    import time
+                    time.sleep(1.5)
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"❌ Erro ao tentar salvar: {e}")
+            else:
+                st.warning("⚠️ Nenhuma célula foi alterada.")
+        
         st.divider()
         st.markdown("#### 🗑️ Apagar Lançamento Incorreto")
         
