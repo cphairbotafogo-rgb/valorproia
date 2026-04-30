@@ -650,7 +650,7 @@ with tab_glo:
                 fig_evo.add_trace(go.Scatter(x=df_snap_view["Data"], y=df_snap_view["Mercado"], name="Valor de Mercado", line=dict(color="#22c55e", width=3), fill='tonexty', fillcolor="rgba(34,197,94,0.15)"))
                 fig_evo.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified")
                 st.plotly_chart(fig_evo, use_container_width=True)
-                except: pass
+            except: pass
         
         # --- INÍCIO DO NOVO GRÁFICO DE RENTABILIDADE ---
         st.markdown("---") 
