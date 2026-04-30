@@ -611,7 +611,11 @@ with tab_glo:
             "Euro (EUR)": "EURBRL=X",
             "Bitcoin (BTC)": "BTC-USD",
             "Ethereum (ETH)": "ETH-USD",
-            "Libra (GBP)": "GBPBRL=X"
+            "Libra (GBP)": "GBPBRL=X",
+            "Iene (JPY)": "JPYBRL=X",
+            "Franco Suíço (CHF)": "CHFBRL=X",
+            "Dólar Canadense (CAD)": "CADBRL=X",
+            "Solana (SOL)": "SOL-USD"
         }
         moedas_sel = st.multiselect(
             "Escolha as moedas para monitorar:",
@@ -621,37 +625,42 @@ with tab_glo:
 
     if moedas_sel:
         try:
-            # Lista de tickers para o Yahoo Finance
-            tickers_moedas = [dict_moedas[m] for m in moedas_sel]
-            # Garantimos o dólar para conversão de cripto se necessário
+            # Pegamos os tickers selecionados + Dólar (necessário para converter cripto)
             ticker_usd = "USDBRL=X"
-            lista_download = list(set(tickers_moedas + [ticker_usd]))
+            tickers_para_download = list(set([dict_moedas[m] for m in moedas_sel] + [ticker_usd]))
             
-            dados_m = yf.download(lista_download, period="1d", interval="15m")['Close'].iloc[-1]
-            cols_m = st.columns(len(moedas_sel))
+            # Download com tratamento de erro
+            dados_m = yf.download(tickers_para_download, period="1d", interval="15m")['Close']
             
-            for i, nome_exibicao in enumerate(moedas_sel):
-                ticker = dict_moedas[nome_exibicao]
-                valor = dados_m[ticker]
+            if not dados_m.empty:
+                ultimos_precos = dados_m.iloc[-1]
+                cols_m = st.columns(len(moedas_sel))
                 
-                # Se for Cripto (BTC ou ETH), converte para Real
-                if "-" in ticker:
-                    valor = valor * dados_m[ticker_usd]
-                
-                with cols_m[i]:
-                    # HTML para fonte menor e centralizada
-                    st.markdown(f"""
-                        <div style="text-align: center; background-color: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px;">
-                            <p style="margin: 0; font-size: 14px; color: #94a3b8; font-weight: bold;">{nome_exibicao}</p>
-                            <h4 style="margin: 0; font-size: 20px; color: #f8fafc;">R$ {valor:,.2f}</h4>
-                        </div>
-                    """, unsafe_allow_html=True)
-            st.write("") # Espaçamento
-            st.divider()
-        except:
-            st.warning("⚠️ Aguardando conexão com Yahoo Finance para moedas...")
+                for i, nome_exibicao in enumerate(moedas_sel):
+                    ticker = dict_moedas[nome_exibicao]
+                    valor = ultimos_precos[ticker]
+                    
+                    # Se o valor for NaN, tenta pegar a última linha válida
+                    if pd.isna(valor):
+                        valor = dados_m[ticker].dropna().iloc[-1]
+                    
+                    # Conversão de Cripto (USD -> BRL)
+                    if "-" in ticker:
+                        valor = valor * ultimos_precos[ticker_usd]
+                    
+                    with cols_m[i]:
+                        st.markdown(f"""
+                            <div style="text-align: center; background-color: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                                <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold;">{nome_exibicao}</p>
+                                <h4 style="margin: 0; font-size: 19px; color: #f8fafc;">R$ {valor:,.2f}</h4>
+                            </div>
+                        """, unsafe_allow_html=True)
+                st.write("") 
+                st.divider()
+        except Exception as e:
+            st.info("🔄 Sincronizando cotações em tempo real...")
 
-    # --- RESTANTE DA ABA 1 (SEM REDUÇÃO) ---
+    # --- RESTANTE DA ABA 1 (KPIs, Gráficos e Tabela) ---
     if not df_geral.empty and not df_g.empty:
         st.markdown("#### 🔍 Filtrar Visão de Patrimônio")
         todas_categorias = sorted(df_g['Categoria'].unique().tolist())
@@ -689,21 +698,19 @@ with tab_glo:
                 fig_rent = go.Figure()
                 if len(df_hist) == 1:
                     data_ini = df_hist['Data'].iloc[0] - pd.Timedelta(days=1)
-                    datas_plot = [data_ini, df_hist['Data'].iloc[0]]
-                    rent_plot = [0, df_hist['Rent_Calc'].iloc[0]]
+                    datas_plot, rent_plot = [data_ini, df_hist['Data'].iloc[0]], [0, df_hist['Rent_Calc'].iloc[0]]
                 else:
                     datas_plot, rent_plot = df_hist['Data'], df_hist['Rent_Calc']
 
                 fig_rent.add_trace(go.Scatter(x=datas_plot, y=rent_plot, mode='lines+markers', name='Minha Carteira (%)', line=dict(color='#3b82f6', width=4), marker=dict(size=8)))
                 
-                # Benchmarks simples para o gráfico não ficar vazio
                 if len(datas_plot) > 1:
-                    fig_rent.add_trace(go.Scatter(x=datas_plot, y=[0.05*i for i in range(len(datas_plot))], mode='lines', name='CDI', line=dict(color='#eab308', dash='dot')))
+                    fig_rent.add_trace(go.Scatter(x=datas_plot, y=[0.05*i for i in range(len(datas_plot))], mode='lines', name='CDI (Estimado)', line=dict(color='#eab308', dash='dot')))
 
                 fig_rent.update_layout(height=380, template="plotly_dark", hovermode="x unified", legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
                 st.plotly_chart(fig_rent, use_container_width=True)
             except: 
-                st.info("💡 Gráfico de rentabilidade em processamento...")
+                pass
 
             st.divider()
 
@@ -730,10 +737,10 @@ with tab_glo:
                     }), 
                     hide_index=True, use_container_width=True
                 )
-                
         else: st.warning("⚠️ Selecione ao menos uma classe.")
     else: st.info("Sua carteira está vazia.")
 
+# --- ABA 2: FUNDOS IMOBILIÁRIOS (FIIs) ---
 # --- ABA 2: FUNDOS IMOBILIÁRIOS (FIIs) ---
 
 # --- ABA 2: MEUS FIIs ---
