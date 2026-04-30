@@ -705,7 +705,7 @@ with tab_glo:
         )
         
         st.plotly_chart(fig_rent, use_container_width=True)
-        # --- FIM DO NOVO GRÁFICO ---
+# --- FIM DO NOVO GRÁFICO ---
             
             st.divider()
             col_pie, col_tab = st.columns([1.5, 2.5])
@@ -741,7 +741,7 @@ with tab_glo:
                 st.dataframe(df_view_v.sort_values("Patrimônio (R$)", ascending=False), hide_index=True, use_container_width=True)
                 
         else: st.warning("⚠️ Selecione ao menos uma classe.")
-    else: st.info("Sua carteira está vazia.")
+    else: st.info("Sua carteira está vazia.")       
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
