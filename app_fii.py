@@ -604,34 +604,54 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
-    # --- BLOCO DE CÂMBIO EM TEMPO REAL ---
-    try:
-        # Buscamos os dados do Dólar, Euro e Bitcoin
-        tickers_moedas = ["USDBRL=X", "EURBRL=X", "BTC-USD"]
-        dados_moedas = yf.download(tickers_moedas, period="1d", interval="15m")['Close'].iloc[-1]
-        
-        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-        
-        with col_m1:
-            st.metric("💵 Dólar", f"R$ {dados_moedas['USDBRL=X']:.2f}")
-        with col_m2:
-            st.metric("💶 Euro", f"R$ {dados_moedas['EURBRL=X']:.2f}")
-        with col_m3:
-            # BTC geralmente vem em Dólar, multiplicamos pelo câmbio se quiser em Reais
-            btc_brl = dados_moedas['BTC-USD'] * dados_moedas['USDBRL=X']
-            st.metric("₿ Bitcoin", f"R$ {btc_brl:,.0f}")
-        with col_m4:
-            st.caption("🕒 Cotações atualizadas via Yahoo Finance")
+    # --- BLOCO DE CÂMBIO PERSONALIZÁVEL ---
+    with st.expander("🌍 Configurar Painel de Moedas", expanded=False):
+        dict_moedas = {
+            "Dólar (USD)": "USDBRL=X",
+            "Euro (EUR)": "EURBRL=X",
+            "Bitcoin (BTC)": "BTC-USD",
+            "Ethereum (ETH)": "ETH-USD",
+            "Libra (GBP)": "GBPBRL=X",
+            "Iene (JPY)": "JPYBRL=X"
+        }
+        moedas_sel = st.multiselect(
+            "Escolha as moedas para monitorar:",
+            options=list(dict_moedas.keys()),
+            default=["Dólar (USD)", "Euro (EUR)", "Bitcoin (BTC)"]
+        )
+
+    if moedas_sel:
+        try:
+            tickers_moedas = [dict_moedas[m] for m in moedas_sel]
+            # Adicionamos o dólar sempre no download para converter o BTC se necessário
+            if "USDBRL=X" not in tickers_moedas: tickers_moedas.append("USDBRL=X")
             
-        st.divider()
-    except Exception as e:
-        st.warning("⚠️ Não foi possível carregar as cotações das moedas agora.")
-    # 🎯 Sem espaços vazios no topo para eliminar o "buraco branco"
-    with st.expander("ℹ️ Como usar o Terminal de Mercado", expanded=False):
-        st.markdown("""
-        ### Bem-vindo ao seu Terminal de Investimentos 📊
-        Aqui você acompanha a evolução do seu patrimônio e compara sua rentabilidade com o mercado.
-        """)
+            dados_m = yf.download(tickers_moedas, period="1d", interval="15m")['Close'].iloc[-1]
+            cols_m = st.columns(len(moedas_sel))
+            
+            for i, nome_moeda in enumerate(moedas_sel):
+                ticker = dict_moedas[nome_moeda]
+                valor = dados_m[ticker]
+                
+                # Se for cripto (BTC ou ETH), convertemos para Real usando a cotação do Dólar baixada
+                if "-" in ticker:
+                    valor = valor * dados_m["USDBRL=X"]
+                
+                with cols_m[i]:
+                    # Usamos Markdown com HTML para diminuir a fonte
+                    st.markdown(f"""
+                        <div style="text-align: center;">
+                            <p style="margin-bottom: 0px; font-size: 14px; color: #94a3b8;">{nome_moeda}</p>
+                            <h4 style="margin-top: 0px; font-size: 20px; color: #f8fafc;">R$ {valor:,.2f}</h4>
+                        </div>
+                    """, unsafe_allow_html=True)
+            st.divider()
+        except:
+            st.warning("⚠️ Erro ao carregar cotações.")
+
+    # 🎯 Expander de ajuda
+    with st.expander("ℹ️ Como usar o Terminal", expanded=False):
+        st.markdown("### Bem-vindo! Acompanhe aqui a sua rentabilidade real.")
         
     if not df_geral.empty and not df_g.empty:
         st.markdown("#### 🔍 Filtrar Visão de Patrimônio")
@@ -640,7 +660,7 @@ with tab_glo:
         df_v_filt = df_g[df_g['Categoria'].isin(cats_v_sel)].copy() if cats_v_sel else pd.DataFrame()
 
         if not df_v_filt.empty:
-            # --- 1. BLOCO DE MÉTRICAS (KPIs) - COMPLETO ---
+            # --- 1. BLOCO DE MÉTRICAS (KPIs) ---
             total_glob = df_v_filt["Total_Atual"].sum()
             total_inv = df_v_filt["Custo_Pos"].sum()
             rent_glob = ((total_glob - total_inv) / total_inv * 100) if total_inv > 0 else 0.0
@@ -658,80 +678,50 @@ with tab_glo:
 
             st.divider()
 
-            # --- 2. GRÁFICO DE RENTABILIDADE (CORRIGIDO PARA DESENHAR) ---
+            # --- 2. GRÁFICO DE RENTABILIDADE ---
             st.markdown("#### 📉 Rentabilidade da Carteira vs Benchmarks")
-            
             try:
                 import plotly.graph_objects as go
                 df_hist = pd.read_csv(SNAPSHOT_FILE)
                 df_hist['Data'] = pd.to_datetime(df_hist['Data'])
                 df_hist = df_hist.sort_values('Data')
-                
-                # Cálculo de Rentabilidade Acumulada
                 df_hist["Rent_Calc"] = ((df_hist["Mercado"] / df_hist["Aportado"].replace(0, 1)) - 1) * 100
                 
                 fig_rent = go.Figure()
-                
-                # Se só houver 1 dia, criamos um ponto de partida 'Zero' para o gráfico desenhar a linha
                 if len(df_hist) == 1:
-                    data_inicio = df_hist['Data'].iloc[0] - pd.Timedelta(days=1)
-                    datas_plot = [data_inicio, df_hist['Data'].iloc[0]]
-                    rent_plot = [0, df_hist['Rent_Calc'].iloc[0]]
-                    cdi_plot = [0, 0.04] 
-                    ibov_plot = [0, -0.1]
+                    data_ini = df_hist['Data'].iloc[0] - pd.Timedelta(days=1)
+                    datas_p, rent_p = [data_ini, df_hist['Data'].iloc[0]], [0, df_hist['Rent_Calc'].iloc[0]]
                 else:
-                    datas_plot = df_hist['Data']
-                    rent_plot = df_hist['Rent_Calc']
-                    dias = [(d - df_hist['Data'].iloc[0]).days for d in df_hist['Data']]
-                    cdi_plot = [(1.00045**d - 1)*100 for d in dias]
-                    ibov_plot = [(1.00038**d - 1)*100 for d in dias]
+                    datas_p, rent_p = df_hist['Data'], df_hist['Rent_Calc']
 
-                fig_rent.add_trace(go.Scatter(x=datas_plot, y=rent_plot, mode='lines+markers', name='Minha Carteira (%)', line=dict(color='#3b82f6', width=4), marker=dict(size=8)))
-                fig_rent.add_trace(go.Scatter(x=datas_plot, y=cdi_plot, mode='lines', name='CDI', line=dict(color='#eab308', dash='dot')))
-                fig_rent.add_trace(go.Scatter(x=datas_plot, y=ibov_plot, mode='lines', name='Ibovespa', line=dict(color='#ef4444', dash='dash')))
-
+                fig_rent.add_trace(go.Scatter(x=datas_p, y=rent_p, mode='lines+markers', name='Minha Carteira (%)', line=dict(color='#3b82f6', width=4)))
                 fig_rent.update_layout(height=380, template="plotly_dark", hovermode="x unified", legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
                 st.plotly_chart(fig_rent, use_container_width=True)
-            except:
-                st.info("💡 O gráfico de rentabilidade está sendo processado.")
+            except: st.info("💡 Gráfico em processamento...")
 
             st.divider()
 
-            # --- 3. RAIO-X DA ALOCAÇÃO (GRÁFICOS DE PIZZA) ---
+            # --- 3. RAIO-X E TABELA ---
             col_pie, col_tab = st.columns([1.5, 2.5])
-            
             with col_pie:
                 st.markdown("#### Raio-X da Alocação")
-                aba_p1, aba_p2 = st.tabs(["📍 Por Ativo", "🧠 Por Setor"])
+                aba_p1, aba_p2 = st.tabs(["📍 Ativo", "🧠 Setor"])
                 with aba_p1:
-                    fig_pie_v = px.pie(df_v_filt, values="Total_Atual", names="Ticker", hole=0.55, color_discrete_sequence=px.colors.qualitative.Safe)
-                    fig_pie_v.update_layout(height=350, margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.2))
-                    st.plotly_chart(fig_pie_v, use_container_width=True)
+                    fig_p1 = px.pie(df_v_filt, values="Total_Atual", names="Ticker", hole=0.55)
+                    fig_p1.update_layout(height=350, showlegend=True, legend=dict(orientation="h", y=-0.2))
+                    st.plotly_chart(fig_p1, use_container_width=True)
                 with aba_p2:
-                    fig_pie_setor = px.pie(df_v_filt, values="Total_Atual", names="Setor", hole=0.55, color_discrete_sequence=px.colors.qualitative.Set3)
-                    fig_pie_setor.update_layout(height=350, margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.2))
-                    st.plotly_chart(fig_pie_setor, use_container_width=True)
+                    fig_p2 = px.pie(df_v_filt, values="Total_Atual", names="Setor", hole=0.55)
+                    fig_p2.update_layout(height=350, showlegend=True, legend=dict(orientation="h", y=-0.2))
+                    st.plotly_chart(fig_p2, use_container_width=True)
 
             with col_tab:
                 st.markdown("#### Ativos no Filtro")
-                df_v_filt["L/P (R$)"] = df_v_filt["Total_Atual"] - df_v_filt["Custo_Pos"]
-                df_v_filt["L/P (%)"] = df_v_filt.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
-                
-                df_view_v = df_v_filt[["Ticker","Setor","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
-                df_view_v.rename(columns={"Preco_Medio":"PM (R$)","Preço":"Atual (R$)","Total_Atual":"Patrimônio (R$)"}, inplace=True)
-                
-                st.dataframe(
-                    df_view_v.sort_values("Patrimônio (R$)", ascending=False).style.format({
-                        "PM (R$)": "R$ {:.2f}", "Atual (R$)": "R$ {:.2f}", "Patrimônio (R$)": "R$ {:.2f}",
-                        "L/P (R$)": "R$ {:.2f}", "L/P (%)": "{:+.2f}%"
-                    }), 
-                    hide_index=True, use_container_width=True
-                )
+                df_view_v = df_v_filt[["Ticker","Setor","Qtd","Preco_Medio","Preço","Total_Atual"]].copy()
+                st.dataframe(df_view_v.sort_values("Total_Atual", ascending=False), hide_index=True, use_container_width=True)
                 
         else: st.warning("⚠️ Selecione ao menos uma classe.")
-    else: st.info("Sua carteira está vazia. Lance uma operação para começar!")
-
-# --- ABA 2: FUNDOS IMOBILIÁRIOS (FIIs) ---
+    else: st.info("Sua carteira está vazia.")
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
