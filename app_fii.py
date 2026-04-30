@@ -704,11 +704,11 @@ with tab_glo:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1) 
         )
         
-        st.plotly_chart(fig_rent, use_container_width=True)
+           st.plotly_chart(fig_rent, use_container_width=True)
 # --- FIM DO NOVO GRÁFICO ---
             
             st.divider()
-            col_pie, col_tab = st.columns([1.5, 2.5])
+                col_pie, col_tab = st.columns([1.5, 2.5])
             
             with col_pie:
                 st.markdown("#### Raio-X da Alocação")
