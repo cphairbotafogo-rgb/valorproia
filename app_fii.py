@@ -604,6 +604,28 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
+    # --- BLOCO DE CÂMBIO EM TEMPO REAL ---
+    try:
+        # Buscamos os dados do Dólar, Euro e Bitcoin
+        tickers_moedas = ["USDBRL=X", "EURBRL=X", "BTC-USD"]
+        dados_moedas = yf.download(tickers_moedas, period="1d", interval="15m")['Close'].iloc[-1]
+        
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        
+        with col_m1:
+            st.metric("💵 Dólar", f"R$ {dados_moedas['USDBRL=X']:.2f}")
+        with col_m2:
+            st.metric("💶 Euro", f"R$ {dados_moedas['EURBRL=X']:.2f}")
+        with col_m3:
+            # BTC geralmente vem em Dólar, multiplicamos pelo câmbio se quiser em Reais
+            btc_brl = dados_moedas['BTC-USD'] * dados_moedas['USDBRL=X']
+            st.metric("₿ Bitcoin", f"R$ {btc_brl:,.0f}")
+        with col_m4:
+            st.caption("🕒 Cotações atualizadas via Yahoo Finance")
+            
+        st.divider()
+    except Exception as e:
+        st.warning("⚠️ Não foi possível carregar as cotações das moedas agora.")
     # 🎯 Sem espaços vazios no topo para eliminar o "buraco branco"
     with st.expander("ℹ️ Como usar o Terminal de Mercado", expanded=False):
         st.markdown("""
