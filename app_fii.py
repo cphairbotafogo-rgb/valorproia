@@ -662,31 +662,31 @@ with tab_glo:
             
             import plotly.graph_objects as go
             fig_rent = go.Figure()
-           # --- LINHA DA SUA CARTEIRA REAL ---
-            try:
-                # Lemos o seu histórico real
-                df_snap_rent = pd.read_csv(SNAPSHOT_FILE)
-                
-                # Calculamos a % de lucro/prejuízo
-                df_snap_rent["Rent_Perc"] = ((df_snap_rent["Mercado"] - df_snap_rent["Aportado"]) / df_snap_rent["Aportado"]) * 100
-                
-                fig_rent.add_trace(go.Scatter(
-                    x=df_snap_rent["Data"], 
-                    y=df_snap_rent["Rent_Perc"], 
-                    mode='lines+markers', 
-                    name='Minha Carteira (%)', 
-                    line=dict(color='#3b82f6', width=3) 
-                ))
-            except Exception as e:
-                pass
-            
-            # Linha da B3 (Exemplo fixo - podemos automatizar depois)
+          # Linha da sua carteira (Dados de exemplo)
             fig_rent.add_trace(go.Scatter(
-                x=df_snap_rent["Data"] if 'df_snap_rent' in locals() else ['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+                x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+                y=[0, 1.2, 0.8, 2.5, 3.1], 
+                mode='lines+markers', 
+                name='Minha Carteira', 
+                line=dict(color='#3b82f6', width=3) 
+            ))
+            
+            # Linha da B3 (Exemplo)
+            fig_rent.add_trace(go.Scatter(
+                x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
                 y=[0, -0.5, 1.1, 1.5, 0.9], 
                 mode='lines', 
                 name='B3 (Ibovespa)', 
                 line=dict(color='#ef4444', width=2, dash='dash') 
+            ))
+            
+            # Linha do CDI (Exemplo)
+            fig_rent.add_trace(go.Scatter(
+                x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+                y=[0, 0.03, 0.06, 0.09, 0.12], 
+                mode='lines', 
+                name='CDI Acumulado', 
+                line=dict(color='#eab308', width=2, dash='dot') 
             ))
             
             # Linha do CDI (Exemplo fixo - podemos automatizar depois)
