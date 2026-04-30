@@ -650,6 +650,65 @@ with tab_glo:
                 fig_evo.add_trace(go.Scatter(x=df_snap_view["Data"], y=df_snap_view["Mercado"], name="Valor de Mercado", line=dict(color="#22c55e", width=3), fill='tonexty', fillcolor="rgba(34,197,94,0.15)"))
                 fig_evo.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified")
                 st.plotly_chart(fig_evo, use_container_width=True)
+                except: pass
+        
+        # --- INÍCIO DO NOVO GRÁFICO DE RENTABILIDADE ---
+        st.markdown("---") 
+        st.markdown("#### 📊 Rentabilidade da Carteira vs Benchmarks")
+        
+        categorias_disponiveis = ["Ações", "FIIs", "Exterior", "Cripto", "Renda Fixa"]
+        
+        categorias_selecionadas = st.multiselect(
+            "Filtre por tipo de ativo para comparar:",
+            options=categorias_disponiveis,
+            default=categorias_disponiveis 
+        )
+        
+        import plotly.graph_objects as go
+        fig_rent = go.Figure()
+        
+        # Linha da sua carteira (Dados de exemplo)
+        fig_rent.add_trace(go.Scatter(
+            x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+            y=[0, 1.2, 0.8, 2.5, 3.1], 
+            mode='lines+markers', 
+            name='Minha Carteira', 
+            line=dict(color='#3b82f6', width=3) 
+        ))
+        
+        # Linha da B3 (Exemplo)
+        fig_rent.add_trace(go.Scatter(
+            x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+            y=[0, -0.5, 1.1, 1.5, 0.9], 
+            mode='lines', 
+            name='B3 (Ibovespa)', 
+            line=dict(color='#ef4444', width=2, dash='dash') 
+        ))
+        
+        # Linha do CDI (Exemplo)
+        fig_rent.add_trace(go.Scatter(
+            x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+            y=[0, 0.03, 0.06, 0.09, 0.12], 
+            mode='lines', 
+            name='CDI Acumulado', 
+            line=dict(color='#eab308', width=2, dash='dot') 
+        ))
+        
+        fig_rent.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)', 
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#94a3b8'),
+            yaxis_title="Rentabilidade Acumulada (%)",
+            xaxis_title="Linha do Tempo",
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1) 
+        )
+        
+        st.plotly_chart(fig_rent, use_container_width=True)
+        # --- FIM DO NOVO GRÁFICO ---
+
+        st.divider()
+        col_pie, col_tab = st.columns([1.5, 2.5])
             except: pass
 
             st.divider()
