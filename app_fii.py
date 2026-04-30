@@ -706,17 +706,20 @@ with tab_glo:
         
         st.plotly_chart(fig_rent, use_container_width=True)
         # --- FIM DO NOVO GRÁFICO ---
-        
-                st.divider()
+            
+            st.divider()
             col_pie, col_tab = st.columns([1.5, 2.5])
+            
             with col_pie:
                 st.markdown("#### Raio-X da Alocação")
                 aba_p1, aba_p2 = st.tabs(["📍 Por Ativo", "🧠 Por Setor"])
+                
                 with aba_p1:
                     fig_pie_v = px.pie(df_v_filt, values="Total_Atual", names="Ticker", hole=0.55, color_discrete_sequence=px.colors.qualitative.Safe)
                     fig_pie_v.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
                     fig_pie_v.update_layout(height=320, margin=dict(t=20, b=40, l=10, r=10), showlegend=True, legend=dict(orientation="h", y=-0.3, x=0.5, xanchor="center"), uniformtext_minsize=12, uniformtext_mode='hide')
                     st.plotly_chart(fig_pie_v, use_container_width=True)
+                    
                 with aba_p2:
                     fig_pie_setor = px.pie(df_v_filt, values="Total_Atual", names="Setor", hole=0.55, color_discrete_sequence=px.colors.qualitative.Set3)
                     fig_pie_setor.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
@@ -736,6 +739,7 @@ with tab_glo:
                 df_view_v["Qtd"] = df_view_v["Qtd"].apply(formatar_qtd)
 
                 st.dataframe(df_view_v.sort_values("Patrimônio (R$)", ascending=False), hide_index=True, use_container_width=True)
+                
         else: st.warning("⚠️ Selecione ao menos uma classe.")
     else: st.info("Sua carteira está vazia.")
 
