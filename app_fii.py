@@ -1533,6 +1533,9 @@ with tab_metas:
 # --- ABA 14: HISTÓRICO E EDIÇÃO ---
 with tab_edit:
     
+    # 👇 ESTA É A LINHA QUE FALTAVA! (Copie e cole esta linha)
+    he1, he2 = st.tabs(["👁️‍🗨️ Visualizar Lançamentos", "🏷️ Histórico de Marcação"])
+    
     with he1:
         st.markdown("#### 📝 Auditoria e Gerenciamento")
         if not df_geral.empty:
