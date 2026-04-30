@@ -595,11 +595,6 @@ with col_clock:
             atualizarRelogio(); // Chama imediatamente na primeira vez
         </script>
     """, height=80)
-
-st.write("---")
-
-st.write("---")
-    
     
 # =============================================================================
 # 📑 10. AS 14 ABAS DO SISTEMA
