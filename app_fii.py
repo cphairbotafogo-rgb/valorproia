@@ -1532,12 +1532,14 @@ with tab_metas:
 
 # --- ABA 14: HISTÓRICO E EDIÇÃO ---
 with tab_edit:
-    st.markdown("#### 📝 Auditoria e Gerenciamento")
-    if not df_geral.empty:
-        csv = df_geral.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Baixar Carteira em Excel (CSV)", data=csv, file_name="minha_carteira_nuvem.csv", mime="text/csv")
+    
+    with he1:
+        st.markdown("#### 📝 Auditoria e Gerenciamento")
+        if not df_geral.empty:
+            csv = df_geral.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Baixar Carteira em Excel (CSV)", data=csv, file_name="minha_carteira_nuvem.csv", mime="text/csv")
         
-    st.info("💡 Edite os valores diretamente na tabela abaixo e clique no botão Salvar. (A coluna 'id' está bloqueada por segurança).")
+        st.info("💡 Edite os valores diretamente na tabela abaixo e clique no botão Salvar. (A coluna 'id' está bloqueada por segurança).")
         
         # Preparamos os dados ocultando o que não importa, MAS MANTENDO o 'id' para sabermos quem atualizar
         colunas_ocultas = ['usuario_id', 'criado_em']
@@ -1603,13 +1605,18 @@ with tab_edit:
                         supabase.table("operacoes").delete().eq("id", id_selecionado).execute()
                         st.success("✅ Lançamento apagado com sucesso da Nuvem!")
                         st.session_state.df_geral = carregar_dados_nuvem()
+                        import time
                         time.sleep(1)
                         st.rerun()
-                    except Exception as e: st.error(f"Erro ao tentar apagar: {e}")
+                    except Exception as e: 
+                        st.error(f"Erro ao tentar apagar: {e}")
 
     with he2:
         try:
             df_log = carregar_log_precos()
-            if not df_log.empty: st.dataframe(df_log.sort_index(ascending=False), hide_index=True, use_container_width=True)
-            else: st.info("Nenhuma reavaliação de preço registrada ainda.")
-        except: st.info("Nenhuma reavaliação de preço registrada ainda.")
+            if not df_log.empty: 
+                st.dataframe(df_log.sort_index(ascending=False), hide_index=True, use_container_width=True)
+            else: 
+                st.info("Nenhuma reavaliação de preço registrada ainda.")
+        except: 
+            st.info("Nenhuma reavaliação de preço registrada ainda.")
