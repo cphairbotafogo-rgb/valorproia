@@ -623,7 +623,8 @@ with tab_glo:
         df_v_filt = df_g[df_g['Categoria'].isin(cats_v_sel)].copy() if cats_v_sel else pd.DataFrame()
 
         if not df_v_filt.empty:
-            total_glob = df_v_filt["Total_Atual"].sum(); total_inv = df_v_filt["Custo_Pos"].sum()
+            total_glob = df_v_filt["Total_Atual"].sum()
+            total_inv = df_v_filt["Custo_Pos"].sum()
             rent_glob = ((total_glob - total_inv) / total_inv * 100) if total_inv > 0 else 0.0
 
             mc1, mc2, mc3 = st.columns(3)
@@ -642,62 +643,53 @@ with tab_glo:
             try:
                 df_snap_view = pd.read_csv(SNAPSHOT_FILE)
                 fig_evo = go.Figure()
-                fig_evo.add_trace(go.Scatter(x=df_snap_view["Data"], y=df_snap_view["Aportado"], name="Total Aportado", line=dict(color="#3b82f6", dash="dot"), fill='tozeroy', fillcolor="rgba(59,130,246,0.1)"))
-                fig_evo.add_trace(go.Scatter(x=df_snap_view["Data"], y=df_snap_view["Mercado"], name="Valor de Mercado", line=dict(color="#22c55e", width=3), fill='tonexty', fillcolor="rgba(34,197,94,0.15)"))
+                # Adicionado lines+markers para visibilidade no 1º dia
+                fig_evo.add_trace(go.Scatter(x=df_snap_view["Data"], y=df_snap_view["Aportado"], mode='lines+markers', name="Total Aportado", line=dict(color="#3b82f6", dash="dot"), marker=dict(size=8), fill='tozeroy', fillcolor="rgba(59,130,246,0.1)"))
+                fig_evo.add_trace(go.Scatter(x=df_snap_view["Data"], y=df_snap_view["Mercado"], mode='lines+markers', name="Valor de Mercado", line=dict(color="#22c55e", width=3), marker=dict(size=8), fill='tonexty', fillcolor="rgba(34,197,94,0.15)"))
                 fig_evo.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified")
                 st.plotly_chart(fig_evo, use_container_width=True)
-            except: pass
+            except: 
+                pass
         
             # --- INÍCIO DO NOVO GRÁFICO DE RENTABILIDADE ---
             st.markdown("---") 
             st.markdown("#### 📊 Rentabilidade da Carteira vs Benchmarks")
             
             categorias_disponiveis = ["Ações", "FIIs", "Exterior", "Cripto", "Renda Fixa"]
-            
-            categorias_selecionadas = st.multiselect(
-                "Filtre por tipo de ativo para comparar:",
-                options=categorias_disponiveis,
-                default=categorias_disponiveis 
-            )
+            categorias_selecionadas = st.multiselect("Filtre por tipo de ativo para comparar:", options=categorias_disponiveis, default=categorias_disponiveis)
             
             import plotly.graph_objects as go
             fig_rent = go.Figure()
             
-            # --- LINHA DA SUA CARTEIRA REAL ---
             try:
-                # Lemos o seu histórico real
                 df_snap_rent = pd.read_csv(SNAPSHOT_FILE)
-                
-                # Calculamos a % de lucro/prejuízo
-                df_snap_rent["Rent_Perc"] = ((df_snap_rent["Mercado"] - df_snap_rent["Aportado"]) / df_snap_rent["Aportado"]) * 100
+                # Matemática segura: evita divisão por zero
+                aportado_calc = pd.to_numeric(df_snap_rent["Aportado"]).replace(0, 1)
+                mercado_calc = pd.to_numeric(df_snap_rent["Mercado"])
+                df_snap_rent["Rent_Perc"] = ((mercado_calc - aportado_calc) / aportado_calc) * 100
                 
                 fig_rent.add_trace(go.Scatter(
                     x=df_snap_rent["Data"], 
                     y=df_snap_rent["Rent_Perc"], 
                     mode='lines+markers', 
                     name='Minha Carteira (%)', 
-                    line=dict(color='#3b82f6', width=3) 
+                    line=dict(color='#3b82f6', width=3),
+                    marker=dict(size=8)
                 ))
-            except Exception as e:
+                
+                # Benchmarks acompanhando os dias reais
+                datas_reais = df_snap_rent["Data"].tolist()
+                b3_ref = [0] * len(datas_reais)
+                cdi_ref = [0] * len(datas_reais)
+                
+                if len(datas_reais) > 1:
+                    b3_ref = [i * 0.4 for i in range(len(datas_reais))] # Simulado
+                    cdi_ref = [i * 0.2 for i in range(len(datas_reais))] # Simulado
+
+                fig_rent.add_trace(go.Scatter(x=datas_reais, y=b3_ref, mode='lines', name='B3 (Ibovespa)', line=dict(color='#ef4444', width=2, dash='dash')))
+                fig_rent.add_trace(go.Scatter(x=datas_reais, y=cdi_ref, mode='lines', name='CDI Acumulado', line=dict(color='#eab308', width=2, dash='dot')))
+            except:
                 pass
-            
-            # Linha da B3 (Exemplo fixo - podemos automatizar depois)
-            fig_rent.add_trace(go.Scatter(
-                x=df_snap_rent["Data"] if 'df_snap_rent' in locals() else ['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
-                y=[0, -0.5, 1.1, 1.5, 0.9], 
-                mode='lines', 
-                name='B3 (Ibovespa)', 
-                line=dict(color='#ef4444', width=2, dash='dash') 
-            ))
-            
-            # Linha do CDI (Exemplo fixo - podemos automatizar depois)
-            fig_rent.add_trace(go.Scatter(
-                x=df_snap_rent["Data"] if 'df_snap_rent' in locals() else ['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
-                y=[0, 0.03, 0.06, 0.09, 0.12], 
-                mode='lines', 
-                name='CDI Acumulado', 
-                line=dict(color='#eab308', width=2, dash='dot') 
-            ))
             
             fig_rent.update_layout(
                 plot_bgcolor='rgba(0,0,0,0)', 
@@ -745,8 +737,10 @@ with tab_glo:
 
                 st.dataframe(df_view_v.sort_values("Patrimônio (R$)", ascending=False), hide_index=True, use_container_width=True)
                 
-        else: st.warning("⚠️ Selecione ao menos uma classe.")
-    else: st.info("Sua carteira está vazia.")
+        else:
+            st.warning("⚠️ Selecione ao menos uma classe.")
+    else:
+        st.info("Sua carteira está vazia.")
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
