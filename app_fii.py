@@ -621,6 +621,7 @@ with tab_glo:
         
         *💡 Dica: Use o Terminal para identificar o humor do mercado antes de realizar grandes aportes.*
         """)
+        
     if not df_geral.empty and not df_g.empty:
         st.markdown("#### 🔍 Filtrar Visão de Patrimônio")
         cats_v_sel = st.multiselect("Selecione as classes:", options=sorted(df_g['Categoria'].unique().tolist()), default=sorted(df_g['Categoria'].unique().tolist()))
@@ -652,63 +653,63 @@ with tab_glo:
                 st.plotly_chart(fig_evo, use_container_width=True)
             except: pass
         
-        # --- INÍCIO DO NOVO GRÁFICO DE RENTABILIDADE ---
-        st.markdown("---") 
-        st.markdown("#### 📊 Rentabilidade da Carteira vs Benchmarks")
-        
-        categorias_disponiveis = ["Ações", "FIIs", "Exterior", "Cripto", "Renda Fixa"]
-        
-        categorias_selecionadas = st.multiselect(
-            "Filtre por tipo de ativo para comparar:",
-            options=categorias_disponiveis,
-            default=categorias_disponiveis 
-        )
-        
-        import plotly.graph_objects as go
-        fig_rent = go.Figure()
-        
-        # Linha da sua carteira (Dados de exemplo)
-        fig_rent.add_trace(go.Scatter(
-            x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
-            y=[0, 1.2, 0.8, 2.5, 3.1], 
-            mode='lines+markers', 
-            name='Minha Carteira', 
-            line=dict(color='#3b82f6', width=3) 
-        ))
-        
-        # Linha da B3 (Exemplo)
-        fig_rent.add_trace(go.Scatter(
-            x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
-            y=[0, -0.5, 1.1, 1.5, 0.9], 
-            mode='lines', 
-            name='B3 (Ibovespa)', 
-            line=dict(color='#ef4444', width=2, dash='dash') 
-        ))
-        
-        # Linha do CDI (Exemplo)
-        fig_rent.add_trace(go.Scatter(
-            x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
-            y=[0, 0.03, 0.06, 0.09, 0.12], 
-            mode='lines', 
-            name='CDI Acumulado', 
-            line=dict(color='#eab308', width=2, dash='dot') 
-        ))
-        
-        fig_rent.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)', 
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#94a3b8'),
-            yaxis_title="Rentabilidade Acumulada (%)",
-            xaxis_title="Linha do Tempo",
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1) 
-        )
-        
-           st.plotly_chart(fig_rent, use_container_width=True)
-# --- FIM DO NOVO GRÁFICO ---
+            # --- INÍCIO DO NOVO GRÁFICO DE RENTABILIDADE ---
+            st.markdown("---") 
+            st.markdown("#### 📊 Rentabilidade da Carteira vs Benchmarks")
+            
+            categorias_disponiveis = ["Ações", "FIIs", "Exterior", "Cripto", "Renda Fixa"]
+            
+            categorias_selecionadas = st.multiselect(
+                "Filtre por tipo de ativo para comparar:",
+                options=categorias_disponiveis,
+                default=categorias_disponiveis 
+            )
+            
+            import plotly.graph_objects as go
+            fig_rent = go.Figure()
+            
+            # Linha da sua carteira (Dados de exemplo)
+            fig_rent.add_trace(go.Scatter(
+                x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+                y=[0, 1.2, 0.8, 2.5, 3.1], 
+                mode='lines+markers', 
+                name='Minha Carteira', 
+                line=dict(color='#3b82f6', width=3) 
+            ))
+            
+            # Linha da B3 (Exemplo)
+            fig_rent.add_trace(go.Scatter(
+                x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+                y=[0, -0.5, 1.1, 1.5, 0.9], 
+                mode='lines', 
+                name='B3 (Ibovespa)', 
+                line=dict(color='#ef4444', width=2, dash='dash') 
+            ))
+            
+            # Linha do CDI (Exemplo)
+            fig_rent.add_trace(go.Scatter(
+                x=['Dia 1', 'Dia 2', 'Dia 3', 'Dia 4', 'Dia 5'], 
+                y=[0, 0.03, 0.06, 0.09, 0.12], 
+                mode='lines', 
+                name='CDI Acumulado', 
+                line=dict(color='#eab308', width=2, dash='dot') 
+            ))
+            
+            fig_rent.update_layout(
+                plot_bgcolor='rgba(0,0,0,0)', 
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#94a3b8'),
+                yaxis_title="Rentabilidade Acumulada (%)",
+                xaxis_title="Linha do Tempo",
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1) 
+            )
+            
+            st.plotly_chart(fig_rent, use_container_width=True)
+            # --- FIM DO NOVO GRÁFICO ---
             
             st.divider()
-                col_pie, col_tab = st.columns([1.5, 2.5])
+            col_pie, col_tab = st.columns([1.5, 2.5])
             
             with col_pie:
                 st.markdown("#### Raio-X da Alocação")
@@ -741,7 +742,7 @@ with tab_glo:
                 st.dataframe(df_view_v.sort_values("Patrimônio (R$)", ascending=False), hide_index=True, use_container_width=True)
                 
         else: st.warning("⚠️ Selecione ao menos uma classe.")
-    else: st.info("Sua carteira está vazia.")       
+    else: st.info("Sua carteira está vazia.")    
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
