@@ -707,7 +707,7 @@ with tab_glo:
         st.plotly_chart(fig_rent, use_container_width=True)
         # --- FIM DO NOVO GRÁFICO ---
         
-            st.divider()
+                st.divider()
             col_pie, col_tab = st.columns([1.5, 2.5])
             with col_pie:
                 st.markdown("#### Raio-X da Alocação")
