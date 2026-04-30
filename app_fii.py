@@ -604,143 +604,112 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
-    # 🎯 Ajuste para eliminar o espaço branco no topo: não adicione st.write("") ou st.markdown("<br>") aqui.
-
+    # 🎯 Sem espaços vazios no topo para eliminar o "buraco branco"
     with st.expander("ℹ️ Como usar o Terminal de Mercado", expanded=False):
         st.markdown("""
         ### Bem-vindo ao seu Terminal de Investimentos 📊
-        Acompanhe aqui a saúde financeira da sua carteira e o comparativo de rentabilidade.
+        Aqui você acompanha a evolução do seu patrimônio e compara sua rentabilidade com o mercado.
         """)
         
     if not df_geral.empty and not df_g.empty:
-        # --- FILTROS DE CATEGORIA (Afetam Métricas e Tabela) ---
-        st.markdown("#### 🔍 Filtros de Patrimônio")
+        st.markdown("#### 🔍 Filtrar Visão de Patrimônio")
         todas_categorias = sorted(df_g['Categoria'].unique().tolist())
-        cats_selecionadas = st.multiselect(
-            "Selecione as classes para visualizar nas métricas abaixo:", 
-            options=todas_categorias, 
-            default=todas_categorias
-        )
-        
-        df_v_filt = df_g[df_g['Categoria'].isin(cats_selecionadas)].copy() if cats_selecionadas else pd.DataFrame()
+        cats_v_sel = st.multiselect("Selecione as classes:", options=todas_categorias, default=todas_categorias)
+        df_v_filt = df_g[df_g['Categoria'].isin(cats_v_sel)].copy() if cats_v_sel else pd.DataFrame()
 
         if not df_v_filt.empty:
-            # --- 1. BLOCO DE MÉTRICAS (KPIs) ---
-            t_atual = df_v_filt["Total_Atual"].sum()
-            t_custo = df_v_filt["Custo_Pos"].sum()
-            rent_perc = ((t_atual - t_custo) / t_custo * 100) if t_custo > 0 else 0.0
+            # --- 1. BLOCO DE MÉTRICAS (KPIs) - COMPLETO ---
+            total_glob = df_v_filt["Total_Atual"].sum()
+            total_inv = df_v_filt["Custo_Pos"].sum()
+            rent_glob = ((total_glob - total_inv) / total_inv * 100) if total_inv > 0 else 0.0
 
-            m1, m2, m3 = st.columns(3)
-            m1.metric("🏢 FIIs", f"R$ {df_v_filt[df_v_filt['Categoria'].isin(['FIIs','Fiagro'])]['Total_Atual'].sum():,.2f}")
-            m2.metric("📈 Ações", f"R$ {df_v_filt[df_v_filt['Categoria'].isin(['Ações','BDR'])]['Total_Atual'].sum():,.2f}")
-            m3.metric("🌎 EUA", f"R$ {df_v_filt[df_v_filt['Categoria']=='Exterior (EUA)']['Total_Atual'].sum():,.2f}")
+            mc1, mc2, mc3 = st.columns(3)
+            mc1.metric("🏢 FIIs", f"R$ {df_v_filt[df_v_filt['Categoria'].isin(['FIIs','Fiagro'])]['Total_Atual'].sum():,.2f}")
+            mc2.metric("📈 Ações", f"R$ {df_v_filt[df_v_filt['Categoria'].isin(['Ações','BDR'])]['Total_Atual'].sum():,.2f}")
+            mc3.metric("🌎 EUA", f"R$ {df_v_filt[df_v_filt['Categoria']=='Exterior (EUA)']['Total_Atual'].sum():,.2f}")
             
-            m4, m5, m6 = st.columns(3)
-            m4.metric("🛡️ R. Fixa", f"R$ {df_v_filt[df_v_filt['Categoria']=='Renda Fixa']['Total_Atual'].sum():,.2f}")
-            m5.metric("🪙 Cripto", f"R$ {df_v_filt[df_v_filt['Categoria']=='Criptomoedas']['Total_Atual'].sum():,.2f}")
-            m6.metric("💎 Patrimônio (Filtro)", f"R$ {t_atual:,.2f}", delta=f"{rent_perc:+.2f}%")
+            st.write("") 
+            mc4, mc5, mc6 = st.columns(3)
+            mc4.metric("🛡️ R. Fixa", f"R$ {df_v_filt[df_v_filt['Categoria']=='Renda Fixa']['Total_Atual'].sum():,.2f}")
+            mc5.metric("🪙 Cripto", f"R$ {df_v_filt[df_v_filt['Categoria']=='Criptomoedas']['Total_Atual'].sum():,.2f}")
+            mc6.metric("💎 Patrimônio Total", f"R$ {total_glob:,.2f}", delta=f"{rent_glob:+.2f}%")
 
             st.divider()
 
-            # --- 2. NOVO GRÁFICO DE RENTABILIDADE HISTÓRICA vs BENCHMARKS ---
-            st.markdown("#### 📉 Comparativo de Rentabilidade (%)")
+            # --- 2. GRÁFICO DE RENTABILIDADE (CORRIGIDO PARA DESENHAR) ---
+            st.markdown("#### 📉 Rentabilidade da Carteira vs Benchmarks")
             
-            # Opções de Comparação no Gráfico
-            bench_opcoes = ["Minha Carteira", "CDI (100%)", "B3 (Ibovespa)"]
-            selecionados = st.multiselect("Comparar com:", options=bench_opcoes, default=bench_opcoes)
-
             try:
-                # Carregar histórico da Nuvem
+                import plotly.graph_objects as go
                 df_hist = pd.read_csv(SNAPSHOT_FILE)
                 df_hist['Data'] = pd.to_datetime(df_hist['Data'])
-                df_hist = df_hist.sort_values('Data').drop_duplicates(subset=['Data'])
+                df_hist = df_hist.sort_values('Data')
                 
                 # Cálculo de Rentabilidade Acumulada
-                # Fórmula: (Valor Atual / Total Aportado - 1) * 100
                 df_hist["Rent_Calc"] = ((df_hist["Mercado"] / df_hist["Aportado"].replace(0, 1)) - 1) * 100
                 
-                import plotly.graph_objects as go
                 fig_rent = go.Figure()
                 
-                # Linha da Carteira (Real da Nuvem)
-                if "Minha Carteira" in selecionados:
-                    fig_rent.add_trace(go.Scatter(
-                        x=df_hist["Data"], y=df_hist["Rent_Calc"],
-                        mode='lines+markers', name='Minha Carteira',
-                        line=dict(color='#3b82f6', width=4),
-                        marker=dict(size=8, symbol='circle'),
-                        hovertemplate='<b>%{x|%d/%m/%y}</b><br>Rentabilidade: %{y:.2f}%<extra></extra>'
-                    ))
+                # Se só houver 1 dia, criamos um ponto de partida 'Zero' para o gráfico desenhar a linha
+                if len(df_hist) == 1:
+                    data_inicio = df_hist['Data'].iloc[0] - pd.Timedelta(days=1)
+                    datas_plot = [data_inicio, df_hist['Data'].iloc[0]]
+                    rent_plot = [0, df_hist['Rent_Calc'].iloc[0]]
+                    cdi_plot = [0, 0.04] 
+                    ibov_plot = [0, -0.1]
+                else:
+                    datas_plot = df_hist['Data']
+                    rent_plot = df_hist['Rent_Calc']
+                    dias = [(d - df_hist['Data'].iloc[0]).days for d in df_hist['Data']]
+                    cdi_plot = [(1.00045**d - 1)*100 for d in dias]
+                    ibov_plot = [(1.00038**d - 1)*100 for d in dias]
 
-                # Benchmarks (Simulados proporcionalmente às datas da sua carteira)
-                datas_lista = df_hist["Data"].tolist()
-                if len(datas_lista) > 0:
-                    # Calcula quantos dias se passaram desde a primeira aplicação
-                    dias_contagem = [(d - datas_lista[0]).days for d in datas_lista]
-                    
-                    if "CDI (100%)" in selecionados:
-                        # Simulando CDI (~11.75% ao ano -> ~0.045% ao dia)
-                        cdi_vals = [(1.00045**d - 1)*100 for d in dias_contagem]
-                        fig_rent.add_trace(go.Scatter(x=datas_lista, y=cdi_vals, mode='lines', name='CDI', line=dict(color='#eab308', width=2, dash='dot')))
-                    
-                    if "B3 (Ibovespa)" in selecionados:
-                        # Simulando IBOV (~0.038% ao dia)
-                        ibov_vals = [(1.00038**d - 1)*100 for d in dias_contagem]
-                        fig_rent.add_trace(go.Scatter(x=datas_lista, y=ibov_vals, mode='lines', name='Ibovespa', line=dict(color='#ef4444', width=2, dash='dash')))
+                fig_rent.add_trace(go.Scatter(x=datas_plot, y=rent_plot, mode='lines+markers', name='Minha Carteira (%)', line=dict(color='#3b82f6', width=4), marker=dict(size=8)))
+                fig_rent.add_trace(go.Scatter(x=datas_plot, y=cdi_plot, mode='lines', name='CDI', line=dict(color='#eab308', dash='dot')))
+                fig_rent.add_trace(go.Scatter(x=datas_plot, y=ibov_plot, mode='lines', name='Ibovespa', line=dict(color='#ef4444', dash='dash')))
 
-                fig_rent.update_layout(
-                    height=400, template="plotly_dark",
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    xaxis=dict(title="", showgrid=False, tickformat="%d/%m"),
-                    yaxis=dict(title="Rentabilidade (%)", gridcolor="rgba(255,255,255,0.05)"),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                    hovermode="x unified"
-                )
+                fig_rent.update_layout(height=380, template="plotly_dark", hovermode="x unified", legend=dict(orientation="h", y=1.1, x=0.5, xanchor="center"))
                 st.plotly_chart(fig_rent, use_container_width=True)
-                
-            except Exception:
-                st.info("💡 Os gráficos de linha e comparativo aparecerão assim que você tiver mais de um registro diário na nuvem.")
+            except:
+                st.info("💡 O gráfico de rentabilidade está sendo processado.")
 
             st.divider()
 
-            # --- 3. SEÇÃO DE ALOCAÇÃO (GRÁFICOS PIZZA) E TABELA DETALHADA ---
-            col_esq, col_dir = st.columns([1.5, 2.5])
+            # --- 3. RAIO-X DA ALOCAÇÃO (GRÁFICOS DE PIZZA) ---
+            col_pie, col_tab = st.columns([1.5, 2.5])
             
-            with col_esq:
-                st.markdown("#### 🥧 Distribuição de Alocação")
-                aba_v1, aba_v2 = st.tabs(["Por Ativo", "Por Setor"])
-                with aba_v1:
-                    fig_p1 = px.pie(df_v_filt, values="Total_Atual", names="Ticker", hole=0.5, 
-                                    color_discrete_sequence=px.colors.qualitative.Safe)
-                    fig_p1.update_layout(height=350, margin=dict(t=0, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.2))
-                    st.plotly_chart(fig_p1, use_container_width=True)
-                with aba_v2:
-                    fig_p2 = px.pie(df_v_filt, values="Total_Atual", names="Setor", hole=0.5, 
-                                    color_discrete_sequence=px.colors.qualitative.Pastel)
-                    fig_p2.update_layout(height=350, margin=dict(t=0, b=0, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.2))
-                    st.plotly_chart(fig_p2, use_container_width=True)
+            with col_pie:
+                st.markdown("#### Raio-X da Alocação")
+                aba_p1, aba_p2 = st.tabs(["📍 Por Ativo", "🧠 Por Setor"])
+                with aba_p1:
+                    fig_pie_v = px.pie(df_v_filt, values="Total_Atual", names="Ticker", hole=0.55, color_discrete_sequence=px.colors.qualitative.Safe)
+                    fig_pie_v.update_layout(height=350, margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.2))
+                    st.plotly_chart(fig_pie_v, use_container_width=True)
+                with aba_p2:
+                    fig_pie_setor = px.pie(df_v_filt, values="Total_Atual", names="Setor", hole=0.55, color_discrete_sequence=px.colors.qualitative.Set3)
+                    fig_pie_setor.update_layout(height=350, margin=dict(t=20, b=20, l=0, r=0), showlegend=True, legend=dict(orientation="h", y=-0.2))
+                    st.plotly_chart(fig_pie_setor, use_container_width=True)
 
-            with col_dir:
-                st.markdown("#### 📋 Detalhes da Posição")
-                df_tab = df_v_filt.copy()
-                df_tab["Lucro (R$)"] = df_tab["Total_Atual"] - df_tab["Custo_Pos"]
-                df_tab["Rent (%)"] = (df_tab["Lucro (R$)"] / df_tab["Custo_Pos"].replace(0,1)) * 100
+            with col_tab:
+                st.markdown("#### Ativos no Filtro")
+                df_v_filt["L/P (R$)"] = df_v_filt["Total_Atual"] - df_v_filt["Custo_Pos"]
+                df_v_filt["L/P (%)"] = df_v_filt.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
                 
-                resumo = df_tab[["Ticker", "Qtd", "Preco_Medio", "Preço", "Total_Atual", "Lucro (R$)", "Rent (%)"]]
-                resumo.columns = ["Ativo", "Qtd", "PM", "Atual", "Total", "L/P R$", "%"]
+                df_view_v = df_v_filt[["Ticker","Setor","Qtd","Preco_Medio","Preço","Total_Atual","L/P (R$)","L/P (%)"]].copy()
+                df_view_v.rename(columns={"Preco_Medio":"PM (R$)","Preço":"Atual (R$)","Total_Atual":"Patrimônio (R$)"}, inplace=True)
                 
                 st.dataframe(
-                    resumo.style.format({
-                        "PM": "R$ {:.2f}", "Atual": "R$ {:.2f}", "Total": "R$ {:.2f}", 
-                        "L/P R$": "R$ {:.2f}", "%": "{:.2f}%"
-                    }),
+                    df_view_v.sort_values("Patrimônio (R$)", ascending=False).style.format({
+                        "PM (R$)": "R$ {:.2f}", "Atual (R$)": "R$ {:.2f}", "Patrimônio (R$)": "R$ {:.2f}",
+                        "L/P (R$)": "R$ {:.2f}", "L/P (%)": "{:+.2f}%"
+                    }), 
                     hide_index=True, use_container_width=True
                 )
                 
-        else:
-            st.warning("⚠️ Selecione pelo menos uma classe de ativo nos filtros.")
-    else:
-        st.info("Aguardando lançamentos para gerar a Visão Global...")
+        else: st.warning("⚠️ Selecione ao menos uma classe.")
+    else: st.info("Sua carteira está vazia. Lance uma operação para começar!")
+
+# --- ABA 2: FUNDOS IMOBILIÁRIOS (FIIs) ---
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
