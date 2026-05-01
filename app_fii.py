@@ -60,7 +60,7 @@ if st.button("Entrar", use_container_width=True):
 
     # 👇 COLE ESTE BLOCO VIP AQUI (Logo após o erro, antes do st.stop) 👇
             st.markdown("---")
-    with st.expander("🔑 Acesso para Testadores (VIP)"):
+            with st.expander("🔑 Acesso para Testadores (VIP)"):
         user_teste = st.text_input("Usuário de Teste:", key="user_vip")
         senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
         
