@@ -50,6 +50,32 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
+if st.button("Entrar", use_container_width=True):
+        if senha_digitada == SENHA_CORRETA:
+            st.session_state.autenticado = True
+            st.session_state.username = "admin" # 👉 ADICIONE ESTA LINHA AQUI!
+            st.rerun()
+        else:
+            st.error("❌ Senha Incorreta. Tente novamente.")
+
+    # 👇 COLE ESTE BLOCO VIP AQUI (Logo após o erro, antes do st.stop) 👇
+    st.markdown("---")
+    with st.expander("🔑 Acesso para Testadores (VIP)"):
+        user_teste = st.text_input("Usuário de Teste:", key="user_vip")
+        senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
+        
+        if st.button("Entrar como Testador"):
+            usuarios_vips = {"teste01": "123", "teste02": "123", "teste03": "123"}
+            if user_teste in usuarios_vips and usuarios_vips[user_teste] == senha_teste:
+                st.session_state.autenticado = True
+                st.session_state.username = user_teste
+                st.success(f"Bem-vindo, {user_teste}!")
+                st.rerun()
+            else:
+                st.error("Usuário ou senha VIP inválidos.")
+    # 👆 FIM DO BLOCO VIP 👆
+
+    st.stop() # Esta é a linha 59 que já estava aí
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
