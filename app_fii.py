@@ -636,33 +636,37 @@ with tab_glo:
         except: pass
 
     if not df_geral.empty and not df_g.empty:
-        # CÁLCULOS TÉCNICOS
+        # CÁLCULOS TÉCNICOS TOTAIS
         total_alocado = df_g["Total_Atual"].sum()
         custo_total = df_g["Custo_Pos"].sum()
         rent_v_global = ((total_alocado - custo_total) / custo_total * 100) if custo_total > 0 else 0.0
 
-        # Busca Proventos Pendentes (sem misturar no patrimônio real)
         try:
             total_pendente = df_proventos[df_proventos['Status'] == 'Pendente']['Valor'].sum()
         except:
             total_pendente = 0.0
 
-        # --- KPIs DE PATRIMÔNIO ---
+        # --- KPIs DE PATRIMÔNIO (SEPARADOS CONFORME VOCÊ GOSTA) ---
         st.markdown("#### 📊 Resumo de Patrimônio Alocado")
+        
+        # Primeira Linha: FIIs, Ações e Exterior
         mc1, mc2, mc3 = st.columns(3)
-        mc1.metric("🏢 FIIs / Ações", f"R$ {df_g[df_g['Categoria'].isin(['FIIs','Ações','Fiagro'])]['Total_Atual'].sum():,.2f}")
-        mc2.metric("💰 Proventos Pendentes", f"R$ {total_pendente:,.2f}", help="Valores a receber")
-        mc3.metric("💎 Patrimônio Alocado", f"R$ {total_alocado:,.2f}", delta=f"{rent_v_global:+.2f}%")
-
-        st.write("")
+        mc1.metric("🏢 FIIs", f"R$ {df_g[df_g['Categoria'].isin(['FIIs','Fiagro'])]['Total_Atual'].sum():,.2f}")
+        mc2.metric("📈 Ações", f"R$ {df_g[df_g['Categoria'].isin(['Ações','BDR'])]['Total_Atual'].sum():,.2f}")
+        mc3.metric("🌎 Exterior", f"R$ {df_g[df_g['Categoria']=='Exterior (EUA)']['Total_Atual'].sum():,.2f}")
+        
+        st.write("") # Espaço entre as linhas de cartões
+        
+        # Segunda Linha: Renda Fixa, Cripto e o Total que bate com a IA
         mc4, mc5, mc6 = st.columns(3)
-        mc4.metric("🛡️ Outros Ativos", f"R$ {df_g[~df_g['Categoria'].isin(['FIIs','Ações','Fiagro'])]['Total_Atual'].sum():,.2f}")
-        mc5.metric("📈 Custo Total", f"R$ {custo_total:,.2f}")
-        mc6.metric("🏦 Total Geral (IA)", f"R$ {total_alocado + total_pendente:,.2f}", help="Valor total que a IA enxerga")
+        mc4.metric("🛡️ R. Fixa", f"R$ {df_g[df_g['Categoria']=='Renda Fixa']['Total_Atual'].sum():,.2f}")
+        mc5.metric("💰 Prev. Recebimento", f"R$ {total_pendente:,.2f}")
+        # Total Geral = Patrimônio Alocado + O que está para receber (O caldo da IA)
+        mc6.metric("💎 Total Geral (IA)", f"R$ {total_alocado + total_pendente:,.2f}", delta=f"{rent_v_global:+.2f}%")
 
         st.divider()
 
-        # --- SEÇÃO DE FILTROS E GRÁFICOS (PIZZAS) ---
+        # --- SEÇÃO DE FILTROS E GRÁFICOS ---
         st.markdown("#### 🔍 Detalhamento da Carteira")
         todas_cats = sorted(df_g['Categoria'].unique().tolist())
         cats_sel = st.multiselect("Filtrar visualização abaixo:", options=todas_cats, default=todas_cats)
