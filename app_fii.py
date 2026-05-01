@@ -96,7 +96,19 @@ if not st.session_state.autenticado:
 
     st.stop() # Para o código aqui até que alguém logue
 
-# Daqui para baixo segue o seu código normal...
+
+# =============================================================================
+# 📁 2. DEFINIÇÃO DINÂMICA DE ARQUIVOS (Pós-Login) -> NÃO ESQUEÇA ESTA PARTE!
+# =============================================================================
+user_id = st.session_state.get("username", "admin")
+user_id_clean = "".join(filter(str.isalnum, str(user_id)))
+
+DB_FILE = f"investimentos_{user_id_clean}.csv"
+SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
+PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
+DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
+
+# Daqui para baixo segue o seu código normal (Abas, Dashboards, etc.)
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
