@@ -75,7 +75,7 @@ if st.button("Entrar", use_container_width=True):
                 st.error("Usuário ou senha VIP inválidos.")
     # 👆 FIM DO BLOCO VIP 👆
 
-    st.stop() # Esta é a linha 59 que já estava aí
+                st.stop() # Esta é a linha 59 que já estava aí
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
