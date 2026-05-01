@@ -58,11 +58,11 @@ if not st.session_state.autenticado:
     # Carrega a sua senha do st.secrets
     SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "sua_senha_aqui")
 
-    # 🎨 1. RESTAURANDO A SUA LOGOMARCA E LOGIN NA BARRA LATERAL
+    # 🎨 1. LOGOMARCA E LOGIN NA BARRA LATERAL
     try:
         st.sidebar.image("logo_valor_pro.png", use_container_width=True)
     except:
-        pass # Se a logo não carregar de imediato, não quebra o site
+        pass 
 
     st.sidebar.markdown("<h2 style='text-align: center; color: #3b82f6;'>Acesso Restrito</h2>", unsafe_allow_html=True)
     st.sidebar.markdown("<p style='text-align: center; font-size: 14px; color: #94a3b8;'>Digite a senha de segurança para acessar o sistema.</p>", unsafe_allow_html=True)
@@ -78,7 +78,7 @@ if not st.session_state.autenticado:
         else:
             st.sidebar.error("❌ Senha Incorreta. Tente novamente.")
 
-    # 🕵️ 3. ACESSO VIP (TESTADORES) TAMBÉM NA BARRA LATERAL
+    # 🕵️ 3. ACESSO VIP (TESTADORES)
     st.sidebar.markdown("---")
     with st.sidebar.expander("🔑 Acesso para Testadores (VIP)"):
         user_teste = st.text_input("Usuário de Teste:", key="user_vip")
