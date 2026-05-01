@@ -605,38 +605,48 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
-    # --- BLOCO DE CÂMBIO PERSONALIZÁVEL ---
+    # --- BLOCO DE CÂMBIO PERSONALIZÁVEL (ANTI-NAN) ---
     with st.expander("🌍 Configurar Painel de Moedas", expanded=False):
         dict_moedas = {
             "Dólar (USD)": "USDBRL=X", "Euro (EUR)": "EURBRL=X",
             "Bitcoin (BTC)": "BTC-USD", "Ethereum (ETH)": "ETH-USD",
-            "Libra (GBP)": "GBPBRL=X", "Iene (JPY)": "JPYBRL=X",
-            "Solana (SOL)": "SOL-USD"
+            "Libra (GBP)": "GBPBRL=X", "Solana (SOL)": "SOL-USD"
         }
-        moedas_sel = st.multiselect("Moedas para monitorar:", options=list(dict_moedas.keys()), default=["Dólar (USD)", "Bitcoin (BTC)"])
+        moedas_sel = st.multiselect("Moedas para monitorar:", options=list(dict_moedas.keys()), default=["Dólar (USD)", "Bitcoin (BTC)", "Solana (SOL)"])
 
     if moedas_sel:
         try:
             ticker_usd = "USDBRL=X"
             tickers_dw = list(set([dict_moedas[m] for m in moedas_sel] + [ticker_usd]))
-            dados_m = yf.download(tickers_dw, period="1d", interval="15m")['Close']
+            # Ajustado para pegar 2 dias para garantir que nunca falte dado (evita o NaN)
+            dados_m = yf.download(tickers_dw, period="2d", interval="15m")['Close']
+            
             if not dados_m.empty:
-                ultimos = dados_m.iloc[-1]
                 cols_m = st.columns(len(moedas_sel))
                 for i, nome in enumerate(moedas_sel):
                     ticker = dict_moedas[nome]
-                    val = ultimos[ticker]
-                    if pd.isna(val): val = dados_m[ticker].dropna().iloc[-1]
-                    if "-" in ticker: val = val * ultimos[ticker_usd]
+                    
+                    # Tenta pegar o último preço, se for NaN, pega o anterior válido
+                    serie_moeda = dados_m[ticker].dropna()
+                    val = serie_moeda.iloc[-1] if not serie_moeda.empty else 0.0
+                    
+                    # Pega o dólar para conversão de cripto
+                    serie_usd = dados_m[ticker_usd].dropna()
+                    val_usd = serie_usd.iloc[-1] if not serie_usd.empty else 1.0
+                    
+                    if "-" in ticker: # Se for cripto, converte para R$
+                        val = val * val_usd
+                    
                     with cols_m[i]:
                         st.markdown(f"""<div style="text-align: center; background-color: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
                             <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold;">{nome}</p>
                             <h4 style="margin: 0; font-size: 19px; color: #f8fafc;">R$ {val:,.2f}</h4></div>""", unsafe_allow_html=True)
                 st.divider()
-        except: pass
+        except:
+            st.info("🔄 Sincronizando moedas...")
 
     if not df_geral.empty and not df_g.empty:
-        # CÁLCULOS TÉCNICOS TOTAIS
+        # CÁLCULOS TOTAIS
         total_alocado = df_g["Total_Atual"].sum()
         custo_total = df_g["Custo_Pos"].sum()
         rent_v_global = ((total_alocado - custo_total) / custo_total * 100) if custo_total > 0 else 0.0
@@ -646,23 +656,26 @@ with tab_glo:
         except:
             total_pendente = 0.0
 
-        # --- KPIs DE PATRIMÔNIO (SEPARADOS CONFORME VOCÊ GOSTA) ---
+        # --- KPIs DE PATRIMÔNIO SEPARADOS ---
         st.markdown("#### 📊 Resumo de Patrimônio Alocado")
         
-        # Primeira Linha: FIIs, Ações e Exterior
+        # Linha 1: FIIs, Ações e Exterior
         mc1, mc2, mc3 = st.columns(3)
         mc1.metric("🏢 FIIs", f"R$ {df_g[df_g['Categoria'].isin(['FIIs','Fiagro'])]['Total_Atual'].sum():,.2f}")
         mc2.metric("📈 Ações", f"R$ {df_g[df_g['Categoria'].isin(['Ações','BDR'])]['Total_Atual'].sum():,.2f}")
         mc3.metric("🌎 Exterior", f"R$ {df_g[df_g['Categoria']=='Exterior (EUA)']['Total_Atual'].sum():,.2f}")
         
-        st.write("") # Espaço entre as linhas de cartões
+        st.write("") 
         
-        # Segunda Linha: Renda Fixa, Cripto e o Total que bate com a IA
+        # Linha 2: Renda Fixa, Cripto e o Total Geral (IA)
         mc4, mc5, mc6 = st.columns(3)
-        mc4.metric("🛡️ R. Fixa", f"R$ {df_g[df_g['Categoria']=='Renda Fixa']['Total_Atual'].sum():,.2f}")
-        mc5.metric("💰 Prev. Recebimento", f"R$ {total_pendente:,.2f}")
-        # Total Geral = Patrimônio Alocado + O que está para receber (O caldo da IA)
+        mc4.metric("🛡️ Renda Fixa", f"R$ {df_g[df_g['Categoria']=='Renda Fixa']['Total_Atual'].sum():,.2f}")
+        mc5.metric("🪙 Cripto", f"R$ {df_g[df_g['Categoria']=='Criptomoedas']['Total_Atual'].sum():,.2f}")
+        # Total Geral que bate com a IA
         mc6.metric("💎 Total Geral (IA)", f"R$ {total_alocado + total_pendente:,.2f}", delta=f"{rent_v_global:+.2f}%")
+
+        if total_pendente > 0:
+            st.caption(f"ℹ️ O Total Geral inclui **R$ {total_pendente:,.2f}** de previsões de recebimento.")
 
         st.divider()
 
