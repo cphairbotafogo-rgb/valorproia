@@ -52,7 +52,15 @@ supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # --- CONTROLE DE ACESSO ---
 if not st.session_state.get("autenticado", False):
-    # LOGIN OFICIAL
+    
+    # 🎨 1. PARTE VISUAL DO LOGIN PRINCIPAL (Que estava faltando)
+    st.markdown("<h2 style='text-align: center; color: #3b82f6;'>Acesso Restrito</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 14px; color: #94a3b8;'>Digite a senha de segurança para acessar o sistema.</p>", unsafe_allow_html=True)
+    
+    senha_digitada = st.text_input("🔑 Senha de Acesso Principal:", type="password")
+    SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "sua_senha_aqui") # Garanta que a senha está sendo lida do secrets
+
+    # ⚙️ 2. LÓGICA DO LOGIN PRINCIPAL
     if st.button("Entrar", use_container_width=True):
         if senha_digitada == SENHA_CORRETA:
             st.session_state.autenticado = True
@@ -61,7 +69,7 @@ if not st.session_state.get("autenticado", False):
         else:
             st.error("❌ Senha Incorreta. Tente novamente.")
 
-    # ACESSO VIP (TESTADORES)
+    # 🕵️ 3. ACESSO VIP (TESTADORES)
     st.markdown("---")
     with st.expander("🔑 Acesso para Testadores (VIP)"):
         user_teste = st.text_input("Usuário de Teste:", key="user_vip")
@@ -82,7 +90,6 @@ if not st.session_state.get("autenticado", False):
 # =============================================================================
 # 📁 2. DEFINIÇÃO DINÂMICA DE ARQUIVOS (Pós-Login)
 # =============================================================================
-# Esta parte só roda se o usuário passar pelo login acima
 user_id = st.session_state.get("username", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
 
@@ -91,7 +98,7 @@ SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
 PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
 DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
 
-# Daqui para baixo segue o seu código normal (Abas, Dashboards, etc.)
+# Daqui para baixo segue o seu código normal...
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
