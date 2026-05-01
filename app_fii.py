@@ -50,16 +50,19 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
-if st.button("Entrar", use_container_width=True):
+# --- CONTROLE DE ACESSO ---
+if not st.session_state.get("autenticado", False):
+    # LOGIN OFICIAL
+    if st.button("Entrar", use_container_width=True):
         if senha_digitada == SENHA_CORRETA:
             st.session_state.autenticado = True
-            st.session_state.username = "admin" # 👉 ADICIONE ESTA LINHA AQUI!
+            st.session_state.username = "admin"
             st.rerun()
         else:
             st.error("❌ Senha Incorreta. Tente novamente.")
 
-    # 👇 COLE ESTE BLOCO VIP AQUI (Logo após o erro, antes do st.stop) 👇
- st.markdown("---")
+    # ACESSO VIP (TESTADORES)
+    st.markdown("---")
     with st.expander("🔑 Acesso para Testadores (VIP)"):
         user_teste = st.text_input("Usuário de Teste:", key="user_vip")
         senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
@@ -74,7 +77,21 @@ if st.button("Entrar", use_container_width=True):
             else:
                 st.error("Usuário ou senha VIP inválidos.")
 
-    st.stop()
+    st.stop() # Para o código aqui até que alguém logue
+
+# =============================================================================
+# 📁 2. DEFINIÇÃO DINÂMICA DE ARQUIVOS (Pós-Login)
+# =============================================================================
+# Esta parte só roda se o usuário passar pelo login acima
+user_id = st.session_state.get("username", "admin")
+user_id_clean = "".join(filter(str.isalnum, str(user_id)))
+
+DB_FILE = f"investimentos_{user_id_clean}.csv"
+SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
+PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
+DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
+
+# Daqui para baixo segue o seu código normal (Abas, Dashboards, etc.)
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
