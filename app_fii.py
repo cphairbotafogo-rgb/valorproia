@@ -51,27 +51,36 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # --- CONTROLE DE ACESSO ---
-if not st.session_state.get("autenticado", False):
+st.session_state.setdefault("autenticado", False)
+st.session_state.setdefault("username", "convidado")
+
+if not st.session_state.autenticado:
+    # Carrega a sua senha do st.secrets
+    SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "sua_senha_aqui")
+
+    # 🎨 1. RESTAURANDO A SUA LOGOMARCA E LOGIN NA BARRA LATERAL
+    try:
+        st.sidebar.image("logo_valor_pro.png", use_container_width=True)
+    except:
+        pass # Se a logo não carregar de imediato, não quebra o site
+
+    st.sidebar.markdown("<h2 style='text-align: center; color: #3b82f6;'>Acesso Restrito</h2>", unsafe_allow_html=True)
+    st.sidebar.markdown("<p style='text-align: center; font-size: 14px; color: #94a3b8;'>Digite a senha de segurança para acessar o sistema.</p>", unsafe_allow_html=True)
     
-    # 🎨 1. PARTE VISUAL DO LOGIN PRINCIPAL (Que estava faltando)
-    st.markdown("<h2 style='text-align: center; color: #3b82f6;'>Acesso Restrito</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 14px; color: #94a3b8;'>Digite a senha de segurança para acessar o sistema.</p>", unsafe_allow_html=True)
-    
-    senha_digitada = st.text_input("🔑 Senha de Acesso Principal:", type="password")
-    SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "sua_senha_aqui") # Garanta que a senha está sendo lida do secrets
+    senha_digitada = st.sidebar.text_input("🔑 Senha de Acesso:", type="password")
 
     # ⚙️ 2. LÓGICA DO LOGIN PRINCIPAL
-    if st.button("Entrar", use_container_width=True):
+    if st.sidebar.button("Entrar", use_container_width=True):
         if senha_digitada == SENHA_CORRETA:
             st.session_state.autenticado = True
             st.session_state.username = "admin"
             st.rerun()
         else:
-            st.error("❌ Senha Incorreta. Tente novamente.")
+            st.sidebar.error("❌ Senha Incorreta. Tente novamente.")
 
-    # 🕵️ 3. ACESSO VIP (TESTADORES)
-    st.markdown("---")
-    with st.expander("🔑 Acesso para Testadores (VIP)"):
+    # 🕵️ 3. ACESSO VIP (TESTADORES) TAMBÉM NA BARRA LATERAL
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("🔑 Acesso para Testadores (VIP)"):
         user_teste = st.text_input("Usuário de Teste:", key="user_vip")
         senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
         
@@ -80,12 +89,23 @@ if not st.session_state.get("autenticado", False):
             if user_teste in usuarios_vips and usuarios_vips[user_teste] == senha_teste:
                 st.session_state.autenticado = True
                 st.session_state.username = user_teste
-                st.success(f"Bem-vindo, {user_teste}!")
+                st.sidebar.success(f"Bem-vindo, {user_teste}!")
                 st.rerun()
             else:
-                st.error("Usuário ou senha VIP inválidos.")
+                st.sidebar.error("Usuário ou senha VIP inválidos.")
 
     st.stop() # Para o código aqui até que alguém logue
+
+# =============================================================================
+# 📁 2. DEFINIÇÃO DINÂMICA DE ARQUIVOS (Pós-Login)
+# =============================================================================
+user_id = st.session_state.get("username", "admin")
+user_id_clean = "".join(filter(str.isalnum, str(user_id)))
+
+DB_FILE = f"investimentos_{user_id_clean}.csv"
+SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
+PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
+DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
 
 # =============================================================================
 # 📁 2. DEFINIÇÃO DINÂMICA DE ARQUIVOS (Pós-Login)
