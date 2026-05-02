@@ -58,36 +58,45 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
-# 🔐 CONTROLE DE ACESSO (NA BARRA LATERAL - COMO ERA ANTES)
+# 🔐 CONTROLE DE ACESSO (NA BARRA LATERAL)
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
-    # 1. A LOGO (COLE O LINK DO SUPABASE ENTRE AS ASPAS)
-    # Exemplo: st.sidebar.image("https://sua-url-do-supabase.png")
+    # 1. A LOGO (Não esqueça de colocar o seu link aqui!)
     try:
         st.sidebar.image("COLE_AQUI_O_LINK_DA_SUA_LOGO_DO_SUPABASE", use_container_width=True)
     except:
-        st.sidebar.write("🏦 **VALOR PRO IA**") # Nome alternativo se a logo falhar
+        st.sidebar.write("🏦 **VALOR PRO IA**") 
 
     st.sidebar.title("Acesso ao Sistema")
     
-    # Login Normal
-    senha_digitada = st.sidebar.text_input("Senha de Acesso:", type="password")
+    # 🧑‍💻 LOGIN NORMAL (Com Usuário e Senha)
+    usuario_digitado = st.sidebar.text_input("Usuário:")
+    senha_digitada = st.sidebar.text_input("Senha:", type="password")
+    
     if st.sidebar.button("Entrar", use_container_width=True):
-        if senha_digitada == st.secrets["SENHA_GERAL"]:
+        # Busca a senha mestre nos secrets (12345 é só uma emergência caso o secret falhe)
+        SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "12345") 
+        
+        if usuario_digitado.strip() == "":
+            st.sidebar.warning("Por favor, preencha o campo Usuário.")
+        elif senha_digitada == SENHA_CORRETA:
+            # Login efetuado com sucesso!
             st.session_state.autenticado = True
-            st.session_state.username = "admin"
+            # Usa o nome que você digitou (ex: "admin") para nomear os seus arquivos
+            st.session_state.username = usuario_digitado.strip().lower()
             st.rerun()
         else:
-            st.sidebar.error("Senha incorreta")
+            st.sidebar.error("Senha incorreta.")
 
-    # 🔑 ÁREA VIP PARA TESTADORES (ESCONDIDA NO EXPANDER)
+    # 🔑 ÁREA VIP PARA TESTADORES (Alternativa extra)
     st.sidebar.markdown("---")
-    with st.sidebar.expander("🔑 Acesso Testador"):
-        user_teste = st.text_input("Usuário:", key="user_vip")
-        senha_teste = st.text_input("Senha:", type="password", key="senha_vip")
+    with st.sidebar.expander("🔑 Acesso VIP (Testadores)"):
+        user_teste = st.text_input("Usuário VIP:", key="user_vip")
+        senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
+        
         if st.button("Entrar como Testador"):
             vips = {"teste01": "123", "teste02": "123", "teste03": "123"}
             if user_teste in vips and vips[user_teste] == senha_teste:
@@ -95,7 +104,7 @@ if not st.session_state.autenticado:
                 st.session_state.username = user_teste
                 st.rerun()
             else:
-                st.error("Dados inválidos")
+                st.error("Dados VIP inválidos")
 
     st.stop() # Bloqueia o resto do app se não logar
 
