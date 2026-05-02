@@ -45,7 +45,7 @@ st.set_page_config(
 # =============================================================================
 URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
 # ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public". Ela DEVE começar com "eyJ..."
-CHAVE_SUPABASE = "COLE_AQUI_A_SUA_CHAVE_eyJ..." 
+CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0" 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
