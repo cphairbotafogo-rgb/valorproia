@@ -54,7 +54,7 @@ from supabase import create_client, Client
 # =============================================================================
 URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
 # ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public" do Supabase
-CHAVE_SUPABASE = "288304Lua" 
+CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0" 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
