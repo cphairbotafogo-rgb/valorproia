@@ -46,30 +46,29 @@ import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
 
+import streamlit as st
+from supabase import create_client, Client
+
 # =============================================================================
 # 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
-# O sistema busca os dados que você salvou no "Secrets" do Streamlit
 URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
-CHAVE_SUPABASE = "288304Lua"
+# ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public" do Supabase
+CHAVE_SUPABASE = "288304Lua" 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
 # 🔐 CONTROLE DE ACESSO (NA BARRA LATERAL)
 # =============================================================================
-
-# ---> COLE ESTAS DUAS LINHAS AQUI <---
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
-# Esta é a sua linha 21 onde estava a dar erro:
 if not st.session_state.autenticado:
-    # 🎨 A LOGO (Coloque o link público da sua imagem no Supabase aqui)
+    # 🎨 A LOGO DO SISTEMA
     try:
-        # Substitua o link abaixo pelo seu link real do Supabase para a logo aparecer
         st.sidebar.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
     except:
-        st.sidebar.write("") 
+        st.sidebar.write("🏦 **VALOR PRO IA**") 
 
     st.sidebar.title("Acesso ao Sistema")
     
@@ -77,13 +76,11 @@ if not st.session_state.autenticado:
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
-    # A senha fora do botão garante que o sistema a carregue antes
     SENHA_CORRETA = "valor2026@"
     
     if st.sidebar.button("Entrar", use_container_width=True):
         if usuario_digitado.strip() == "":
             st.sidebar.warning("Por favor, preencha o campo Usuário.")
-        # O .strip() ignora espaços invisíveis que causam erros
         elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
             st.session_state.autenticado = True
             st.session_state.username = usuario_digitado.strip().lower()
@@ -91,7 +88,7 @@ if not st.session_state.autenticado:
         else:
             st.sidebar.error("❌ Usuário ou Senha incorretos.")
 
-    # 🔑 ÁREA VIP PARA TESTADORES (Alternativa extra)
+    # 🔑 ÁREA VIP PARA TESTADORES
     st.sidebar.markdown("---")
     with st.sidebar.expander("🔑 Acesso VIP (Testadores)"):
         user_teste = st.text_input("Usuário VIP:", key="user_vip")
@@ -109,9 +106,8 @@ if not st.session_state.autenticado:
     st.stop() # Interrompe o código aqui até que o login seja feito
 
 # =============================================================================
-# 📁 2. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO (O "RESTANTE" QUE FALTAVA)
+# 📁 2. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
 # =============================================================================
-# Essas linhas garantem que cada usuário tenha sua própria "gaveta" de arquivos
 user_id = st.session_state.get("username", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
 
@@ -121,7 +117,6 @@ PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
 DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
 
 # --- DAQUI PARA BAIXO SEGUE O SEU CÓDIGO NORMAL (Abas, Dashboards, etc.) ---
-
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
