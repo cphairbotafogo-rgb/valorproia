@@ -5,3 +5,4 @@ google-generativeai
 supabase
 plotly
 fpdf2
+pydantic
