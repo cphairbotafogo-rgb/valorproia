@@ -42,46 +42,54 @@ except ImportError:
     st.error("⚠️ Biblioteca do Supabase não encontrada! Rode 'pip install supabase'.")
     st.stop()
 
+import streamlit as st
+from supabase import create_client, Client
+import pandas as pd
+
 # =============================================================================
 # 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
-URL_SUPABASE = st.secrets["https://dcvbigplgruvaojmutth.supabase.co"]
-CHAVE_SUPABASE = st.secrets["sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0"]
+# O sistema busca os dados que você salvou no "Secrets" do Streamlit
+URL_SUPABASE = https://dcvbigplgruvaojmutth.supabase.co"
+CHAVE_SUPABASE = "288304Lua"
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
 # 🔐 CONTROLE DE ACESSO (NA BARRA LATERAL)
 # =============================================================================
+
+# ---> COLE ESTAS DUAS LINHAS AQUI <---
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
+# Esta é a sua linha 21 onde estava a dar erro:
 if not st.session_state.autenticado:
-    # 1. A LOGO (Não esqueça de colocar o seu link aqui!)
+    # 🎨 A LOGO (Coloque o link público da sua imagem no Supabase aqui)
     try:
+        # Substitua o link abaixo pelo seu link real do Supabase para a logo aparecer
         st.sidebar.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
     except:
         st.sidebar.write("") 
 
     st.sidebar.title("Acesso ao Sistema")
     
-    # 🧑‍💻 LOGIN NORMAL (Com Usuário e Senha)
+    # 🧑‍💻 LOGIN PRINCIPAL
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
     if st.sidebar.button("Entrar", use_container_width=True):
-        # Busca a senha mestre nos secrets (12345 é só uma emergência caso o secret falhe)
-        SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "12345") 
+        # Busca a senha que você salvou nos Secrets
+        SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "") 
         
         if usuario_digitado.strip() == "":
             st.sidebar.warning("Por favor, preencha o campo Usuário.")
         elif senha_digitada == SENHA_CORRETA:
-            # Login efetuado com sucesso!
             st.session_state.autenticado = True
-            # Usa o nome que você digitou (ex: "admin") para nomear os seus arquivos
+            # Salva o nome do usuário para criar os arquivos dele
             st.session_state.username = usuario_digitado.strip().lower()
             st.rerun()
         else:
-            st.sidebar.error("Senha incorreta.")
+            st.sidebar.error("❌ Usuário ou Senha incorretos.")
 
     # 🔑 ÁREA VIP PARA TESTADORES (Alternativa extra)
     st.sidebar.markdown("---")
@@ -98,11 +106,12 @@ if not st.session_state.autenticado:
             else:
                 st.error("Dados VIP inválidos")
 
-    st.stop() # Bloqueia o resto do app se não logar
+    st.stop() # Interrompe o código aqui até que o login seja feito
 
 # =============================================================================
-# 📁 2. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
+# 📁 2. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO (O "RESTANTE" QUE FALTAVA)
 # =============================================================================
+# Essas linhas garantem que cada usuário tenha sua própria "gaveta" de arquivos
 user_id = st.session_state.get("username", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
 
@@ -111,9 +120,8 @@ SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
 PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
 DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
 
-# --- DAQUI PARA BAIXO SEGUE O SEU CÓDIGO DAS ABAS ---
+# --- DAQUI PARA BAIXO SEGUE O SEU CÓDIGO NORMAL (Abas, Dashboards, etc.) ---
 
-# Daqui para baixo segue o seu código normal (Abas, Dashboards, etc.)
 # =============================================================================
 # 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
