@@ -22,43 +22,34 @@ import yfinance as yf
 from banco import *
 from motor import *
 
-# =============================================================================
-# 2. CONFIGURAÇÃO DA PÁGINA (Aba do Navegador + Logo Supabase)
-# =============================================================================
-# 1. Primeiro você define o endereço (A "variável")
-URL_LOGO_OFICIAL = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
-
-# 2. Depois você usa ela na configuração
-st.set_page_config(
-    page_title="ValorPró IA",
-    page_icon="https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 try:
     from supabase import create_client, Client
 except ImportError:
     st.error("⚠️ Biblioteca do Supabase não encontrada! Rode 'pip install supabase'.")
     st.stop()
 
-import streamlit as st
-from supabase import create_client, Client
-import pandas as pd
+# =============================================================================
+# 2. CONFIGURAÇÃO DA PÁGINA (Aba do Navegador + Logo Supabase)
+# =============================================================================
+URL_LOGO_OFICIAL = "https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png"
 
-import streamlit as st
-from supabase import create_client, Client
+st.set_page_config(
+    page_title="ValorPró IA",
+    page_icon=URL_LOGO_OFICIAL, 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # =============================================================================
-# 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
+# 🌐 3. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
-URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co/rest/v1/"
-# ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public" do Supabase
-CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0" 
+URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
+# ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public". Ela DEVE começar com "eyJ..."
+CHAVE_SUPABASE = "COLE_AQUI_A_SUA_CHAVE_eyJ..." 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
-# 🔐 CONTROLE DE ACESSO (NA BARRA LATERAL)
+# 🔐 4. CONTROLE DE ACESSO (NA BARRA LATERAL)
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -66,7 +57,7 @@ if "autenticado" not in st.session_state:
 if not st.session_state.autenticado:
     # 🎨 A LOGO DO SISTEMA
     try:
-        st.sidebar.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
+        st.sidebar.image(URL_LOGO_OFICIAL, use_container_width=True)
     except:
         st.sidebar.write("🏦 **VALOR PRO IA**") 
 
@@ -106,7 +97,7 @@ if not st.session_state.autenticado:
     st.stop() # Interrompe o código aqui até que o login seja feito
 
 # =============================================================================
-# 📁 2. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
+# 📁 5. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
 # =============================================================================
 user_id = st.session_state.get("username", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
@@ -116,9 +107,8 @@ SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
 PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
 DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
 
-# --- DAQUI PARA BAIXO SEGUE O SEU CÓDIGO NORMAL (Abas, Dashboards, etc.) ---
 # =============================================================================
-# 🧠 2. CONFIGURAÇÃO DA IA (GEMINI)
+# 🧠 6. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
 CHAVE_API_GOOGLE = st.secrets.get("GEMINI_CHAVE", "")
 ia_pronta = False
@@ -137,7 +127,7 @@ if CHAVE_API_GOOGLE:
         ia_pronta = False
 
 # =============================================================================
-# 🔧 3. FUNÇÕES UTILITÁRIAS (COM A MATEMÁTICA CORRIGIDA)
+# 🔧 7. FUNÇÕES UTILITÁRIAS (COM A MATEMÁTICA CORRIGIDA)
 # =============================================================================
 def _safe_float(val, default=0.0):
     try:
@@ -188,7 +178,7 @@ def formatar_delta(valor, is_percent=False):
     except: return "-"
 
 # =============================================================================
-# 📡 4. NOVO MOTOR DE BUSCA: YFINANCE + BINANCE + FUNDAMENTUS
+# 📡 8. NOVO MOTOR DE BUSCA: YFINANCE + BINANCE + FUNDAMENTUS
 # =============================================================================
 def _yf_fetch_full(ticker: str):
     """Busca o preço e a variação diária via YFinance"""
@@ -321,7 +311,7 @@ def buscar_multiplos(itens):
     return resultados
 
 # =============================================================================
-# 🔒 5. BLOQUEIO FREEMIUM E TELA DE LOGIN
+# 🔒 9. BLOQUEIO FREEMIUM E TELA DE LOGIN
 # =============================================================================
 def exibir_bloqueio_premium(funcionalidade):
     st.markdown(f"""
@@ -352,9 +342,7 @@ def tela_login():
             st.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
             
         st.markdown("---")
-        # Daqui para baixo seguem as abas de Login/Cadastro (mantenha como estava)
-        # As abas de login continuam aqui em baixo
-    aba_login, aba_planos = st.tabs(["🔒 Acessar Terminal", "🛒 Planos Premium"])
+        aba_login, aba_planos = st.tabs(["🔒 Acessar Terminal", "🛒 Planos Premium"])
     
     with aba_login:
         col1, col2, col3 = st.columns([1, 2, 1])
@@ -409,7 +397,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # =============================================================================
-# 🎨 6. DESIGN E RELÓGIO
+# 🎨 10. DESIGN E RELÓGIO
 # =============================================================================
 st.markdown("""
 <style>
@@ -434,7 +422,7 @@ LISTA_COMPLETA_B3 = sorted(list(set(TOP_20_ACOES + TOP_20_FII + ["ALPA4", "ALSO3
 PLOTLY_DARK = dict(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#94a3b8', family='DM Sans'), xaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), yaxis=dict(gridcolor='#1e293b', linecolor='#1e293b', zerolinecolor='#1e293b'), legend=dict(bgcolor='rgba(0,0,0,0)', bordercolor='#1e293b'))
 
 # =============================================================================
-# 📥 7. CARREGAR DADOS DA NUVEM
+# 📥 11. CARREGAR DADOS DA NUVEM
 # =============================================================================
 def carregar_dados_nuvem():
     if "usuario_id" not in st.session_state or st.session_state.usuario_id == "":
@@ -475,7 +463,7 @@ if "df_geral" not in st.session_state:
 df_geral = st.session_state.df_geral
 
 # =============================================================================
-# 🎛️ 8. SIDEBAR E LANÇAMENTO DE OPERAÇÕES
+# 🎛️ 12. SIDEBAR E LANÇAMENTO DE OPERAÇÕES
 # =============================================================================
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.usuario_logado}")
@@ -554,7 +542,7 @@ with st.sidebar:
     ibov_anual = st.number_input("Meta Ibovespa (% a.a.):", min_value=0.1, max_value=50.0, value=12.0, step=0.1) / 100
 
 # =============================================================================
-# ⚙️ 9. MOTOR DE CÁLCULO E CONSOLIDAÇÃO
+# ⚙️ 13. MOTOR DE CÁLCULO E CONSOLIDAÇÃO
 # =============================================================================
 df_g = pd.DataFrame()
 if not df_geral.empty:
@@ -665,7 +653,7 @@ with col_clock:
     """, height=80)
     
 # =============================================================================
-# 📑 10. AS 14 ABAS DO SISTEMA
+# 📑 14. AS 14 ABAS DO SISTEMA
 # =============================================================================
 tabs = st.tabs(["🌍 Visão Global", "🏢 FIIs", "📈 Ações", "🌎 Exterior", "🛡️ Renda Fixa", "🪙 Cripto", "💰 Dividendos", "⚖️ Rebalanceamento", "🔍 Radar", "🧮 Simuladores", "🤖 ValorPro IA", "🧾 IR", "🎯 Metas", "📝 Histórico"])
 tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_rad, tab_sim, tab_ia, tab_ir, tab_metas, tab_edit = tabs
@@ -926,7 +914,7 @@ with tab_ext:
 # --- ABA 5: RENDA FIXA ---
 with tab_rf:
     with st.expander("ℹ️ Como usar a aba de Renda Fixa", expanded=False):
-        st.markdown(""")
+        st.markdown("""
         ### A base segura da sua carteira 🛡️
         Planeie os seus investimentos mais conservadores, como Tesouro Direto, CDBs, LCIs e LCAs.
     
