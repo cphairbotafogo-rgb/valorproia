@@ -50,55 +50,57 @@ CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
-# --- CONTROLE DE ACESSO ---
-st.session_state.setdefault("autenticado", False)
-st.session_state.setdefault("username", "convidado")
+# =============================================================================
+# 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
+# =============================================================================
+URL_SUPABASE = st.secrets["SUPABASE_URL"]
+CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
+
+# =============================================================================
+# 🔐 CONTROLE DE ACESSO (NA BARRA LATERAL - COMO ERA ANTES)
+# =============================================================================
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
-    # Carrega a sua senha do st.secrets
-    SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "sua_senha_aqui")
-
-    # 🎨 1. LOGOMARCA E LOGIN NA BARRA LATERAL
+    # 1. A LOGO (COLE O LINK DO SUPABASE ENTRE AS ASPAS)
+    # Exemplo: st.sidebar.image("https://sua-url-do-supabase.png")
     try:
-        st.sidebar.image("logo_valor_pro.png", use_container_width=True)
+        st.sidebar.image("COLE_AQUI_O_LINK_DA_SUA_LOGO_DO_SUPABASE", use_container_width=True)
     except:
-        pass 
+        st.sidebar.write("🏦 **VALOR PRO IA**") # Nome alternativo se a logo falhar
 
-    st.sidebar.markdown("<h2 style='text-align: center; color: #3b82f6;'>Acesso Restrito</h2>", unsafe_allow_html=True)
-    st.sidebar.markdown("<p style='text-align: center; font-size: 14px; color: #94a3b8;'>Digite a senha de segurança para acessar o sistema.</p>", unsafe_allow_html=True)
+    st.sidebar.title("Acesso ao Sistema")
     
-    senha_digitada = st.sidebar.text_input("🔑 Senha de Acesso:", type="password")
-
-    # ⚙️ 2. LÓGICA DO LOGIN PRINCIPAL
+    # Login Normal
+    senha_digitada = st.sidebar.text_input("Senha de Acesso:", type="password")
     if st.sidebar.button("Entrar", use_container_width=True):
-        if senha_digitada == SENHA_CORRETA:
+        if senha_digitada == st.secrets["SENHA_GERAL"]:
             st.session_state.autenticado = True
             st.session_state.username = "admin"
             st.rerun()
         else:
-            st.sidebar.error("❌ Senha Incorreta. Tente novamente.")
+            st.sidebar.error("Senha incorreta")
 
-    # 🕵️ 3. ACESSO VIP (TESTADORES)
+    # 🔑 ÁREA VIP PARA TESTADORES (ESCONDIDA NO EXPANDER)
     st.sidebar.markdown("---")
-    with st.sidebar.expander("🔑 Acesso para Testadores (VIP)"):
-        user_teste = st.text_input("Usuário de Teste:", key="user_vip")
-        senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
-        
+    with st.sidebar.expander("🔑 Acesso Testador"):
+        user_teste = st.text_input("Usuário:", key="user_vip")
+        senha_teste = st.text_input("Senha:", type="password", key="senha_vip")
         if st.button("Entrar como Testador"):
-            usuarios_vips = {"teste01": "123", "teste02": "123", "teste03": "123"}
-            if user_teste in usuarios_vips and usuarios_vips[user_teste] == senha_teste:
+            vips = {"teste01": "123", "teste02": "123", "teste03": "123"}
+            if user_teste in vips and vips[user_teste] == senha_teste:
                 st.session_state.autenticado = True
                 st.session_state.username = user_teste
-                st.sidebar.success(f"Bem-vindo, {user_teste}!")
                 st.rerun()
             else:
-                st.sidebar.error("Usuário ou senha VIP inválidos.")
+                st.error("Dados inválidos")
 
-    st.stop() # Para o código aqui até que alguém logue
-
+    st.stop() # Bloqueia o resto do app se não logar
 
 # =============================================================================
-# 📁 2. DEFINIÇÃO DINÂMICA DE ARQUIVOS (Pós-Login) -> NÃO ESQUEÇA ESTA PARTE!
+# 📁 2. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
 # =============================================================================
 user_id = st.session_state.get("username", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
@@ -107,6 +109,8 @@ DB_FILE = f"investimentos_{user_id_clean}.csv"
 SNAPSHOT_FILE = f"history_{user_id_clean}.csv"
 PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
 DB_METAS = f"metas_financeiras_{user_id_clean}.csv"
+
+# --- DAQUI PARA BAIXO SEGUE O SEU CÓDIGO DAS ABAS ---
 
 # Daqui para baixo segue o seu código normal (Abas, Dashboards, etc.)
 # =============================================================================
