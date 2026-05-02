@@ -52,7 +52,7 @@ from supabase import create_client, Client
 # =============================================================================
 # 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
-URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
+URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co/rest/v1/"
 # ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public" do Supabase
 CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0" 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
