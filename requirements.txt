@@ -1,8 +1,8 @@
 streamlit
 pandas
-yfinance>=0.2.40
-google-generativeai
-supabase
+requests
+beautifulsoup4
 plotly
-fpdf2
-pydantic
+google-generativeai
+yfinance
+supabase
