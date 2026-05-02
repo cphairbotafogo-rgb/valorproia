@@ -66,9 +66,9 @@ if "autenticado" not in st.session_state:
 if not st.session_state.autenticado:
     # 1. A LOGO (Não esqueça de colocar o seu link aqui!)
     try:
-        st.sidebar.image("COLE_AQUI_O_LINK_DA_SUA_LOGO_DO_SUPABASE", use_container_width=True)
+        st.sidebar.image("https://dcvbigplgruvaojmutth.supabase.co/storage/v1/object/public/logos/ChatGPT%20Image%2028%20de%20abr.%20de%202026,%2022_55_53.png", use_container_width=True)
     except:
-        st.sidebar.write("🏦 **VALOR PRO IA**") 
+        st.sidebar.write("") 
 
     st.sidebar.title("Acesso ao Sistema")
     
