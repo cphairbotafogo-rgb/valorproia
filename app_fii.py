@@ -50,7 +50,7 @@ import pandas as pd
 # 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
 # O sistema busca os dados que você salvou no "Secrets" do Streamlit
-URL_SUPABASE = https://dcvbigplgruvaojmutth.supabase.co"
+URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
 CHAVE_SUPABASE = "288304Lua"
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
