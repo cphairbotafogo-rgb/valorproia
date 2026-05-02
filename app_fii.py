@@ -77,15 +77,15 @@ if not st.session_state.autenticado:
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
+    # A senha fora do botão garante que o sistema a carregue antes
+    SENHA_CORRETA = "valor2026@"
+    
     if st.sidebar.button("Entrar", use_container_width=True):
-        # Busca a senha que você salvou nos Secrets
-        SENHA_CORRETA = st.secrets.get("SENHA_GERAL", "") 
-        
         if usuario_digitado.strip() == "":
             st.sidebar.warning("Por favor, preencha o campo Usuário.")
-        elif senha_digitada == SENHA_CORRETA:
+        # O .strip() ignora espaços invisíveis que causam erros
+        elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
             st.session_state.autenticado = True
-            # Salva o nome do usuário para criar os arquivos dele
             st.session_state.username = usuario_digitado.strip().lower()
             st.rerun()
         else:
