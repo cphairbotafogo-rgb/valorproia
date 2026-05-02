@@ -46,7 +46,7 @@ except ImportError:
 # 🌐 1. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
 URL_SUPABASE = st.secrets["https://dcvbigplgruvaojmutth.supabase.co"]
-CHAVE_SUPABASE = st.secrets["sb_secret_PvmHjKo0rnw5Ngv5Yq_QwQ_HUPSXjUf"]
+CHAVE_SUPABASE = st.secrets["sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0"]
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
