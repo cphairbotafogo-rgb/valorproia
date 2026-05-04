@@ -53,6 +53,8 @@ supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
+    st.session_state.usuario_logado = "Visitante"  # Adicione esta linha
+    st.session_state.usuario_id = ""
 
 if not st.session_state.autenticado:
     # 🎨 A LOGO DO SISTEMA
