@@ -69,7 +69,7 @@ if not st.session_state.autenticado:
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
-    SENHA_CORRETA = "288304Lua"
+    SENHA_CORRETA = "288304Lua" # Pode usar a senha que preferir aqui
     
     if st.sidebar.button("Entrar", use_container_width=True):
         if usuario_digitado.strip() == "":
@@ -77,6 +77,19 @@ if not st.session_state.autenticado:
         elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
             st.session_state.autenticado = True
             st.session_state.username = usuario_digitado.strip().lower()
+            st.session_state.usuario_logado = usuario_digitado.strip().lower()
+            st.session_state.tipo_acesso = "premium"  # 🟢 ISTO LIBERA A IA!
+            
+            # 🟢 ISTO PUXA O SEU ID DO SUPABASE PARA AS ABAS FUNCIONAREM
+            try:
+                res = supabase.table("usuarios").select("id").eq("e-mail", "aripeixotooficial@outlook.com").execute()
+                if len(res.data) > 0:
+                    st.session_state.usuario_id = res.data[0]['id']
+                else:
+                    st.session_state.usuario_id = "admin_temporario"
+            except:
+                st.session_state.usuario_id = "admin_temporario"
+                
             st.rerun()
         else:
             st.sidebar.error("❌ Usuário ou Senha incorretos.")
@@ -1564,12 +1577,20 @@ with tab_edit:
         df_para_editar = df_geral.drop(columns=[c for c in colunas_ocultas if c in df_geral.columns])
         
         # Cria a tabela editável
+        # Preparamos os dados ocultando o que não importa
+        colunas_ocultas = ['usuario_id', 'criado_em']
+        df_para_editar = df_geral.drop(columns=[c for c in colunas_ocultas if c in df_geral.columns])
+        
+        # 🟢 CORREÇÃO: Só bloqueia o ID se ele existir (evita crash com carteira vazia)
+        colunas_bloqueadas = ["id"] if "id" in df_para_editar.columns else []
+        
+        # Cria a tabela editável
         df_editado = st.data_editor(
             df_para_editar, 
             hide_index=True, 
             use_container_width=True,
             key="editor_operacoes",
-            disabled=["id"] # Protege o ID contra alterações
+            disabled=colunas_bloqueadas 
         )
 
         # Botão para enviar as edições para o Supabase
