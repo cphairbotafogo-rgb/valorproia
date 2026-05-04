@@ -69,7 +69,7 @@ if not st.session_state.autenticado:
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
-    SENHA_CORRETA = "valor2026@"
+    SENHA_CORRETA = "288304Lua"
     
     if st.sidebar.button("Entrar", use_container_width=True):
         if usuario_digitado.strip() == "":
