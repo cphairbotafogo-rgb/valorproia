@@ -44,36 +44,48 @@ st.set_page_config(
 # 🌐 3. CONEXÃO COM A NUVEM (SUPABASE)
 # =============================================================================
 URL_SUPABASE = "https://dcvbigplgruvaojmutth.supabase.co"
-# ATENÇÃO: Substitua a chave abaixo pela sua API KEY "anon public". Ela DEVE começar com "eyJ..."
+# ATENÇÃO: Se a conexão falhar, lembre-se que a chave costuma começar com "eyJ..."
 CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0" 
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
-with aba_login:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("<h3 style='text-align: center;'>Acesso ao Terminal ValorPro</h3>", unsafe_allow_html=True)
-            with st.form("login_form"):
-                u = st.text_input("Usuário (E-mail)").strip().lower()
-                p = st.text_input("Senha", type="password")
-                entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
-                
-                SENHA_CORRETA = "288304Lua" # Sua senha
-                
-                if entrar:
-                    if u == "":
-                        st.warning("Por favor, preencha o e-mail.")
-                    elif p.strip() == SENHA_CORRETA:
-                        st.session_state.autenticado = True
-                        st.session_state.username = u
-                        st.session_state.usuario_logado = u
-                        st.session_state.tipo_acesso = "premium"
-                        
-                        # 👇 O SEU ID DO SUPABASE 👇
-                        st.session_state.usuario_id = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
-                        
-                        st.rerun()
-                    else: 
-                        st.error("❌ E-mail ou senha incorretos.")
+# =============================================================================
+# 🔐 4. CONTROLE DE ACESSO (TELA PRINCIPAL CHEIA)
+# =============================================================================
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    # Mostra apenas o formulário de login no centro da tela
+    st.markdown("<br><br>", unsafe_allow_html=True) # Dá um espaço no topo
+    st.markdown("<h2 style='text-align: center;'>🏦 Acesso ao Terminal ValorPro</h2>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form"):
+            u = st.text_input("Usuário (E-mail)").strip().lower()
+            p = st.text_input("Senha", type="password")
+            entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+            
+            SENHA_CORRETA = "288304Lua" # Sua senha
+            
+            if entrar:
+                if u == "":
+                    st.warning("Por favor, preencha o e-mail.")
+                elif p.strip() == SENHA_CORRETA:
+                    st.session_state.autenticado = True
+                    st.session_state.username = u
+                    st.session_state.usuario_logado = u
+                    st.session_state.tipo_acesso = "premium"
+                    
+                    # 👇 O SEU ID DO SUPABASE 👇
+                    st.session_state.usuario_id = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
+                    
+                    st.rerun()
+                else: 
+                    st.error("❌ E-mail ou senha incorretos.")
+                    
+    # Bloqueia o carregamento do resto do site até fazer o login (Substitui as abas)
+    st.stop()
 
 # =============================================================================
 # 📁 5. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
