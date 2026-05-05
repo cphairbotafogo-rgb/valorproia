@@ -86,17 +86,19 @@ if not st.session_state.autenticado:
             
             # 🟢 Busca o SEU ID REAL no banco de dados
             try:
+                # Procurando o e-mail exato
                 res = supabase.table("usuarios").select("id").eq("e-mail", email_digitado).execute()
+                
                 if len(res.data) > 0:
                     st.session_state.usuario_id = res.data[0]['id']
+                    st.sidebar.success(f"✅ ID Encontrado: {st.session_state.usuario_id[:8]}...")
                 else:
-                    st.session_state.usuario_id = "" # <-- Vazio evita o erro no Supabase!
-            except:
-                st.session_state.usuario_id = "" # <-- Vazio evita o erro no Supabase!
-                
-            st.rerun()
-        else:
-            st.sidebar.error("❌ Usuário ou Senha incorretos.")
+                    st.session_state.usuario_id = None # Mudamos de "" para None
+                    st.sidebar.error("⚠️ Atenção: E-mail não encontrado na tabela 'usuarios'. Seus dados não aparecerão.")
+                    st.stop() # Para aqui para você ver o erro
+            except Exception as e:
+                st.sidebar.error(f"Erro ao conectar: {e}")
+                st.session_state.usuario_id = None
 
     # 🔑 ÁREA VIP PARA TESTADORES
     st.sidebar.markdown("---")
