@@ -53,8 +53,6 @@ supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
-    st.session_state.usuario_logado = "Visitante"  # Adicione esta linha
-    st.session_state.usuario_id = ""
 
 if not st.session_state.autenticado:
     # 🎨 A LOGO DO SISTEMA
@@ -65,26 +63,13 @@ if not st.session_state.autenticado:
 
     st.sidebar.title("Acesso ao Sistema")
     
-   # 🧑‍💻 LOGIN PRINCIPAL
+    # 🧑‍💻 LOGIN PRINCIPAL
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
-    SENHA_CORRETA = "288304Lua" # Ou a senha que você configurou
+    SENHA_CORRETA = "288304Lua" # A senha correta
     
     if st.sidebar.button("Entrar", use_container_width=True):
-        if usuario_digitado.strip() == "":
-            st.sidebar.warning("Por favor, preencha o campo Usuário.")
-        elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
-            st.session_state.autenticado = True
-            
-            # Pega o e-mail que você digitou na caixinha
-            email_digitado = usuario_digitado.strip().lower()
-            
-            st.session_state.username = email_digitado
-            st.session_state.usuario_logado = email_digitado
-            st.session_state.tipo_acesso = "premium"
-            
-           if st.sidebar.button("Entrar", use_container_width=True):
         if usuario_digitado.strip() == "":
             st.sidebar.warning("Por favor, preencha o campo Usuário.")
         elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
