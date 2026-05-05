@@ -54,13 +54,26 @@ supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
+# 🎨 LOGO NA BARRA LATERAL (Fica sempre visível)
+try:
+    st.sidebar.image(URL_LOGO_OFICIAL, use_container_width=True)
+except:
+    st.sidebar.write("🏦 **VALOR PRO IA**")
+
 if not st.session_state.autenticado:
     # Mostra apenas o formulário de login no centro da tela
     st.markdown("<br><br>", unsafe_allow_html=True) # Dá um espaço no topo
-    st.markdown("<h2 style='text-align: center;'>🏦 Acesso ao Terminal ValorPro</h2>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        # 🎨 LOGO CENTRAL NA TELA DE LOGIN
+        try:
+            st.image(URL_LOGO_OFICIAL, use_container_width=True)
+        except:
+            pass
+            
+        st.markdown("<h2 style='text-align: center;'>🏦 Acesso ao Terminal ValorPro</h2>", unsafe_allow_html=True)
+        
         with st.form("login_form"):
             u = st.text_input("Usuário (E-mail)").strip().lower()
             p = st.text_input("Senha", type="password")
@@ -84,9 +97,8 @@ if not st.session_state.autenticado:
                 else: 
                     st.error("❌ E-mail ou senha incorretos.")
                     
-    # Bloqueia o carregamento do resto do site até fazer o login (Substitui as abas)
+    # Bloqueia o carregamento do resto do site até fazer o login
     st.stop()
-
 # =============================================================================
 # 📁 5. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
 # =============================================================================
