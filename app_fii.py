@@ -664,7 +664,7 @@ tab_glo, tab_fii, tab_aco, tab_ext, tab_rf, tab_cripto, tab_div, tab_reb, tab_ra
 
 # --- ABA 1: VISÃO GLOBAL ---
 with tab_glo:
-    # --- BLOCO DE CÂMBIO PERSONALIZÁVEL (ANTI-NAN) ---
+    # --- BLOCO DE CÂMBIO PERSONALIZÁVEL (CORRIGIDO PARA YFINANCE > 0.2.40) ---
     with st.expander("🌍 Configurar Painel de Moedas", expanded=False):
         dict_moedas = {
             "Dólar (USD)": "USDBRL=X", "Euro (EUR)": "EURBRL=X",
@@ -677,21 +677,34 @@ with tab_glo:
         try:
             ticker_usd = "USDBRL=X"
             tickers_dw = list(set([dict_moedas[m] for m in moedas_sel] + [ticker_usd]))
-            # Ajustado para pegar 2 dias para garantir que nunca falte dado (evita o NaN)
-            dados_m = yf.download(tickers_dw, period="2d", interval="15m")['Close']
             
+            # Download dos dados
+            dados_brutos = yf.download(tickers_dw, period="2d", interval="15m")
+            
+            # 🔥 CORREÇÃO PARA A NOVA VERSÃO DO YFINANCE (MultiIndex) 🔥
+            if isinstance(dados_brutos.columns, pd.MultiIndex):
+                # Se for MultiIndex, extraímos apenas o nível 'Close'
+                dados_m = dados_brutos.xs('Close', axis=1, level=0) if 'Close' in dados_brutos.columns.levels[0] else dados_brutos['Close']
+            else:
+                dados_m = dados_brutos['Close'] if 'Close' in dados_brutos.columns else dados_brutos
+                
             if not dados_m.empty:
                 cols_m = st.columns(len(moedas_sel))
                 for i, nome in enumerate(moedas_sel):
                     ticker = dict_moedas[nome]
                     
-                    # Tenta pegar o último preço, se for NaN, pega o anterior válido
+                    # Tratamento seguro caso a coluna não exista (prevenção de erro)
+                    if ticker not in dados_m.columns:
+                        continue
+                        
                     serie_moeda = dados_m[ticker].dropna()
                     val = serie_moeda.iloc[-1] if not serie_moeda.empty else 0.0
                     
-                    # Pega o dólar para conversão de cripto
-                    serie_usd = dados_m[ticker_usd].dropna()
-                    val_usd = serie_usd.iloc[-1] if not serie_usd.empty else 1.0
+                    # Pega o dólar para conversão de cripto, se existir
+                    val_usd = 1.0
+                    if ticker_usd in dados_m.columns:
+                        serie_usd = dados_m[ticker_usd].dropna()
+                        val_usd = serie_usd.iloc[-1] if not serie_usd.empty else 1.0
                     
                     if "-" in ticker: # Se for cripto, converte para R$
                         val = val * val_usd
@@ -701,8 +714,9 @@ with tab_glo:
                             <p style="margin: 0; font-size: 13px; color: #94a3b8; font-weight: bold;">{nome}</p>
                             <h4 style="margin: 0; font-size: 19px; color: #f8fafc;">R$ {val:,.2f}</h4></div>""", unsafe_allow_html=True)
                 st.divider()
-        except:
-            st.info("🔄 Sincronizando moedas...")
+        except Exception as e:
+            # Mostra o erro real em vez de silenciar
+            st.error(f"🚨 Falha ao carregar moedas/gráficos: {e}")
 
     if not df_geral.empty and not df_g.empty:
         # CÁLCULOS TOTAIS
