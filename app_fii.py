@@ -65,30 +65,34 @@ if not st.session_state.autenticado:
 
     st.sidebar.title("Acesso ao Sistema")
     
-    # 🧑‍💻 LOGIN PRINCIPAL
+   # 🧑‍💻 LOGIN PRINCIPAL
     usuario_digitado = st.sidebar.text_input("Usuário:")
     senha_digitada = st.sidebar.text_input("Senha:", type="password")
     
-    SENHA_CORRETA = "288304Lua" # Pode usar a senha que preferir aqui
+    SENHA_CORRETA = "288304Lua" # Ou a senha que você configurou
     
     if st.sidebar.button("Entrar", use_container_width=True):
         if usuario_digitado.strip() == "":
             st.sidebar.warning("Por favor, preencha o campo Usuário.")
         elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
             st.session_state.autenticado = True
-            st.session_state.username = usuario_digitado.strip().lower()
-            st.session_state.usuario_logado = usuario_digitado.strip().lower()
-            st.session_state.tipo_acesso = "premium"  # 🟢 ISTO LIBERA A IA!
             
-            # 🟢 ISTO PUXA O SEU ID DO SUPABASE PARA AS ABAS FUNCIONAREM
+            # Pega o e-mail que você digitou na caixinha
+            email_digitado = usuario_digitado.strip().lower()
+            
+            st.session_state.username = email_digitado
+            st.session_state.usuario_logado = email_digitado
+            st.session_state.tipo_acesso = "premium"
+            
+            # 🟢 Busca o SEU ID REAL no banco de dados
             try:
-                res = supabase.table("usuarios").select("id").eq("e-mail", "aripeixotooficial@outlook.com").execute()
+                res = supabase.table("usuarios").select("id").eq("e-mail", email_digitado).execute()
                 if len(res.data) > 0:
                     st.session_state.usuario_id = res.data[0]['id']
                 else:
-                    st.session_state.usuario_id = "admin_temporario"
+                    st.session_state.usuario_id = "" # <-- Vazio evita o erro no Supabase!
             except:
-                st.session_state.usuario_id = "admin_temporario"
+                st.session_state.usuario_id = "" # <-- Vazio evita o erro no Supabase!
                 
             st.rerun()
         else:
