@@ -73,44 +73,22 @@ if not st.session_state.autenticado:
         if usuario_digitado.strip() == "":
             st.sidebar.warning("Por favor, preencha o campo Usuário.")
         elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
-            email_digitado = usuario_digitado.strip().lower()
+            # 🟢 O ATALHO DEFINITIVO:
+            # Em vez de perguntar ao banco de dados, dizemos logo quem é o dono.
+            st.session_state.autenticado = True
+            st.session_state.username = usuario_digitado.strip().lower()
+            st.session_state.usuario_logado = usuario_digitado.strip().lower()
+            st.session_state.tipo_acesso = "premium"
             
-            # 🟢 Busca o SEU ID REAL no banco de dados PRIMEIRO
-            try:
-                res = supabase.table("usuarios").select("id").eq("e-mail", email_digitado).execute()
-                
-                if len(res.data) > 0:
-                    # TUDO CERTO! Achou o e-mail, agora sim abrimos a porta.
-                    st.session_state.usuario_id = res.data[0]['id']
-                    st.session_state.autenticado = True
-                    st.session_state.username = email_digitado
-                    st.session_state.usuario_logado = email_digitado
-                    st.session_state.tipo_acesso = "premium"
-                    st.rerun()
-                else:
-                    # Se não achar o e-mail, não entra de jeito nenhum.
-                    st.sidebar.error("⚠️ Atenção: E-mail não encontrado na tabela 'usuarios'.")
-            except Exception as e:
-                st.sidebar.error(f"Erro ao conectar ao banco: {e}")
+            # 👇 O SEU ID DO SUPABASE (Conecta direto com os seus dados) 👇
+            st.session_state.usuario_id = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
+            
+            st.rerun()
         else:
             st.sidebar.error("❌ Usuário ou Senha incorretos.")
 
     # 🔑 ÁREA VIP PARA TESTADORES
     st.sidebar.markdown("---")
-    with st.sidebar.expander("🔑 Acesso VIP (Testadores)"):
-        user_teste = st.text_input("Usuário VIP:", key="user_vip")
-        senha_teste = st.text_input("Senha VIP:", type="password", key="senha_vip")
-        
-        if st.button("Entrar como Testador"):
-            vips = {"teste01": "123", "teste02": "123", "teste03": "123"}
-            if user_teste in vips and vips[user_teste] == senha_teste:
-                st.session_state.autenticado = True
-                st.session_state.username = user_teste
-                st.rerun()
-            else:
-                st.error("Dados VIP inválidos")
-
-    st.stop() # Interrompe o código aqui até que o login seja feito
 
 # =============================================================================
 # 📁 5. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
