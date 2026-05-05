@@ -6,4 +6,4 @@ plotly
 google-generativeai
 yfinance
 supabase
-fpdf
+fpdf2
