@@ -84,21 +84,31 @@ if not st.session_state.autenticado:
             st.session_state.usuario_logado = email_digitado
             st.session_state.tipo_acesso = "premium"
             
-            # 🟢 Busca o SEU ID REAL no banco de dados
+           if st.sidebar.button("Entrar", use_container_width=True):
+        if usuario_digitado.strip() == "":
+            st.sidebar.warning("Por favor, preencha o campo Usuário.")
+        elif senha_digitada.strip() == SENHA_CORRETA.strip(): 
+            email_digitado = usuario_digitado.strip().lower()
+            
+            # 🟢 Busca o SEU ID REAL no banco de dados PRIMEIRO
             try:
-                # Procurando o e-mail exato
                 res = supabase.table("usuarios").select("id").eq("e-mail", email_digitado).execute()
                 
                 if len(res.data) > 0:
+                    # TUDO CERTO! Achou o e-mail, agora sim abrimos a porta.
                     st.session_state.usuario_id = res.data[0]['id']
-                    st.sidebar.success(f"✅ ID Encontrado: {st.session_state.usuario_id[:8]}...")
+                    st.session_state.autenticado = True
+                    st.session_state.username = email_digitado
+                    st.session_state.usuario_logado = email_digitado
+                    st.session_state.tipo_acesso = "premium"
+                    st.rerun()
                 else:
-                    st.session_state.usuario_id = None # Mudamos de "" para None
-                    st.sidebar.error("⚠️ Atenção: E-mail não encontrado na tabela 'usuarios'. Seus dados não aparecerão.")
-                    st.stop() # Para aqui para você ver o erro
+                    # Se não achar o e-mail, não entra de jeito nenhum.
+                    st.sidebar.error("⚠️ Atenção: E-mail não encontrado na tabela 'usuarios'.")
             except Exception as e:
-                st.sidebar.error(f"Erro ao conectar: {e}")
-                st.session_state.usuario_id = None
+                st.sidebar.error(f"Erro ao conectar ao banco: {e}")
+        else:
+            st.sidebar.error("❌ Usuário ou Senha incorretos.")
 
     # 🔑 ÁREA VIP PARA TESTADORES
     st.sidebar.markdown("---")
