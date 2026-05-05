@@ -596,52 +596,7 @@ if not df_geral.empty:
                 pd.concat([df_snap_old[df_snap_old["Data"] != hoje_str], snap_df], ignore_index=True).to_csv(SNAPSHOT_FILE, index=False)
             else: snap_df.to_csv(SNAPSHOT_FILE, index=False)
         except: pass
-# =============================================================================
-        # 📊 GRÁFICOS DA VISÃO GLOBAL (CARTEIRA VS CDI/IBOV)
-        # =============================================================================
-        st.markdown("---")
-        
-        col_graf1, col_graf2 = st.columns(2)
-        
-        with col_graf1:
-            st.markdown("### 📊 Rentabilidade vs Indicadores")
-            # Calcula o rendimento atual da carteira
-            total_aportado = df_g["Custo_Pos"].sum()
-            total_mercado = df_g["Total_Atual"].sum()
-            rentabilidade_carteira = (total_mercado / total_aportado) - 1 if total_aportado > 0 else 0
-            
-            # Monta os dados comparando com o CDI e IBOV que você configurou acima
-            df_comp = pd.DataFrame({
-                "Indicador": ["Minha Carteira", "CDI", "B3 (Meta Ibov)"],
-                "Rentabilidade (%)": [rentabilidade_carteira, cdi_anual, ibov_anual]
-            })
-            
-            # Desenha o gráfico de barras
-            fig_comp = px.bar(
-                df_comp, x="Indicador", y="Rentabilidade (%)", text="Rentabilidade (%)",
-                color="Indicador", color_discrete_sequence=["#3b82f6", "#10b981", "#f59e0b"]
-            )
-            fig_comp.update_traces(texttemplate='%{text:.2%}', textposition='outside')
-            fig_comp.update_layout(yaxis_tickformat='.1%', showlegend=False, margin=dict(t=30, b=0, l=0, r=0))
-            st.plotly_chart(fig_comp, use_container_width=True)
 
-        with col_graf2:
-            st.markdown("### 📈 Evolução Patrimonial")
-            # Desenha o gráfico de linha puxando o histórico salvo pelo Motor
-            if os.path.exists(SNAPSHOT_FILE):
-                try:
-                    df_hist = pd.read_csv(SNAPSHOT_FILE)
-                    if len(df_hist) > 0:
-                        fig_hist = px.line(
-                            df_hist, x="Data", y=["Aportado", "Mercado"], 
-                            markers=True, color_discrete_sequence=["#94a3b8", "#10b981"]
-                        )
-                        fig_hist.update_layout(margin=dict(t=30, b=0, l=0, r=0), legend_title_text="Legenda")
-                        st.plotly_chart(fig_hist, use_container_width=True)
-                except Exception as e:
-                    st.info("Histórico em construção. Os dados aparecerão com o tempo.")
-            else:
-                st.info("O gráfico de evolução aparecerá após o primeiro salvamento.")
 
 # =============================================================================
 # 3. CABEÇALHO DO PAINEL INTERNO (Logo na Esquerda e Relógio na Direita)
@@ -815,6 +770,53 @@ with tab_glo:
             st.dataframe(df_v_filt[["Ticker","Qtd","Preço","Total_Atual"]].sort_values("Total_Atual", ascending=False), hide_index=True, use_container_width=True)
     else:
         st.info("Lance suas operações para ver o patrimônio.")
+
+# =============================================================================
+# 📊 GRÁFICOS DA VISÃO GLOBAL (CARTEIRA VS CDI/IBOV)
+# =============================================================================
+        st.markdown("---")
+        
+        col_graf1, col_graf2 = st.columns(2)
+        
+        with col_graf1:
+            st.markdown("### 📊 Rentabilidade vs Indicadores")
+            # Calcula o rendimento atual da carteira
+            total_aportado = df_g["Custo_Pos"].sum()
+            total_mercado = df_g["Total_Atual"].sum()
+            rentabilidade_carteira = (total_mercado / total_aportado) - 1 if total_aportado > 0 else 0
+            
+            # Monta os dados comparando com o CDI e IBOV que você configurou acima
+            df_comp = pd.DataFrame({
+                "Indicador": ["Minha Carteira", "CDI", "B3 (Meta Ibov)"],
+                "Rentabilidade (%)": [rentabilidade_carteira, cdi_anual, ibov_anual]
+            })
+            
+            # Desenha o gráfico de barras
+            fig_comp = px.bar(
+                df_comp, x="Indicador", y="Rentabilidade (%)", text="Rentabilidade (%)",
+                color="Indicador", color_discrete_sequence=["#3b82f6", "#10b981", "#f59e0b"]
+            )
+            fig_comp.update_traces(texttemplate='%{text:.2%}', textposition='outside')
+            fig_comp.update_layout(yaxis_tickformat='.1%', showlegend=False, margin=dict(t=30, b=0, l=0, r=0))
+            st.plotly_chart(fig_comp, use_container_width=True)
+
+        with col_graf2:
+            st.markdown("### 📈 Evolução Patrimonial")
+            # Desenha o gráfico de linha puxando o histórico salvo pelo Motor
+            if os.path.exists(SNAPSHOT_FILE):
+                try:
+                    df_hist = pd.read_csv(SNAPSHOT_FILE)
+                    if len(df_hist) > 0:
+                        fig_hist = px.line(
+                            df_hist, x="Data", y=["Aportado", "Mercado"], 
+                            markers=True, color_discrete_sequence=["#94a3b8", "#10b981"]
+                        )
+                        fig_hist.update_layout(margin=dict(t=30, b=0, l=0, r=0), legend_title_text="Legenda")
+                        st.plotly_chart(fig_hist, use_container_width=True)
+                except Exception as e:
+                    st.info("Histórico em construção. Os dados aparecerão com o tempo.")
+            else:
+                st.info("O gráfico de evolução aparecerá após o primeiro salvamento.")
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
