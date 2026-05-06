@@ -49,7 +49,7 @@ CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0"
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
-# 🔐 4. CONTROLE DE ACESSO (TELA PRINCIPAL INTEGRADA AO SUPABASE/KIWIFY)
+# 🔐 4. CONTROLE DE ACESSO (TELA PRINCIPAL SEGURA E INTEGRADA)
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -61,49 +61,53 @@ if not st.session_state.autenticado:
     with col2:
         try:
             st.image(URL_LOGO_OFICIAL, use_container_width=True)
-        except:
+        except Exception:
+            # Fallback silencioso para não poluir a tela se a imagem falhar
             pass
             
+        # 🧑‍💻 LOGIN PRINCIPAL (DONO E CLIENTES KIWIFY)
         with st.form("login_form"):
-            u = st.text_input("Usuário (E-mail)").strip().lower()
-            p = st.text_input("Senha", type="password")
+            email_input = st.text_input("Usuário (E-mail)")
+            u = email_input.strip().lower() if email_input else "" # Proteção contra None (Item 1)
+            
+            # Sem o .strip() para permitir senhas com espaços (Item 6)
+            p = st.text_input("Senha", type="password") 
             entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
             
             if entrar:
                 if u == "":
                     st.warning("Por favor, preencha o campo de Usuário/E-mail.")
                 
-                # 👑 1. O SEU ACESSO DE DONO (Chave Mestra)
-                elif p.strip() == "288304Lua":
+                # 👑 1. O SEU ACESSO DE DONO (Cadeado Duplo: E-mail + Senha)
+                # ATENÇÃO: Mude "seu_email@aqui.com" para o seu e-mail real!
+                elif u == "seu_email@aqui.com" and p == "288304Lua":
                     st.session_state.autenticado = True
                     st.session_state.username = u
                     st.session_state.usuario_logado = u
                     st.session_state.tipo_acesso = "premium"
-                    # O seu ID do Supabase
+                    # O seu ID do Supabase (Acesso a tudo)
                     st.session_state.usuario_id = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
                     st.rerun()
                 
-                # 💳 2. ACESSO DOS VIPS E CLIENTES KIWIFY (Consulta ao Supabase)
-                else:
+                # 💳 2. ACESSO DOS CLIENTES KIWIFY E SUPABASE
+                elif "supabase" in globals():
                     try:
-                        # Vai à tabela "usuarios" (que me mostrou na imagem) procurar quem está a tentar entrar
                         resposta = supabase.table("usuarios").select("*").eq("email", u).execute()
                         
-                        if len(resposta.data) > 0:
+                        # Verificação segura do retorno do banco (Item 4)
+                        if resposta and hasattr(resposta, 'data') and len(resposta.data) > 0:
                             dados_cliente = resposta.data[0]
                             
-                            # Verifica se a senha bate certo
+                            # Compara a senha exatamente como foi digitada
                             if dados_cliente.get("senha") == p:
-                                # Opcional: verificar se o status está 'ativo'
                                 if dados_cliente.get("status") == "inativo":
-                                    st.error("❌ A sua conta está inativa. Contacte o suporte.")
+                                    st.error("❌ A sua conta está inativa. Entre em contato com o suporte.")
                                 else:
                                     st.session_state.autenticado = True
                                     st.session_state.username = u
                                     st.session_state.usuario_logado = u
                                     st.session_state.tipo_acesso = dados_cliente.get("tipo", "premium")
-                                    
-                                    # 👇 Puxa o ID único gerado pelo Supabase para isolar a carteira!
+                                    # Puxa o ID único do cliente
                                     st.session_state.usuario_id = dados_cliente.get("id") 
                                     st.rerun()
                             else:
@@ -111,28 +115,51 @@ if not st.session_state.autenticado:
                         else:
                             st.error("❌ Usuário não encontrado. Se acabou de comprar, aguarde a confirmação.")
                     except Exception as e:
-                        st.error(f"Erro ao conectar com a base de dados: {e}")
+                        st.error(f"Erro ao conectar com o banco de dados. Tente novamente.")
+                else:
+                    st.error("Erro interno: Conexão com o banco falhou.")
+
+        # =====================================================================
+        # 🔑 ÁREA VIP PARA TESTADORES (Expander)
+        # =====================================================================
+        with st.expander("🔑 Acesso VIP (Testadores)"):
+            with st.form("vip_form"):
+                vip_input = st.text_input("Usuário VIP:")
+                user_teste = vip_input.strip().lower() if vip_input else ""
+                senha_teste = st.text_input("Senha VIP:", type="password")
+                entrar_vip = st.form_submit_button("Entrar como VIP", use_container_width=True)
+                
+                if entrar_vip:
+                    vips = {"teste01": "123", "teste02": "123", "teste03": "123"}
+                    if user_teste in vips and vips[user_teste] == senha_teste:
+                        st.session_state.autenticado = True
+                        st.session_state.username = user_teste
+                        st.session_state.usuario_logado = user_teste
+                        st.session_state.tipo_acesso = "vip"
+                        st.session_state.usuario_id = f"vip_{user_teste}" 
+                        st.rerun()
+                    else:
+                        st.error("❌ Dados VIP inválidos.")
 
         # =====================================================================
         # 🛒 ÁREA DE PAGAMENTO PARA NOVOS UTILIZADORES
         # =====================================================================
-        st.markdown("<br>", unsafe_allow_html=True)
         with st.expander("🛒 Quero Comprar Acesso"):
             st.markdown("""
             ### 🚀 Torne-se Premium!
             Tenha acesso completo à **ValorPro IA**, relatórios ilimitados e consolidação de carteira em tempo real.
             """)
-            st.info("Aqui você colocará o link do seu checkout (Kiwify, etc).")
+            st.link_button("💳 Comprar Agora", "https://sua-url-da-kiwify.com", use_container_width=True)
 
     st.stop() 
 
 # =============================================================================
-# 🎨 LOGO NA BARRA LATERAL (Pós-Login)
+# 🎨 LOGO NA BARRA LATERAL (Aparece Pós-Login)
 # =============================================================================
 try:
     st.sidebar.image(URL_LOGO_OFICIAL, use_container_width=True)
-except:
-    st.sidebar.write("🏦 **VALOR PRO IA**")
+except Exception:
+    st.sidebar.markdown("🏦 **VALOR PRO IA**")
 
 # =============================================================================
 # 📁 5. DEFINIÇÃO DOS ARQUIVOS POR USUÁRIO
