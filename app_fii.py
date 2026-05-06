@@ -771,8 +771,6 @@ with tab_glo:
     else:
         st.info("Lance suas operações para ver o patrimônio.")
 
-        
-        
 # =============================================================================
         # 📊 GRÁFICOS DA VISÃO GLOBAL (CARTEIRA VS CDI/IBOV)
         # =============================================================================
