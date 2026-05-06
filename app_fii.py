@@ -115,7 +115,7 @@ if not st.session_state.autenticado:
                         else:
                             st.error("❌ Usuário não encontrado. Se acabou de comprar, aguarde a confirmação.")
                     except Exception as e:
-                        st.error(f"Erro ao conectar com o banco de dados. Tente novamente.")
+                        st.error(f"🚨 Erro real do Supabase: {e}")
                 else:
                     st.error("Erro interno: Conexão com o banco falhou.")
 
