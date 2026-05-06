@@ -92,7 +92,7 @@ if not st.session_state.autenticado:
                 # 💳 2. ACESSO DOS CLIENTES KIWIFY E SUPABASE
                 elif "supabase" in globals():
                     try:
-                        resposta = supabase.table("usuarios").select("*").eq("email", u).execute()
+                        resposta = supabase.table("usuarios").select("*").eq("e-mail", u).execute()
                         
                         # Verificação segura do retorno do banco (Item 4)
                         if resposta and hasattr(resposta, 'data') and len(resposta.data) > 0:
