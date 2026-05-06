@@ -772,9 +772,9 @@ with tab_glo:
         st.info("Lance suas operações para ver o patrimônio.")
 
 # =============================================================================
-        # 📊 GRÁFICOS DA VISÃO GLOBAL (CARTEIRA VS CDI/IBOV)
-        # =============================================================================
-        if not df_g.empty:
+# 📊 GRÁFICOS DA VISÃO GLOBAL (CARTEIRA VS CDI/IBOV)
+# =============================================================================
+    if not df_g.empty:
             st.markdown("---")
             
             col_graf1, col_graf2 = st.columns(2)
@@ -817,7 +817,7 @@ with tab_glo:
                     except Exception as e:
                         st.info("Histórico em construção. Os dados aparecerão com o tempo.")
                 else:
-                    st.info("O gráfico de evolução aparecerá após o primeiro salvamento.")
+                    st.info("O gráfico de evolução aparecerá após o primeiro salvamento.")    
 
 # --- ABA 2: MEUS FIIs ---
 with tab_fii:
