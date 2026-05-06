@@ -49,18 +49,16 @@ CHAVE_SUPABASE = "sb_publishable_faAlM9DLISD2Oxl--wiS7g_keLzPZI0"
 supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 
 # =============================================================================
-# 🔐 4. CONTROLE DE ACESSO (TELA PRINCIPAL CHEIA)
+# 🔐 4. CONTROLE DE ACESSO (TELA PRINCIPAL INTEGRADA AO SUPABASE/KIWIFY)
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
-    # Espaçamento reduzido para deixar a logo mais perto do topo e da caixa
     st.markdown("<br>", unsafe_allow_html=True) 
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        # 🎨 LOGO CENTRAL NA TELA DE LOGIN (Sem o título embaixo)
         try:
             st.image(URL_LOGO_OFICIAL, use_container_width=True)
         except:
@@ -71,29 +69,65 @@ if not st.session_state.autenticado:
             p = st.text_input("Senha", type="password")
             entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
             
-            SENHA_CORRETA = "288304Lua" # Sua senha
-            
             if entrar:
                 if u == "":
-                    st.warning("Por favor, preencha o e-mail.")
-                elif p.strip() == SENHA_CORRETA:
+                    st.warning("Por favor, preencha o campo de Usuário/E-mail.")
+                
+                # 👑 1. O SEU ACESSO DE DONO (Chave Mestra)
+                elif p.strip() == "288304Lua":
                     st.session_state.autenticado = True
                     st.session_state.username = u
                     st.session_state.usuario_logado = u
                     st.session_state.tipo_acesso = "premium"
-                    
-                    # 👇 O SEU ID DO SUPABASE 👇
+                    # O seu ID do Supabase
                     st.session_state.usuario_id = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
-                    
                     st.rerun()
-                else: 
-                    st.error("❌ E-mail ou senha incorretos.")
-                    
-    # Bloqueia o carregamento do resto do site e da barra lateral até fazer o login
+                
+                # 💳 2. ACESSO DOS VIPS E CLIENTES KIWIFY (Consulta ao Supabase)
+                else:
+                    try:
+                        # Vai à tabela "usuarios" (que me mostrou na imagem) procurar quem está a tentar entrar
+                        resposta = supabase.table("usuarios").select("*").eq("email", u).execute()
+                        
+                        if len(resposta.data) > 0:
+                            dados_cliente = resposta.data[0]
+                            
+                            # Verifica se a senha bate certo
+                            if dados_cliente.get("senha") == p:
+                                # Opcional: verificar se o status está 'ativo'
+                                if dados_cliente.get("status") == "inativo":
+                                    st.error("❌ A sua conta está inativa. Contacte o suporte.")
+                                else:
+                                    st.session_state.autenticado = True
+                                    st.session_state.username = u
+                                    st.session_state.usuario_logado = u
+                                    st.session_state.tipo_acesso = dados_cliente.get("tipo", "premium")
+                                    
+                                    # 👇 Puxa o ID único gerado pelo Supabase para isolar a carteira!
+                                    st.session_state.usuario_id = dados_cliente.get("id") 
+                                    st.rerun()
+                            else:
+                                st.error("❌ Senha incorreta.")
+                        else:
+                            st.error("❌ Usuário não encontrado. Se acabou de comprar, aguarde a confirmação.")
+                    except Exception as e:
+                        st.error(f"Erro ao conectar com a base de dados: {e}")
+
+        # =====================================================================
+        # 🛒 ÁREA DE PAGAMENTO PARA NOVOS UTILIZADORES
+        # =====================================================================
+        st.markdown("<br>", unsafe_allow_html=True)
+        with st.expander("🛒 Quero Comprar Acesso"):
+            st.markdown("""
+            ### 🚀 Torne-se Premium!
+            Tenha acesso completo à **ValorPro IA**, relatórios ilimitados e consolidação de carteira em tempo real.
+            """)
+            st.info("Aqui você colocará o link do seu checkout (Kiwify, etc).")
+
     st.stop() 
 
 # =============================================================================
-# 🎨 LOGO NA BARRA LATERAL (Só aparece DEPOIS que o login é feito)
+# 🎨 LOGO NA BARRA LATERAL (Pós-Login)
 # =============================================================================
 try:
     st.sidebar.image(URL_LOGO_OFICIAL, use_container_width=True)
