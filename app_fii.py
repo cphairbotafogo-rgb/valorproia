@@ -57,22 +57,27 @@ except Exception as e:
 # 4. FUNÇÃO DE VERIFICAÇÃO DE ACESSO
 # =============================================================================
 try:
-    EMAIL_ADMIN = st.secrets["ADMIN_EMAIL"]
-    SENHA_ADMIN = st.secrets["ADMIN_PASSWORD"]
+    # O .strip() e .lower() garantem que não há espaços a mais nem letras maiúsculas a atrapalhar
+    EMAIL_ADMIN = st.secrets["ADMIN_EMAIL"].strip().lower()
+    SENHA_ADMIN = st.secrets["ADMIN_PASSWORD"].strip()
 except KeyError:
     st.error("🚨 Credenciais de administrador ausentes no secrets.toml")
     st.stop()
     
-ID_ADMIN = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b" # Pode manter exposto, é apenas um identificador
+ID_ADMIN = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b" 
 
 def verificar_acesso(dados: dict) -> tuple:
-    email      = dados.get("e-mail", "")
+    email      = dados.get("e-mail", "").strip().lower()
     status     = dados.get("status", "inativo")
     exp_str    = dados.get("expiracao")
 
+    # Se for o e-mail do dono, passa direto!
     if email == EMAIL_ADMIN:
         return True, "admin"
 
+    if status != "ativo":
+        return False, "inativo"
+    
     if status != "ativo":
         return False, "inativo"
 
