@@ -7,3 +7,4 @@ google-generativeai
 yfinance
 supabase
 fpdf2
+Werkzeug
