@@ -118,18 +118,43 @@ if not st.session_state.autenticado:
                 else:
                     st.error("Erro interno: Conexão com o banco falhou.")
 
-        # =====================================================================
+       # =====================================================================
         # 🛒 ÁREA DE PAGAMENTO PARA NOVOS UTILIZADORES
         # =====================================================================
         st.markdown("<br>", unsafe_allow_html=True)
-        with st.expander("🛒 Quero Comprar Acesso"):
+        with st.expander("🛒 Quero Comprar Acesso", expanded=True):
             st.markdown("""
-            ### 🚀 Torne-se Premium!
+            ### 🚀 Escolha o seu plano Premium!
             Tenha acesso completo à **ValorPro IA**, relatórios ilimitados e consolidação de carteira em tempo real.
             """)
-            st.link_button("💳 Comprar Agora", "https://sua-url-da-kiwify.com", use_container_width=True)
+            
+            st.markdown("---")
+            
+            # Divide a tela em 3 colunas para os planos
+            col_plan1, col_plan2, col_plan3 = st.columns(3)
+            
+            with col_plan1:
+                st.markdown("<h4 style='text-align: center; color: #94a3b8;'>Plano Mensal</h4>", unsafe_allow_html=True)
+                st.markdown("<h2 style='text-align: center; color: #f8fafc;'>R$ 29,90</h2>", unsafe_allow_html=True)
+                st.markdown("<p style='text-align: center; font-size: 13px; color: #94a3b8;'>Acesso por 30 dias.</p>", unsafe_allow_html=True)
+                # 👇 Coloque o link Kiwify do plano MENSAL aqui
+                st.link_button("💳 Assinar Mensal", "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
+                
+            with col_plan2:
+                st.markdown("<h4 style='text-align: center; color: #3b82f6;'>Plano Trimestral</h4>", unsafe_allow_html=True)
+                st.markdown("<h2 style='text-align: center; color: #3b82f6;'>R$ 69,90</h2>", unsafe_allow_html=True)
+                st.markdown("<p style='text-align: center; font-size: 13px; color: #94a3b8;'>Apenas R$ 23,30 por mês.</p>", unsafe_allow_html=True)
+                # 👇 Coloque o link Kiwify do plano TRIMESTRAL aqui
+                st.link_button("💳 Assinar Trimestral", "https://pay.kiwify.com.br/HkrQfua", use_container_width=True)
+                
+            with col_plan3:
+                st.markdown("<h4 style='text-align: center; color: #10b981;'>Plano Anual 🔥</h4>", unsafe_allow_html=True)
+                st.markdown("<h2 style='text-align: center; color: #10b981;'>R$ 197,00</h2>", unsafe_allow_html=True)
+                st.markdown("<p style='text-align: center; font-size: 13px; color: #94a3b8;'>O mais vantajoso! (R$ 16,41/mês)</p>", unsafe_allow_html=True)
+                # 👇 Coloque o link Kiwify do plano ANUAL aqui
+                st.link_button("💳 Assinar Anual", "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
 
-    st.stop() 
+    st.stop()
 
 # =============================================================================
 # 🎨 LOGO NA BARRA LATERAL (Aparece Pós-Login)
