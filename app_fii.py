@@ -123,7 +123,7 @@ def verificar_acesso(dados: dict) -> tuple:
     return False, "inativo"
 
 # =============================================================================
-# 6. TELA DE LOGIN
+# 6. TELA DE LOGIN E CADASTRO
 # =============================================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado    = False
@@ -161,83 +161,119 @@ if not st.session_state.autenticado:
         """, unsafe_allow_html=True)
         # ─────────────────────────────────────────────────────────────
 
-        with st.form("login_form"):
-            email_input = st.text_input("E-mail")
-            u = email_input.strip().lower() if email_input else ""
-            p = st.text_input("Senha", type="password")
-            entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
+        # CRIANDO AS DUAS ABAS: LOGIN E CADASTRO
+        tab_login, tab_cadastro = st.tabs(["🔑 Entrar no Sistema", "✨ Criar Conta Grátis (3 Dias)"])
 
-            if entrar:
-                if not u:
-                    st.warning("Preencha o e-mail.")
-                elif u == EMAIL_ADMIN and p == SENHA_ADMIN:
-                    st.session_state.autenticado    = True
-                    st.session_state.usuario_logado = u
-                    st.session_state.usuario_id     = ID_ADMIN
-                    st.session_state.tipo_acesso    = "premium"
-                    st.session_state.horas_trial    = 0
-                    st.rerun()
-                else:
-                    try:
-                        resp = supabase.table("usuarios").select("*").eq("e-mail", u).execute()
-                        if resp.data:
-                            dados       = resp.data[0]
-                            senha_banco = dados.get("senha")
+        # ==========================================
+        # ABA 1: O LOGIN NORMAL QUE VOCÊ JÁ TINHA
+        # ==========================================
+        with tab_login:
+            with st.form("login_form"):
+                email_input = st.text_input("E-mail")
+                u = email_input.strip().lower() if email_input else ""
+                p = st.text_input("Senha", type="password")
+                entrar = st.form_submit_button("Entrar no Sistema", use_container_width=True)
 
-                            if check_password_hash(senha_banco, p) or senha_banco == p:
-                                tem_acesso, motivo = verificar_acesso(dados)
+                if entrar:
+                    if not u:
+                        st.warning("Preencha o e-mail.")
+                    elif u == EMAIL_ADMIN and p == SENHA_ADMIN:
+                        st.session_state.autenticado    = True
+                        st.session_state.usuario_logado = u
+                        st.session_state.usuario_id     = ID_ADMIN
+                        st.session_state.tipo_acesso    = "premium"
+                        st.session_state.horas_trial    = 0
+                        st.rerun()
+                    else:
+                        try:
+                            resp = supabase.table("usuarios").select("*").eq("e-mail", u).execute()
+                            if resp.data:
+                                dados       = resp.data[0]
+                                senha_banco = dados.get("senha")
 
-                                if tem_acesso:
-                                    if motivo.startswith("trial:"):
-                                        horas = int(motivo.split(":")[1])
-                                        st.session_state.tipo_acesso = "trial"
-                                        st.session_state.horas_trial = horas
+                                if check_password_hash(senha_banco, p) or senha_banco == p:
+                                    tem_acesso, motivo = verificar_acesso(dados)
+
+                                    if tem_acesso:
+                                        if motivo.startswith("trial:"):
+                                            horas = int(motivo.split(":")[1])
+                                            st.session_state.tipo_acesso = "trial"
+                                            st.session_state.horas_trial = horas
+                                        else:
+                                            st.session_state.tipo_acesso = "premium" if motivo in ["premium", "admin"] else "trial"
+                                            st.session_state.horas_trial = 0
+
+                                        st.session_state.autenticado    = True
+                                        st.session_state.usuario_logado = u
+                                        st.session_state.usuario_id     = dados.get("id")
+                                        st.rerun()
+
+                                    elif motivo == "trial_expirado":
+                                        st.error("⌛ Seu período de teste de 3 dias encerrou.")
+                                        st.markdown("### 🚀 Gostou? Assine agora e continue investindo com inteligência!")
+                                        cp1, cp2, cp3 = st.columns(3)
+                                        with cp1: st.link_button("💳 Mensal R$29,90",     "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
+                                        with cp2: st.link_button("💳 Trimestral R$69,90", "https://pay.kiwify.com.br/HkrQfua", use_container_width=True)
+                                        with cp3: st.link_button("🔥 Anual R$197,00",     "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
+                                    elif motivo == "expirado":
+                                        st.error("⏰ Seu acesso expirou. Renove o plano para continuar.")
+                                        st.link_button("🔄 Renovar Acesso", "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
+                                    elif motivo == "inativo":
+                                        st.error("❌ Conta inativa. Entre em contato com o suporte.")
                                     else:
-                                        st.session_state.tipo_acesso = "premium" if motivo in ["premium", "admin"] else "trial"
-                                        st.session_state.horas_trial = 0
-
-                                    st.session_state.autenticado    = True
-                                    st.session_state.usuario_logado = u
-                                    st.session_state.usuario_id     = dados.get("id")
-                                    st.rerun()
-
-                                elif motivo == "trial_expirado":
-                                    st.error("⌛ Seu período de teste de 3 dias encerrou.")
-                                    st.markdown("### 🚀 Gostou? Assine agora e continue investindo com inteligência!")
-                                    cp1, cp2, cp3 = st.columns(3)
-                                    with cp1:
-                                        st.link_button("💳 Mensal R$29,90",     "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
-                                    with cp2:
-                                        st.link_button("💳 Trimestral R$69,90", "https://pay.kiwify.com.br/HkrQfua", use_container_width=True)
-                                    with cp3:
-                                        st.link_button("🔥 Anual R$197,00",     "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
-
-                                elif motivo == "expirado":
-                                    st.error("⏰ Seu acesso expirou. Renove o plano para continuar.")
-                                    st.link_button("🔄 Renovar Acesso", "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
-
-                                elif motivo == "inativo":
-                                    st.error("❌ Conta inativa. Entre em contato com o suporte.")
-                                else:
-                                    st.error("❌ Problema ao verificar o acesso.")
+                                        st.error("❌ Problema ao verificar o acesso.")
                             else:
-                                st.error("❌ Senha incorreta.")
-                        else:
-                            st.error("❌ E-mail não encontrado.")
-                    except Exception as e:
-                        st.error(f"🚨 Erro de conexão com o banco de dados: {e}")
+                                st.error("❌ E-mail não encontrado.")
+                        except Exception as e:
+                            st.error(f"🚨 Erro de conexão com o banco de dados: {e}")
 
-        st.markdown("""
-        <div style="text-align:center; margin: 8px 0 4px 0;">
-            <span style="font-size:13px; color:#94a3b8;">
-                Ainda não tem conta? 
-                <strong style="color:#10b981;">Cadastre-se e ganhe 3 dias grátis</strong> — sem cartão de crédito.
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
+        # ==========================================
+        # ABA 2: O NOVO CADASTRO DE 3 DIAS (SELF-SERVICE)
+        # ==========================================
+        with tab_cadastro:
+            st.markdown("### Comece seu teste gratuito agora!")
+            st.write("Sem cartão de crédito. Liberação imediata.")
+            
+            with st.form("form_novo_usuario"):
+                novo_nome = st.text_input("Seu Nome")
+                novo_email = st.text_input("Seu melhor E-mail")
+                nova_senha = st.text_input("Crie uma Senha", type="password")
+                
+                btn_cadastrar = st.form_submit_button("🚀 Criar Minha Conta Grátis", type="primary")
+                
+                if btn_cadastrar:
+                    if not novo_email or not nova_senha or not novo_nome:
+                        st.error("⚠️ Por favor, preencha todos os campos!")
+                    else:
+                        try:
+                            # 1. Verifica se o e-mail já existe no banco
+                            resposta = supabase.table("usuarios").select("id").eq("e-mail", novo_email.strip().lower()).execute()
+                            
+                            if len(resposta.data) > 0:
+                                st.warning("❌ Este e-mail já está cadastrado. Vá na aba 'Entrar no Sistema'!")
+                            else:
+                                # 2. Calcula a data de hoje + 3 dias
+                                hoje = datetime.now()
+                                data_expiracao = (hoje + timedelta(days=3)).strftime("%Y-%m-%d")
+                                
+                                # 3. Salva o cliente no Supabase como TRIAL
+                                novo_usuario = {
+                                    "nome": novo_nome.strip(),
+                                    "e-mail": novo_email.strip().lower(),
+                                    "senha": nova_senha, 
+                                    "status": "ativo",
+                                    "tipo": "trial",
+                                    "expiracao": data_expiracao
+                                }
+                                
+                                supabase.table("usuarios").insert(novo_usuario).execute()
+                                st.success(f"✅ Parabéns, {novo_nome}! Sua conta foi criada com sucesso.")
+                                st.info("👈 Agora é só clicar na aba 'Entrar no Sistema' e fazer o login com o e-mail e senha que você acabou de criar!")
+                        except Exception as e:
+                            st.error(f"Erro ao criar conta: {e}")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        with st.expander("🛒 Quero Comprar Acesso", expanded=True):
+        with st.expander("🛒 Quero Comprar Acesso Completo", expanded=False):
             st.markdown("### 🚀 Escolha o seu plano Premium!")
             st.markdown("---")
             col_plan1, col_plan2, col_plan3 = st.columns(3)
