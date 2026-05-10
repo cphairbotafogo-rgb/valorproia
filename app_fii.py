@@ -142,6 +142,25 @@ if not st.session_state.autenticado:
         except Exception:
             st.markdown("### 🏦 ValorPro IA")
 
+        # ── Banner de trial gratuito ──────────────────────────────────
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, #065f46, #047857);
+            border: 1px solid #10b981;
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: center;
+            margin-bottom: 16px;
+        ">
+            <div style="font-size:22px; margin-bottom:4px;">🎁 Teste Grátis por 3 Dias!</div>
+            <div style="color:#d1fae5; font-size:14px; line-height:1.5;">
+                Crie sua conta e tenha acesso completo à plataforma por <strong style="color:#ffffff;">72 horas sem pagar nada</strong>.<br>
+                Carteira, FIIs, Ações, Cripto, Radar, Simuladores e muito mais.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        # ─────────────────────────────────────────────────────────────
+
         with st.form("login_form"):
             email_input = st.text_input("E-mail")
             u = email_input.strip().lower() if email_input else ""
@@ -207,6 +226,15 @@ if not st.session_state.autenticado:
                             st.error("❌ E-mail não encontrado.")
                     except Exception as e:
                         st.error(f"🚨 Erro de conexão com o banco de dados: {e}")
+
+        st.markdown("""
+        <div style="text-align:center; margin: 8px 0 4px 0;">
+            <span style="font-size:13px; color:#94a3b8;">
+                Ainda não tem conta? 
+                <strong style="color:#10b981;">Cadastre-se e ganhe 3 dias grátis</strong> — sem cartão de crédito.
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         with st.expander("🛒 Quero Comprar Acesso", expanded=True):
