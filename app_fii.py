@@ -702,7 +702,7 @@ with st.sidebar:
         st.session_state.df_geral = carregar_dados_nuvem()
         st.rerun()
 
-    st.divider()
+st.divider()
     st.markdown("### 🛒 Lançar Operação")
     classe_ativo = st.selectbox("Classe:", ["Bolsa (Ações/FIIs)", "Renda Fixa (CDB/Tesouro)", "Criptomoedas", "Exterior (EUA)"])
     tipo         = st.radio("Tipo:", ["Compra", "Venda"], horizontal=True)
@@ -720,15 +720,31 @@ with st.sidebar:
     else:
         t_in = st.text_input("Nome (Ex: CDB Bradesco):").upper().strip()
 
+    # ✨ NOVIDADE: O cliente escolhe como quer preencher!
+    metodo_preco = st.radio("Formato do Preço:", ["Valor Total Gasto", "Preço Unitário"], horizontal=True)
+
     col_q, col_p = st.columns(2)
     with col_q:
         if classe_ativo in ["Criptomoedas", "Exterior (EUA)"]:
             q_in = st.number_input("Qtd:", min_value=0.00000001, step=0.01, format="%.8f")
         else:
             q_in = st.number_input("Qtd:", min_value=1.0, step=1.0)
+            
     with col_p:
-        p_label = "Preço Pago (em R$):" if classe_ativo == "Exterior (EUA)" else "Preço Unitário:"
-        p_in    = st.number_input(p_label, min_value=0.0, step=0.01, format="%.2f")
+        if metodo_preco == "Preço Unitário":
+            p_label = "Preço Pago (em R$):" if classe_ativo == "Exterior (EUA)" else "Preço Unitário:"
+            p_in_visual = st.number_input(p_label, min_value=0.0, step=0.01, format="%.2f")
+            p_in = p_in_visual # O sistema usa exatamente o que o cliente digitou
+        else:
+            p_label = "Total Gasto (R$):"
+            valor_total = st.number_input(p_label, min_value=0.0, step=10.0, format="%.2f")
+            
+            # 🤖 A IA FAZ A MATEMÁTICA ESCONDIDA AQUI
+            p_in = (valor_total / q_in) if q_in > 0 else 0.0
+            
+            # Mostra uma dica pequenina para o cliente ver o preço real da moeda
+            if q_in > 0 and valor_total > 0:
+                st.caption(f"*(O sistema calculou R$ {p_in:,.2f} por unidade)*")
 
     st.write("")
     if st.button("💾 Salvar na Nuvem", use_container_width=True):
@@ -740,7 +756,7 @@ with st.sidebar:
                     "ticker":         t_in.upper(),
                     "tipo":           tipo,
                     "quantidade":     float(q_f),
-                    "preco_unitario": float(p_in),
+                    "preco_unitario": float(p_in), # Salva o preço da unidade certinho no banco!
                     "data_operacao":  data_op.strftime('%Y-%m-%d')
                 }
                 try:
