@@ -702,7 +702,7 @@ with st.sidebar:
         st.session_state.df_geral = carregar_dados_nuvem()
         st.rerun()
 
-st.divider()
+    st.divider()
     st.markdown("### 🛒 Lançar Operação")
     classe_ativo = st.selectbox("Classe:", ["Bolsa (Ações/FIIs)", "Renda Fixa (CDB/Tesouro)", "Criptomoedas", "Exterior (EUA)"])
     tipo         = st.radio("Tipo:", ["Compra", "Venda"], horizontal=True)
