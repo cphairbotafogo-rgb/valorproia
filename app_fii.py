@@ -6,8 +6,8 @@ import json
 import time
 import math
 import base64
-import logging # NOVO: Para registrar erros sem quebrar o app
-from datetime import datetime, date
+import logging
+from datetime import datetime, date, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import streamlit as st
@@ -18,8 +18,7 @@ import plotly.graph_objects as go
 import google.generativeai as genai
 import yfinance as yf
 
-# NOVO: Importação para verificar senhas criptografadas
-from werkzeug.security import check_password_hash 
+from werkzeug.security import check_password_hash
 
 from banco import *
 from motor import *
@@ -43,10 +42,10 @@ st.set_page_config(
 )
 
 # =============================================================================
-# 3. CONEXÃO COM O SUPABASE (AGORA SEGURO)
+# 3. CONEXÃO COM O SUPABASE
 # =============================================================================
 try:
-    URL_SUPABASE  = st.secrets["SUPABASE_URL"]
+    URL_SUPABASE   = st.secrets["SUPABASE_URL"]
     CHAVE_SUPABASE = st.secrets["SUPABASE_KEY"]
     supabase: Client = create_client(URL_SUPABASE, CHAVE_SUPABASE)
 except Exception as e:
@@ -54,56 +53,84 @@ except Exception as e:
     st.stop()
 
 # =============================================================================
-# 4. FUNÇÃO DE VERIFICAÇÃO DE ACESSO
+# 4. CREDENCIAIS ADMIN
 # =============================================================================
 try:
-    # O .strip() e .lower() garantem que não há espaços a mais nem letras maiúsculas a atrapalhar
     EMAIL_ADMIN = st.secrets["ADMIN_EMAIL"].strip().lower()
     SENHA_ADMIN = st.secrets["ADMIN_PASSWORD"].strip()
 except KeyError:
     st.error("🚨 Credenciais de administrador ausentes no secrets.toml")
     st.stop()
-    
-ID_ADMIN = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b" 
 
+ID_ADMIN = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
+
+# =============================================================================
+# 5. FUNÇÃO DE VERIFICAÇÃO DE ACESSO (COM TRIAL DE 3 DIAS)
+# =============================================================================
 def verificar_acesso(dados: dict) -> tuple:
-    email      = dados.get("e-mail", "").strip().lower()
-    status     = dados.get("status", "inativo")
-    exp_str    = dados.get("expiracao")
+    email       = dados.get("e-mail", "").strip().lower()
+    status      = dados.get("status", "inativo")
+    exp_str     = dados.get("expiracao")
+    trial_inicio = dados.get("trial_inicio")
+    trial_usado  = dados.get("trial_usado", False)
 
-    # Se for o e-mail do dono, passa direto!
+    # Admin passa direto
     if email == EMAIL_ADMIN:
         return True, "admin"
 
-    if status != "ativo":
-        return False, "inativo"
-    
-    if status != "ativo":
-        return False, "inativo"
+    # Usuário com assinatura ativa
+    if status == "ativo":
+        if exp_str:
+            try:
+                exp = date.fromisoformat(str(exp_str))
+                if exp < date.today():
+                    try:
+                        supabase.table("usuarios").update({"status": "inativo"}).eq("e-mail", email).execute()
+                    except Exception as e:
+                        logging.error(f"Erro ao inativar expirado ({email}): {e}")
+                    return False, "expirado"
+            except Exception as e:
+                logging.error(f"Data inválida para {email}: {e}")
+                return False, "data_invalida"
+        return True, "premium"
 
-    if exp_str:
+    # Nunca usou trial → ativar agora
+    if not trial_inicio and not trial_usado:
+        agora = datetime.utcnow().isoformat()
         try:
-            exp = date.fromisoformat(str(exp_str))
-            if exp < date.today():
-                try:
-                    supabase.table("usuarios").update({"status": "inativo"}).eq("e-mail", email).execute()
-                except Exception as e:
-                    logging.error(f"Erro ao inativar usuário expirado ({email}): {e}")
-                return False, "expirado"
+            supabase.table("usuarios").update({
+                "trial_inicio": agora,
+                "trial_usado":  True
+            }).eq("e-mail", email).execute()
         except Exception as e:
-            logging.error(f"Data de expiração inválida para {email}: {e}")
-            return False, "data_invalida"
+            logging.error(f"Erro ao ativar trial ({email}): {e}")
+        return True, "trial:72"
 
-    return True, "premium"
+    # Já usou trial → verificar validade
+    if trial_inicio and trial_usado:
+        try:
+            inicio    = datetime.fromisoformat(str(trial_inicio).replace("Z", ""))
+            fim_trial = inicio + timedelta(days=3)
+            if datetime.utcnow() < fim_trial:
+                horas_restantes = int((fim_trial - datetime.utcnow()).total_seconds() / 3600)
+                return True, f"trial:{horas_restantes}"
+            else:
+                return False, "trial_expirado"
+        except Exception as e:
+            logging.error(f"Erro ao calcular trial ({email}): {e}")
+            return False, "trial_expirado"
+
+    return False, "inativo"
 
 # =============================================================================
-# 5. TELA DE LOGIN (COM HASH DE SENHA)
+# 6. TELA DE LOGIN
 # =============================================================================
 if "autenticado" not in st.session_state:
-    st.session_state.autenticado  = False
+    st.session_state.autenticado    = False
     st.session_state.usuario_logado = ""
-    st.session_state.usuario_id   = ""
-    st.session_state.tipo_acesso  = ""
+    st.session_state.usuario_id     = ""
+    st.session_state.tipo_acesso    = ""
+    st.session_state.horas_trial    = 0
 
 if not st.session_state.autenticado:
     st.markdown("<br>", unsafe_allow_html=True)
@@ -129,27 +156,47 @@ if not st.session_state.autenticado:
                     st.session_state.usuario_logado = u
                     st.session_state.usuario_id     = ID_ADMIN
                     st.session_state.tipo_acesso    = "premium"
+                    st.session_state.horas_trial    = 0
                     st.rerun()
                 else:
                     try:
-                        # Busca apenas pelo e-mail
                         resp = supabase.table("usuarios").select("*").eq("e-mail", u).execute()
                         if resp.data:
-                            dados = resp.data[0]
+                            dados       = resp.data[0]
                             senha_banco = dados.get("senha")
-                            
-                            # Verifica hash ou fallback para texto plano
+
                             if check_password_hash(senha_banco, p) or senha_banco == p:
                                 tem_acesso, motivo = verificar_acesso(dados)
+
                                 if tem_acesso:
+                                    if motivo.startswith("trial:"):
+                                        horas = int(motivo.split(":")[1])
+                                        st.session_state.tipo_acesso = "trial"
+                                        st.session_state.horas_trial = horas
+                                    else:
+                                        st.session_state.tipo_acesso = "premium" if motivo in ["premium", "admin"] else "trial"
+                                        st.session_state.horas_trial = 0
+
                                     st.session_state.autenticado    = True
                                     st.session_state.usuario_logado = u
                                     st.session_state.usuario_id     = dados.get("id")
-                                    st.session_state.tipo_acesso    = dados.get("tipo", "premium")
                                     st.rerun()
+
+                                elif motivo == "trial_expirado":
+                                    st.error("⌛ Seu período de teste de 3 dias encerrou.")
+                                    st.markdown("### 🚀 Gostou? Assine agora e continue investindo com inteligência!")
+                                    cp1, cp2, cp3 = st.columns(3)
+                                    with cp1:
+                                        st.link_button("💳 Mensal R$29,90",     "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
+                                    with cp2:
+                                        st.link_button("💳 Trimestral R$69,90", "https://pay.kiwify.com.br/HkrQfua", use_container_width=True)
+                                    with cp3:
+                                        st.link_button("🔥 Anual R$197,00",     "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
+
                                 elif motivo == "expirado":
                                     st.error("⏰ Seu acesso expirou. Renove o plano para continuar.")
                                     st.link_button("🔄 Renovar Acesso", "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
+
                                 elif motivo == "inativo":
                                     st.error("❌ Conta inativa. Entre em contato com o suporte.")
                                 else:
@@ -161,7 +208,6 @@ if not st.session_state.autenticado:
                     except Exception as e:
                         st.error(f"🚨 Erro de conexão com o banco de dados: {e}")
 
-        # Área de compra de planos
         st.markdown("<br>", unsafe_allow_html=True)
         with st.expander("🛒 Quero Comprar Acesso", expanded=True):
             st.markdown("### 🚀 Escolha o seu plano Premium!")
@@ -189,7 +235,43 @@ if not st.session_state.autenticado:
     st.stop()
 
 # =============================================================================
-# 6. LOGO NA SIDEBAR (pós-login)
+# 7. BANNER DE TRIAL (pós-login, se estiver no período de teste)
+# =============================================================================
+if st.session_state.get("tipo_acesso") == "trial":
+    horas = st.session_state.get("horas_trial", 0)
+    st.warning(
+        f"⏳ **Período de Teste Ativo** — Você tem aproximadamente **{horas}h restantes** de acesso gratuito. "
+        f"As abas **ValorPro IA**, **IR** e **Metas** estão bloqueadas no trial."
+    )
+    ct1, ct2, ct3 = st.columns(3)
+    with ct1: st.link_button("💳 Assinar Mensal R$29,90",     "https://pay.kiwify.com.br/TZUz54c", use_container_width=True)
+    with ct2: st.link_button("💳 Trimestral R$69,90",         "https://pay.kiwify.com.br/HkrQfua", use_container_width=True)
+    with ct3: st.link_button("🔥 Anual R$197,00",             "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
+    st.divider()
+
+# =============================================================================
+# 8. HELPER: BLOQUEAR ABA NO TRIAL
+# =============================================================================
+def checar_trial_bloqueio(nome_funcionalidade: str):
+    """Chame na primeira linha de cada aba bloqueada no trial."""
+    if st.session_state.get("tipo_acesso") == "trial":
+        st.markdown(f"""
+        <div style="text-align:center;padding:40px;border:2px dashed #f59e0b;
+             border-radius:15px;background-color:rgba(245,158,11,0.05);">
+            <h2 style="color:#f59e0b;">🔒 {nome_funcionalidade}</h2>
+            <p style="font-size:18px;">Esta funcionalidade está bloqueada durante o período de teste.<br>
+            Assine um plano para liberar acesso completo.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.write("")
+        cb1, cb2, cb3 = st.columns(3)
+        with cb1: st.link_button("💳 Mensal R$29,90",     "https://pay.kiwify.com.br/TZUz54c", use_container_width=True, type="primary")
+        with cb2: st.link_button("💳 Trimestral R$69,90", "https://pay.kiwify.com.br/HkrQfua", use_container_width=True)
+        with cb3: st.link_button("🔥 Anual R$197,00",     "https://pay.kiwify.com.br/ux4MJHh", use_container_width=True)
+        st.stop()
+
+# =============================================================================
+# 9. LOGO NA SIDEBAR (pós-login)
 # =============================================================================
 try:
     st.sidebar.image(URL_LOGO_OFICIAL, use_container_width=True)
@@ -197,19 +279,19 @@ except Exception:
     st.sidebar.markdown("🏦 **VALOR PRO IA**")
 
 # =============================================================================
-# 7. ARQUIVOS POR USUÁRIO
+# 10. ARQUIVOS POR USUÁRIO
 # =============================================================================
 user_id       = st.session_state.get("usuario_logado", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
 
-DB_FILE        = f"investimentos_{user_id_clean}.csv"
-SNAPSHOT_FILE  = f"history_{user_id_clean}.csv"
-PROVENTOS_FILE = f"proventos_{user_id_clean}.csv"
-DB_METAS       = f"metas_financeiras_{user_id_clean}.csv"
+DB_FILE         = f"investimentos_{user_id_clean}.csv"
+SNAPSHOT_FILE   = f"history_{user_id_clean}.csv"
+PROVENTOS_FILE  = f"proventos_{user_id_clean}.csv"
+DB_METAS        = f"metas_financeiras_{user_id_clean}.csv"
 DIVIDENDOS_FILE = f"dividendos_{user_id_clean}.csv"
 
 # =============================================================================
-# 8. CONFIGURAÇÃO DA IA (GEMINI)
+# 11. CONFIGURAÇÃO DA IA (GEMINI)
 # =============================================================================
 CHAVE_API_GOOGLE = st.secrets.get("GEMINI_CHAVE", "")
 ia_pronta = False
@@ -228,7 +310,7 @@ if CHAVE_API_GOOGLE:
         ia_pronta = False
 
 # =============================================================================
-# 9. FUNÇÕES UTILITÁRIAS
+# 12. FUNÇÕES UTILITÁRIAS
 # =============================================================================
 def _safe_float(val, default=0.0):
     try:
@@ -279,7 +361,7 @@ def formatar_delta(valor, is_percent=False):
         return "-"
 
 # =============================================================================
-# 10. MOTOR DE BUSCA: YFINANCE + BINANCE + FUNDAMENTUS
+# 13. MOTOR DE BUSCA: YFINANCE + BINANCE + FUNDAMENTUS
 # =============================================================================
 def _yf_fetch_full(ticker: str):
     try:
@@ -329,7 +411,7 @@ def _motor_fundamentos_br(ticker, is_fii):
             if not divs.empty: rend = float(divs.iloc[-1])
         except Exception as e:
             logging.warning(f"Yahoo Finance falhou ao buscar dividendos para {ticker}: {e}")
-            
+
         if rend == 0.0:
             try:
                 r_si = requests.get(
@@ -362,7 +444,7 @@ def buscar_mercado(ticker: str, categoria_sugerida: str = None):
             r_bin = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol_binance}", timeout=4)
             if r_bin.status_code == 200:
                 data = r_bin.json()
-                preco       = _safe_float(data.get("lastPrice"))
+                preco        = _safe_float(data.get("lastPrice"))
                 variacao_dia = _safe_float(data.get("priceChangePercent"))
         except Exception:
             pass
@@ -413,7 +495,7 @@ def buscar_multiplos(itens):
     return resultados
 
 # =============================================================================
-# 11. BLOQUEIO PREMIUM
+# 14. BLOQUEIO PREMIUM (assinante)
 # =============================================================================
 def exibir_bloqueio_premium(funcionalidade):
     st.markdown(f"""
@@ -427,7 +509,7 @@ def exibir_bloqueio_premium(funcionalidade):
     st.stop()
 
 # =============================================================================
-# 12. DESIGN E CSS
+# 15. DESIGN E CSS
 # =============================================================================
 st.markdown("""
 <style>
@@ -445,7 +527,7 @@ div[data-testid="metric-container"] [data-testid="stMetricDelta"] { font-family:
 """, unsafe_allow_html=True)
 
 # =============================================================================
-# 13. LISTAS DE ATIVOS
+# 16. LISTAS DE ATIVOS
 # =============================================================================
 TOP_20_FII   = ["MXRF11","HGLG11","XPML11","BTLG11","VISC11","KNIP11","KNCR11","XPLG11","HGRU11","CPTS11","IRDM11","HGBS11","ALZR11","TRXF11","VGHF11","KNSC11","VGIR11","RBRR11","MCCI11","KNRI11"]
 TOP_20_ACOES = ["PETR4","VALE3","ITUB4","BBDC4","BBAS3","B3SA3","ABEV3","WEGE3","RENT3","SUZB3","ELET3","RADL3","JBSS3","EQTL3","SBSP3","EMBR3","RAIL3","PRIO3","HAPV3","BBSE3"]
@@ -470,7 +552,7 @@ LISTA_COMPLETA_B3 = sorted(list(set(
 )))
 
 # =============================================================================
-# 14. CARREGAR DADOS DA NUVEM
+# 17. CARREGAR DADOS DA NUVEM
 # =============================================================================
 def carregar_dados_nuvem():
     if not st.session_state.get("usuario_id"):
@@ -511,10 +593,20 @@ if "df_geral" not in st.session_state:
 df_geral = st.session_state.df_geral
 
 # =============================================================================
-# 15. SIDEBAR
+# 18. SIDEBAR
 # =============================================================================
 with st.sidebar:
     st.markdown(f"### 👤 {st.session_state.usuario_logado}")
+
+    # Badge de tipo de acesso
+    tipo_acesso = st.session_state.get("tipo_acesso", "")
+    if tipo_acesso == "trial":
+        horas_r = st.session_state.get("horas_trial", 0)
+        st.markdown(f"<span style='background:#f59e0b;color:#000;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;'>⏳ TRIAL — {horas_r}h restantes</span>", unsafe_allow_html=True)
+    elif tipo_acesso == "premium":
+        st.markdown("<span style='background:#10b981;color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;'>✅ PREMIUM</span>", unsafe_allow_html=True)
+
+    st.write("")
 
     with st.expander("🔐 Alterar Senha"):
         n_usr = st.text_input("Novo E-mail:", value=st.session_state.usuario_logado)
@@ -604,7 +696,7 @@ with st.sidebar:
     ibov_anual = st.number_input("Meta Ibovespa (% a.a.):", min_value=0.1, max_value=50.0, value=12.0, step=0.1) / 100
 
 # =============================================================================
-# 16. MOTOR DE CONSOLIDAÇÃO
+# 19. MOTOR DE CONSOLIDAÇÃO
 # =============================================================================
 df_g = pd.DataFrame()
 if not df_geral.empty:
@@ -661,7 +753,7 @@ if not df_geral.empty:
             pass
 
 # =============================================================================
-# 17. CABEÇALHO: LOGO + RELÓGIO
+# 20. CABEÇALHO: LOGO + RELÓGIO
 # =============================================================================
 col_logo, col_clock = st.columns([3, 1])
 
@@ -698,7 +790,7 @@ with col_clock:
     """, height=80)
 
 # =============================================================================
-# 18. ABAS PRINCIPAIS
+# 21. ABAS PRINCIPAIS
 # =============================================================================
 tabs = st.tabs([
     "🌍 Visão Global","🏢 FIIs","📈 Ações","🌎 Exterior",
@@ -722,8 +814,8 @@ with tab_glo:
 
     if moedas_sel:
         try:
-            ticker_usd  = "USDBRL=X"
-            tickers_dw  = list(set([dict_moedas[m] for m in moedas_sel] + [ticker_usd]))
+            ticker_usd   = "USDBRL=X"
+            tickers_dw   = list(set([dict_moedas[m] for m in moedas_sel] + [ticker_usd]))
             dados_brutos = yf.download(tickers_dw, period="2d", interval="15m")
 
             if isinstance(dados_brutos.columns, pd.MultiIndex):
@@ -736,11 +828,11 @@ with tab_glo:
                 for i, nome in enumerate(moedas_sel):
                     ticker = dict_moedas[nome]
                     if ticker not in dados_m.columns: continue
-                    serie  = dados_m[ticker].dropna()
-                    val    = float(serie.iloc[-1]) if not serie.empty else 0.0
+                    serie   = dados_m[ticker].dropna()
+                    val     = float(serie.iloc[-1]) if not serie.empty else 0.0
                     val_usd = 1.0
                     if ticker_usd in dados_m.columns:
-                        s_usd = dados_m[ticker_usd].dropna()
+                        s_usd   = dados_m[ticker_usd].dropna()
                         val_usd = float(s_usd.iloc[-1]) if not s_usd.empty else 1.0
                     if "-" in ticker:
                         val = val * val_usd
@@ -797,11 +889,11 @@ with tab_glo:
         col_graf1, col_graf2 = st.columns(2)
         with col_graf1:
             st.markdown("### 📊 Rentabilidade vs Indicadores")
-            total_aportado    = df_g["Custo_Pos"].sum()
-            total_mercado     = df_g["Total_Atual"].sum()
-            rent_carteira     = (total_mercado / total_aportado) - 1 if total_aportado > 0 else 0
+            total_aportado = df_g["Custo_Pos"].sum()
+            total_mercado  = df_g["Total_Atual"].sum()
+            rent_carteira  = (total_mercado / total_aportado) - 1 if total_aportado > 0 else 0
             df_comp = pd.DataFrame({
-                "Indicador":        ["Minha Carteira","CDI","B3 (Meta Ibov)"],
+                "Indicador":         ["Minha Carteira","CDI","B3 (Meta Ibov)"],
                 "Rentabilidade (%)": [rent_carteira, cdi_anual, ibov_anual]
             })
             fig_comp = px.bar(df_comp, x="Indicador", y="Rentabilidade (%)", text="Rentabilidade (%)",
@@ -1008,14 +1100,14 @@ with tab_cripto:
                                    "Total_Atual","L/P (R$)","L/P (%)","Status"]].copy()
             df_vcripto.rename(columns={"Preco_Medio":"PM (1 Moeda)","Custo_Pos":"Total Investido (R$)",
                                         "Preço":"Preço Atual","Var_Dia":"Var. Dia %","Total_Atual":"Patrimônio (R$)"}, inplace=True)
-            df_vcripto["Var. Dia %"]          = df_vcripto["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
-            df_vcripto["L/P (R$)"]            = df_vcripto["L/P (R$)"].apply(formatar_delta)
-            df_vcripto["L/P (%)"]             = df_vcripto["L/P (%)"].apply(lambda x: formatar_delta(x, True))
+            df_vcripto["Var. Dia %"]           = df_vcripto["Var. Dia %"].apply(lambda x: formatar_delta(x, True))
+            df_vcripto["L/P (R$)"]             = df_vcripto["L/P (R$)"].apply(formatar_delta)
+            df_vcripto["L/P (%)"]              = df_vcripto["L/P (%)"].apply(lambda x: formatar_delta(x, True))
             df_vcripto["Total Investido (R$)"] = df_vcripto["Total Investido (R$)"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["PM (1 Moeda)"]        = df_vcripto["PM (1 Moeda)"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["Preço Atual"]         = df_vcripto["Preço Atual"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["Patrimônio (R$)"]     = df_vcripto["Patrimônio (R$)"].apply(lambda x: f"R$ {x:,.2f}")
-            df_vcripto["Qtd"]                 = df_vcripto["Qtd"].apply(formatar_qtd)
+            df_vcripto["PM (1 Moeda)"]         = df_vcripto["PM (1 Moeda)"].apply(lambda x: f"R$ {x:,.2f}")
+            df_vcripto["Preço Atual"]          = df_vcripto["Preço Atual"].apply(lambda x: f"R$ {x:,.2f}")
+            df_vcripto["Patrimônio (R$)"]      = df_vcripto["Patrimônio (R$)"].apply(lambda x: f"R$ {x:,.2f}")
+            df_vcripto["Qtd"]                  = df_vcripto["Qtd"].apply(formatar_qtd)
             st.dataframe(df_vcripto, hide_index=True, use_container_width=True)
         else:
             st.info("Nenhuma Criptomoeda registrada.")
@@ -1091,7 +1183,7 @@ with tab_div:
                                      pd.to_numeric(df_renda["Rend"], errors="coerce")).sum()
 
     if renda_mensal_estimada > 0:
-        meses_proj  = [(datetime.now() + pd.DateOffset(months=i)).strftime("%b/%Y") for i in range(1, 13)]
+        meses_proj   = [(datetime.now() + pd.DateOffset(months=i)).strftime("%b/%Y") for i in range(1, 13)]
         valores_proj = [renda_mensal_estimada * ((1.005)**i) for i in range(13)][1:]
         df_proj = pd.DataFrame({"Mês": meses_proj, "Renda Projetada (R$)": valores_proj})
         fig_proj = px.bar(df_proj, x="Mês", y="Renda Projetada (R$)", text_auto=".2f",
@@ -1103,7 +1195,7 @@ with tab_div:
         st.info("Adicione FIIs para ativar a projeção.")
 
 # =============================================================================
-# ABA 8: REBALANCEAMENTO
+# ABA 8: REBALANCEAMENTO (LIBERADO NO TRIAL)
 # =============================================================================
 with tab_reb:
     with st.expander("ℹ️ Como usar o Rebalanceamento", expanded=False):
@@ -1125,11 +1217,11 @@ with tab_reb:
             st.error(f"⚠️ A soma deve ser 100%. Atual: {soma}%")
         else:
             if st.button("🎯 Calcular Aporte Ideal", type="primary"):
-                df_rb      = df_g.copy()
-                atual_aco  = df_rb[df_rb["Categoria"].isin(["Ação","Ações","Acao","BDR"])]["Total_Atual"].sum()
-                atual_fii  = df_rb[df_rb["Categoria"].isin(["FII","FIIs","Fiagro"])]["Total_Atual"].sum()
-                atual_rf   = df_rb[df_rb["Categoria"] == "Renda Fixa"]["Total_Atual"].sum()
-                atual_ext  = df_rb[df_rb["Categoria"] == "Exterior (EUA)"]["Total_Atual"].sum()
+                df_rb       = df_g.copy()
+                atual_aco   = df_rb[df_rb["Categoria"].isin(["Ação","Ações","Acao","BDR"])]["Total_Atual"].sum()
+                atual_fii   = df_rb[df_rb["Categoria"].isin(["FII","FIIs","Fiagro"])]["Total_Atual"].sum()
+                atual_rf    = df_rb[df_rb["Categoria"] == "Renda Fixa"]["Total_Atual"].sum()
+                atual_ext   = df_rb[df_rb["Categoria"] == "Exterior (EUA)"]["Total_Atual"].sum()
                 atual_cripto = df_rb[df_rb["Categoria"] == "Criptomoedas"]["Total_Atual"].sum()
 
                 pat_futuro  = atual_aco + atual_fii + atual_rf + atual_ext + atual_cripto + aporte
@@ -1150,11 +1242,11 @@ with tab_reb:
                 if total_falta > 0:
                     st.success("🎯 Sugestão de aporte:")
                     rca1, rca2, rca3, rca4, rca5 = st.columns(5)
-                    rca1.metric("📈 Ações",    f"R$ {(falta_aco    / total_falta) * aporte:,.2f}")
-                    rca2.metric("🏢 FIIs",     f"R$ {(falta_fii    / total_falta) * aporte:,.2f}")
-                    rca3.metric("🛡️ R. Fixa",  f"R$ {(falta_rf     / total_falta) * aporte:,.2f}")
-                    rca4.metric("🌎 EUA",      f"R$ {(falta_ext    / total_falta) * aporte:,.2f}")
-                    rca5.metric("🪙 Cripto",   f"R$ {(falta_cripto / total_falta) * aporte:,.2f}")
+                    rca1.metric("📈 Ações",   f"R$ {(falta_aco    / total_falta) * aporte:,.2f}")
+                    rca2.metric("🏢 FIIs",    f"R$ {(falta_fii    / total_falta) * aporte:,.2f}")
+                    rca3.metric("🛡️ R. Fixa", f"R$ {(falta_rf     / total_falta) * aporte:,.2f}")
+                    rca4.metric("🌎 EUA",     f"R$ {(falta_ext    / total_falta) * aporte:,.2f}")
+                    rca5.metric("🪙 Cripto",  f"R$ {(falta_cripto / total_falta) * aporte:,.2f}")
 
                     df_comp = pd.DataFrame({
                         "Classe": ["Ações","FIIs","Renda Fixa","EUA","Cripto"] * 2,
@@ -1270,9 +1362,9 @@ with tab_sim:
             if mes % 12 == 0:
                 hs_m.append(f"Ano {mes//12}"); hs_i.append(inv); hs_j.append(pat - inv)
         rc1, rc2, rc3 = st.columns(3)
-        rc1.metric("💵 Investido Total",    f"R$ {inv:,.2f}")
-        rc2.metric("📈 Juros Acumulados",   f"R$ {pat - inv:,.2f}")
-        rc3.metric("🏆 Patrimônio Final",   f"R$ {pat:,.2f}")
+        rc1.metric("💵 Investido Total",  f"R$ {inv:,.2f}")
+        rc2.metric("📈 Juros Acumulados", f"R$ {pat - inv:,.2f}")
+        rc3.metric("🏆 Patrimônio Final", f"R$ {pat:,.2f}")
         df_jc  = pd.DataFrame({"Ano": hs_m, "Investido": hs_i, "Juros": hs_j})
         fig_jc = px.bar(df_jc, x="Ano", y=["Investido","Juros"], barmode="stack",
                         color_discrete_map={"Investido":"#3b82f6","Juros":"#22c55e"})
@@ -1292,9 +1384,9 @@ with tab_sim:
     with s4:
         st.markdown("#### 🧾 Simulador de Venda e Cálculo de DARF")
         sd1, sd2, sd3 = st.columns(3)
-        with sd1: cat_venda    = st.selectbox("O que você vendeu?", ["Ações (B3)","FIIs","Criptomoedas"])
-        with sd2: total_venda  = st.number_input("Total Vendido no Mês (R$):", min_value=0.0)
-        with sd3: lucro_venda  = st.number_input("Lucro Líquido Realizado (R$):", min_value=0.0)
+        with sd1: cat_venda   = st.selectbox("O que você vendeu?", ["Ações (B3)","FIIs","Criptomoedas"])
+        with sd2: total_venda = st.number_input("Total Vendido no Mês (R$):", min_value=0.0)
+        with sd3: lucro_venda = st.number_input("Lucro Líquido Realizado (R$):", min_value=0.0)
 
         if st.button("🧮 Calcular Imposto", type="primary"):
             imposto = 0.0; msg = ""
@@ -1318,16 +1410,18 @@ with tab_sim:
             else: st.success(msg)
 
 # =============================================================================
-# ABA 11: VALORPRO IA
+# ABA 11: VALORPRO IA (BLOQUEADA NO TRIAL)
 # =============================================================================
 with tab_ia:
+    checar_trial_bloqueio("ValorPro IA Intelligence")
+
     with st.expander("ℹ️ Como conversar com a ValorPro IA", expanded=False):
         st.markdown("Faça perguntas sobre sua carteira, ativos ou estratégias de investimento.")
 
     st.markdown("#### 🤖 ValorPro IA Intelligence")
     ARQUIVO_CHAT = "historico_ia.json"
 
-    if st.session_state.get('tipo_acesso') != "premium":
+    if st.session_state.get('tipo_acesso') not in ["premium", "admin"]:
         exibir_bloqueio_premium("ValorPro IA Intelligence")
     else:
         col_ia1, col_ia2 = st.columns([4, 1])
@@ -1392,9 +1486,11 @@ with tab_ia:
             st.warning("⚠️ Configure sua chave GEMINI_CHAVE nos secrets para ativar a IA.")
 
 # =============================================================================
-# ABA 12: IMPOSTO DE RENDA
+# ABA 12: IMPOSTO DE RENDA (BLOQUEADA NO TRIAL)
 # =============================================================================
 with tab_ir:
+    checar_trial_bloqueio("Imposto de Renda")
+
     with st.expander("ℹ️ Como usar a aba de Imposto de Renda", expanded=False):
         st.markdown("Organize seus bens e direitos para a declaração anual com textos prontos.")
 
@@ -1413,7 +1509,7 @@ with tab_ir:
         st.success(f"🕰️ Sistema configurado para o ano base **{ano_base}**.")
 
         if not df_geral.empty:
-            data_limite  = pd.to_datetime(f"{ano_base}-12-31")
+            data_limite    = pd.to_datetime(f"{ano_base}-12-31")
             df_ir_filtrado = df_geral[df_geral['Data'] <= data_limite].copy()
 
             if not df_ir_filtrado.empty:
@@ -1430,8 +1526,7 @@ with tab_ir:
                         pdf = FPDF()
                         pdf.add_page()
                         try:
-                            url_logo = URL_LOGO_OFICIAL
-                            pdf.image(url_logo, x=55, y=10, w=100)
+                            pdf.image(URL_LOGO_OFICIAL, x=55, y=10, w=100)
                             pdf.ln(40)
                         except Exception:
                             pdf.set_font("Arial", 'B', 24)
@@ -1510,9 +1605,9 @@ with tab_ir:
                 with st.container():
                     st.markdown(f"### 🔷 {ticker} | *{dados['Categoria']}*")
                     c1, c2, c3 = st.columns(3)
-                    c1.metric("Qtd",       formatar_qtd(dados['Qtd']))
-                    c2.metric("P. Médio",  f"R$ {dados['Preco_Pago']:,.2f}")
-                    c3.metric("Total Pago",f"R$ {dados['Custo_Total']:,.2f}")
+                    c1.metric("Qtd",        formatar_qtd(dados['Qtd']))
+                    c2.metric("P. Médio",   f"R$ {dados['Preco_Pago']:,.2f}")
+                    c3.metric("Total Pago", f"R$ {dados['Custo_Total']:,.2f}")
                     st.markdown("**Texto para a Receita:**")
                     st.markdown(f"""<div style="background-color:rgba(59,130,246,0.1);border-left:4px solid #3b82f6;
                         padding:16px;border-radius:8px;font-size:15px;line-height:1.5;">{texto_declaracao}</div>""",
@@ -1528,9 +1623,11 @@ with tab_ir:
         st.info("Carteira vazia ou sem dados para o ano selecionado.")
 
 # =============================================================================
-# ABA 13: METAS
+# ABA 13: METAS (BLOQUEADA NO TRIAL)
 # =============================================================================
 with tab_metas:
+    checar_trial_bloqueio("Metas de Patrimônio")
+
     with st.expander("ℹ️ Como usar as Metas", expanded=False):
         st.markdown("Defina seu patrimônio alvo e acompanhe o progresso rumo à independência financeira.")
 
@@ -1544,7 +1641,7 @@ with tab_metas:
             progresso = min(patrimonio_atual / meta_patrimonio, 1.0)
             falta     = max(0, meta_patrimonio - patrimonio_atual)
             st.write("")
-            st.metric("Patrimônio Atual", f"R$ {patrimonio_atual:,.2f}")
+            st.metric("Patrimônio Atual",  f"R$ {patrimonio_atual:,.2f}")
             st.metric("Falta para a Meta", f"R$ {falta:,.2f}")
             if progresso >= 1.0:
                 st.success("🎉 PARABÉNS! Meta atingida ou ultrapassada!")
@@ -1589,8 +1686,8 @@ with tab_edit:
 
         st.info("💡 Edite os valores diretamente e clique em Salvar.")
 
-        colunas_ocultas = ['usuario_id','criado_em']
-        df_para_editar  = df_geral.drop(columns=[c for c in colunas_ocultas if c in df_geral.columns])
+        colunas_ocultas    = ['usuario_id','criado_em']
+        df_para_editar     = df_geral.drop(columns=[c for c in colunas_ocultas if c in df_geral.columns])
         colunas_bloqueadas = ["id"] if "id" in df_para_editar.columns else []
 
         df_editado = st.data_editor(
