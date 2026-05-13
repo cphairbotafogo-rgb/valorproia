@@ -228,47 +228,123 @@ if not st.session_state.autenticado:
                             st.error(f"🚨 Erro de conexão com o banco de dados: {e}")
 
         # ==========================================
-        # ABA 2: O NOVO CADASTRO DE 3 DIAS (SELF-SERVICE)
+        # ABA 2: CADASTRO BLINDADO - VERSÃO COMPLIANCE 2.0
         # ==========================================
+        VERSAO_TERMOS = "2.0"
+        DATA_VIGENCIA_TERMOS = "01/04/2026"
+
         with tab_cadastro:
             st.markdown("### Comece seu teste gratuito agora!")
             st.write("Sem cartão de crédito. Liberação imediata.")
-            
+
+            # ------------------------------------------
+            # BLOCO DE TERMOS DE USO — VERSÃO INSTITUCIONAL BLINDADA
+            # ------------------------------------------
+            with st.expander("⚖️ Ler Termos de Uso e Isenção de Responsabilidade (OBRIGATÓRIO)", expanded=False):
+                st.markdown(f"""
+                **Versão {VERSAO_TERMOS} — Vigente desde {DATA_VIGENCIA_TERMOS}**
+
+                Ao criar uma conta no ValorPro IA, você concorda expressamente com os seguintes termos, renunciando a qualquer reclamação judicial futura sobre os pontos abaixo:
+
+                ---
+
+                **1. NATUREZA DO SERVIÇO E ISENÇÃO CVM**
+                O ValorPro IA é exclusivamente uma ferramenta tecnológica de software como serviço (SaaS) focada na organização de dados, cálculos algorítmicos e educação financeira. **Não somos uma corretora de valores, banco, gestora de patrimônio ou casa de análise.** Nenhum dado, gráfico, texto ou resposta gerada pela Inteligência Artificial do sistema constitui recomendação, análise, aconselhamento ou indicação de compra ou venda de valores mobiliários, não se enquadrando nas normativas da Resolução CVM nº 20.
+
+                ---
+
+                **2. ASSUNÇÃO DE RISCO FINANCEIRO**
+                Todo investimento em Renda Variável, Criptomoedas e Renda Fixa envolve risco de perda parcial ou total do capital. O usuário declara ser o único e exclusivo responsável por todas as suas decisões de investimento. O ValorPro IA, seus fundadores, sócios e desenvolvedores estão integralmente isentos de qualquer responsabilidade por eventuais perdas, danos financeiros, lucros cessantes ou prejuízos patrimoniais (diretos ou indiretos) incorridos pelo usuário.
+
+                ---
+
+                **3. DECISÕES AUTOMATIZADAS — ART. 20 DA LGPD**
+                Em conformidade com o art. 20 da Lei nº 13.709/2018 (LGPD), informamos que o ValorPro IA utiliza processamento automatizado de dados para gerar cálculos de portfólio, preço médio, rentabilidade e relatórios. Esses processamentos são baseados exclusivamente nos dados inseridos pelo próprio usuário, sem perfilamento comportamental externo. O usuário tem o direito de solicitar revisão de qualquer resultado automatizado que considere incorreto, mediante contato pelo canal oficial: **privacidade@valorpro.com.br**
+
+                ---
+
+                **4. PRECISÃO DE DADOS, ATRASOS E APIS (COTAÇÕES)**
+                O sistema coleta dados de APIs públicas e de terceiros (como B3, Yahoo Finance, Binance, etc.). Embora busquemos a maior precisão possível, **não garantimos a exatidão, atualização em tempo real (milissegundos) ou ausência de erros matemáticos nos cálculos de portfólio.** Cotações podem apresentar atraso (delay). O usuário deve sempre validar os valores exatos diretamente na sua corretora antes de executar qualquer ordem. O ValorPro IA não se responsabiliza por prejuízos derivados de falhas ou bugs na exibição de preços.
+
+                ---
+
+                **5. DISPONIBILIDADE DO SISTEMA (SLA)**
+                O software é fornecido "no estado em que se encontra" (as is). Não garantimos que o sistema estará 100% do tempo livre de interrupções, manutenções ou instabilidades de servidores (como Streamlit ou Supabase). O ValorPro IA isenta-se de responsabilidade por multas da Receita Federal ou atrasos em obrigações fiscais do usuário decorrentes de eventuais indisponibilidades temporárias do nosso gerador de relatórios.
+
+                ---
+
+                **6. PRIVACIDADE, DADOS (LGPD) E INCIDENTES DE SEGURANÇA**
+                Seus dados (nome, e-mail e operações financeiras manuais) são armazenados em conformidade com a LGPD e protegidos por criptografia. Nós **não vendemos seus dados** e nunca pediremos acesso direto à sua conta em corretoras. A segurança da senha de acesso é de inteira responsabilidade do usuário.
+                Em caso de incidente de segurança (vazamento de dados) que possa afetar seus direitos, o ValorPro IA se compromete a notificá-lo no prazo de até **72 horas** após a confirmação do incidente, conforme exigido pela ANPD, e a tomar as medidas corretivas cabíveis.
+                Para exercer seus direitos de titular, entre em contato: **privacidade@valorpro.com.br**
+
+                ---
+
+                **7. INTELIGÊNCIA ARTIFICIAL E MARCO LEGAL (PL 2.338/2023)**
+                O ValorPro IA utiliza modelos de Inteligência Artificial para geração de respostas e cálculos. O usuário reconhece que as respostas geradas por IA possuem caráter exclusivamente informativo e não substitui análise humana especializada.
+                O ValorPro IA acompanha ativamente a tramitação do Marco Legal da Inteligência Artificial no Brasil (PL 2.338/2023) e se compromete a atualizar seus termos e práticas de conformidade imediatamente após a sanção da lei. O usuário será notificado por e-mail sobre quaisquer alterações.
+
+                ---
+
+                **8. FORO E LEGISLAÇÃO APLICÁVEL**
+                Os presentes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da Comarca do **Rio de Janeiro/RJ**, com exclusão de qualquer outro, por mais privilegiado que seja, para dirimir quaisquer controvérsias ou litígios decorrentes do presente instrumento.
+                """)
+
+            # ------------------------------------------
+            # FORMULÁRIO DE CADASTRO
+            # ------------------------------------------
             with st.form("form_novo_usuario"):
-                novo_nome = st.text_input("Seu Nome")
+                novo_nome  = st.text_input("Seu Nome")
                 novo_email = st.text_input("Seu melhor E-mail")
                 nova_senha = st.text_input("Crie uma Senha", type="password")
-                
+
+                st.write("")
+
+                # CHECKBOX JURÍDICO VINCULATIVO
+                concorda_termos = st.checkbox(
+                    f"Eu, na qualidade de usuário, declaro ter plena capacidade civil e afirmo ter lido, "
+                    f"compreendido e estar de acordo com todos os Termos de Uso e Isenção de Responsabilidade "
+                    f"acima (Versão {VERSAO_TERMOS}). Assumo a responsabilidade integral pelas minhas decisões "
+                    f"financeiras e eximo o ValorPro IA de qualquer responsabilidade por perdas ou falhas no sistema."
+                )
+
+                st.write("")
                 btn_cadastrar = st.form_submit_button("🚀 Criar Minha Conta Grátis", type="primary")
-                
+
                 if btn_cadastrar:
-                    if not novo_email or not nova_senha or not novo_nome:
+                    if not concorda_termos:
+                        st.error(f"⚠️ OBRIGATÓRIO: Você deve marcar a caixa de declaração jurídica acima confirmando que leu e aceita os Termos de Uso (Versão {VERSAO_TERMOS}) para prosseguir.")
+                    elif not novo_email or not nova_senha or not novo_nome:
                         st.error("⚠️ Por favor, preencha todos os campos!")
                     else:
                         try:
-                            # 1. Verifica se o e-mail já existe no banco
+                            # 1. Verifica se o e-mail já existe
                             resposta = supabase.table("usuarios").select("id").eq("e-mail", novo_email.strip().lower()).execute()
-                            
+
                             if len(resposta.data) > 0:
                                 st.warning("❌ Este e-mail já está cadastrado. Vá na aba 'Entrar no Sistema'!")
                             else:
-                                # 2. Calcula a data de hoje + 3 dias
+                                # 2. Calcula 3 dias de trial
                                 hoje = datetime.now()
                                 data_expiracao = (hoje + timedelta(days=3)).strftime("%Y-%m-%d")
-                                
-                                # 3. Salva o cliente no Supabase como TRIAL
+
+                                # 3. Salva no Supabase COM O LOG DE COMPLIANCE
                                 novo_usuario = {
                                     "nome": novo_nome.strip(),
                                     "e-mail": novo_email.strip().lower(),
-                                    "senha": nova_senha, 
+                                    "senha": nova_senha,
                                     "status": "ativo",
                                     "tipo": "trial",
-                                    "expiracao": data_expiracao
+                                    "expiracao": data_expiracao,
+                                    "termos_versao": VERSAO_TERMOS,
+                                    "termos_aceitos_em": hoje.strftime("%Y-%m-%dT%H:%M:%S"),
                                 }
-                                
+
                                 supabase.table("usuarios").insert(novo_usuario).execute()
+
                                 st.success(f"✅ Parabéns, {novo_nome}! Sua conta foi criada com sucesso.")
                                 st.info("👈 Agora é só clicar na aba 'Entrar no Sistema' e fazer o login com o e-mail e senha que você acabou de criar!")
+
                         except Exception as e:
                             st.error(f"Erro ao criar conta: {e}")
 
@@ -775,6 +851,13 @@ with st.sidebar:
     cdi_anual  = st.number_input("CDI atual (% a.a.):", min_value=0.1, max_value=30.0, value=10.5, step=0.1) / 100
     ibov_anual = st.number_input("Meta Ibovespa (% a.a.):", min_value=0.1, max_value=50.0, value=12.0, step=0.1) / 100
 
+# === AVISO LEGAL PERMANENTE NA SIDEBAR ===
+    st.divider()
+    st.markdown("""
+    <div style='font-size: 10px; color: #64748b; text-align: justify; line-height: 1.3;'>
+        <b>Aviso Legal:</b> O ValorPro IA é uma ferramenta de apoio educacional e de gestão. Não somos corretora e não fazemos recomendações de ativos (Resolução CVM nº 20). Suas decisões financeiras e os riscos envolvidos são de sua exclusiva responsabilidade.
+    </div>
+    """, unsafe_allow_html=True)
 # =============================================================================
 # 19. MOTOR DE CONSOLIDAÇÃO
 # =============================================================================
