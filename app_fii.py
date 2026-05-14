@@ -236,6 +236,8 @@ if not st.session_state.autenticado:
         with tab_cadastro:
             st.markdown("### Comece seu teste gratuito agora!")
             st.write("Sem cartão de crédito. Liberação imediata.")
+            # MENSAGEM DE BETA AVANÇADO AQUI:
+            st.info("🚀 **Estamos em fase Beta Avançada:** isto significa que o ValorPro IA recebe atualizações de segurança e novas funcionalidades semanalmente para garantir que tem sempre a melhor tecnologia do mercado.")
 
             # ------------------------------------------
             # BLOCO DE TERMOS DE USO — VERSÃO INSTITUCIONAL BLINDADA
