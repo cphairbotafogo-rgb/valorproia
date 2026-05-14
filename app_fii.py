@@ -240,136 +240,111 @@ if not st.session_state.autenticado:
             st.info("🚀 **Estamos em fase Beta Avançada:** isto significa que o ValorPro IA recebe atualizações de segurança e novas funcionalidades semanalmente para garantir que tem sempre a melhor tecnologia do mercado.")
 
             # ------------------------------------------
-            # BLOCO DE TERMOS DE USO — VERSÃO INSTITUCIONAL BLINDADA
+            # BLOCO DE TERMOS DE USO
             # ------------------------------------------
             with st.expander("⚖️ Ler Termos de Uso e Isenção de Responsabilidade (OBRIGATÓRIO)", expanded=False):
-                st.markdown(f"""
-                **Versão {VERSAO_TERMOS} — Vigente desde {DATA_VIGENCIA_TERMOS}**
+                st.markdown("""
+                ### TERMOS DE USO E ISENÇÃO DE RESPONSABILIDADE – VALORPRO IA
+                **Versão 3.0 — Vigente desde: 14/05/2026**
 
-                Ao criar uma conta no ValorPro IA, você concorda expressamente com os seguintes termos, renunciando a qualquer reclamação judicial futura sobre os pontos abaixo:
+                Ao criar uma conta, aceder ou utilizar a plataforma ValorPro IA, o Utilizador declara ter lido, compreendido e concordado integralmente com os presentes Termos de Uso.
 
-                ---
+                **1. NATUREZA DA PLATAFORMA**
+                O ValorPro IA é uma plataforma tecnológica disponibilizada no modelo Software as a Service (SaaS), destinada à organização de informações financeiras, cálculos algorítmicos, consolidação de dados patrimoniais e educação financeira.
+                * O ValorPro IA não é instituição financeira, corretora de valores, banco, gestora de recursos, consultoria financeira ou casa de análise.
+                * As informações, relatórios, gráficos, simulações, conteúdos educativos e respostas geradas pela Inteligência Artificial da plataforma possuem caráter exclusivamente informativo, educacional e tecnológico, não constituindo recomendação personalizada de investimento, oferta, promessa de rentabilidade, consultoria financeira ou análise de valores mobiliários.
+                * O Utilizador reconhece que qualquer decisão de investimento deve ser tomada com base em análise própria e, quando necessário, com apoio de profissionais devidamente habilitados.
 
-                TERMOS DE USO E ISENÇÃO DE RESPONSABILIDADE – VALORPRO IA
-Versão 3.0 — Vigente desde: 14/05/2026
-Ao criar uma conta, aceder ou utilizar a plataforma ValorPro IA, o Utilizador declara ter lido, compreendido e concordado integralmente com os presentes Termos de Uso.
+                **2. RISCOS FINANCEIROS E RESPONSABILIDADE DO UTILIZADOR**
+                Todo investimento em renda variável, fundos, derivativos, criptomoedas, renda fixa ou quaisquer ativos financeiros envolve riscos, incluindo possibilidade de perda parcial ou total do capital investido.
+                O Utilizador declara estar ciente de que:
+                * Todas as decisões de investimento são de sua exclusiva responsabilidade;
+                * Os dados apresentados na plataforma possuem caráter auxiliar e informativo;
+                * Nenhuma funcionalidade da plataforma substitui aconselhamento profissional individualizado.
+                
+                Na máxima extensão permitida pela legislação aplicável, o ValorPro IA não poderá ser responsabilizado por perdas financeiras, danos patrimoniais, lucros cessantes ou prejuízos decorrentes de decisões tomadas pelo Utilizador com base nas informações disponibilizadas pela plataforma.
 
-1. NATUREZA DA PLATAFORMA
-O ValorPro IA é uma plataforma tecnológica disponibilizada no modelo Software as a Service (SaaS), destinada à organização de informações financeiras, cálculos algorítmicos, consolidação de dados patrimoniais e educação financeira.
-O ValorPro IA não é instituição financeira, corretora de valores, banco, gestora de recursos, consultoria financeira ou casa de análise.
-As informações, relatórios, gráficos, simulações, conteúdos educativos e respostas geradas pela Inteligência Artificial da plataforma possuem caráter exclusivamente informativo, educacional e tecnológico, não constituindo recomendação personalizada de investimento, oferta, promessa de rentabilidade, consultoria financeira ou análise de valores mobiliários.
-O Utilizador reconhece que qualquer decisão de investimento deve ser tomada com base em análise própria e, quando necessário, com apoio de profissionais devidamente habilitados.
+                **3. PROCESSAMENTO AUTOMATIZADO DE DADOS (LGPD)**
+                Nos termos do artigo 20 da Lei nº 13.709/2018 (LGPD), o ValorPro IA poderá utilizar processamento automatizado de dados para geração de:
+                * Relatórios patrimoniais;
+                * Cálculos de preço médio e rentabilidade;
+                * Consolidação de carteira e simulações financeiras;
+                * Relatórios tributários e estatísticos.
+                
+                Os processamentos são realizados com base nas informações inseridas ou importadas pelo próprio Utilizador. O Utilizador poderá solicitar revisão de resultados automatizados que considere incorretos por meio do canal oficial de suporte: privacidade@valorpro.com.br
 
-2. RISCOS FINANCEIROS E RESPONSABILIDADE DO UTILIZADOR
-Todo investimento em renda variável, fundos, derivativos, criptomoedas, renda fixa ou quaisquer ativos financeiros envolve riscos, incluindo possibilidade de perda parcial ou total do capital investido.
-O Utilizador declara estar ciente de que:
-todas as decisões de investimento são de sua exclusiva responsabilidade;
-os dados apresentados na plataforma possuem caráter auxiliar e informativo;
-nenhuma funcionalidade da plataforma substitui aconselhamento profissional individualizado.
-Na máxima extensão permitida pela legislação aplicável, o ValorPro IA não poderá ser responsabilizado por perdas financeiras, danos patrimoniais, lucros cessantes ou prejuízos decorrentes de decisões tomadas pelo Utilizador com base nas informações disponibilizadas pela plataforma.
+                **4. DADOS DE MERCADO, APIs E LIMITAÇÕES TÉCNICAS**
+                A plataforma poderá utilizar dados provenientes de APIs públicas e serviços de terceiros, incluindo provedores de cotações, corretoras, exchanges e plataformas financeiras. Embora o ValorPro IA adote esforços razoáveis para garantir a qualidade e atualização das informações exibidas, não garante:
+                * Precisão absoluta dos dados;
+                * Atualização em tempo real ou ausência de atrasos (“delay”);
+                * Indisponibilidade temporária de APIs terceiras;
+                * Inexistência de erros de cálculo, integração ou sincronização.
+                
+                O Utilizador compromete-se a validar informações relevantes diretamente junto às instituições financeiras ou corretoras antes da realização de operações financeiras.
 
-3. PROCESSAMENTO AUTOMATIZADO DE DADOS (LGPD)
-Nos termos do artigo 20 da Lei nº 13.709/2018 (LGPD), o ValorPro IA poderá utilizar processamento automatizado de dados para geração de:
-relatórios patrimoniais;
-cálculos de preço médio;
-rentabilidade;
-consolidação de carteira;
-simulações financeiras;
-relatórios tributários e estatísticos.
-Os processamentos são realizados com base nas informações inseridas ou importadas pelo próprio Utilizador.
-O Utilizador poderá solicitar revisão de resultados automatizados que considere incorretos por meio do canal oficial de suporte:
-privacidade@valorpro.com.br
+                **5. DISPONIBILIDADE DA PLATAFORMA**
+                O ValorPro IA é disponibilizado tal como se encontra, podendo sofrer:
+                * Interrupções temporárias ou manutenções programadas;
+                * Atualizações e limitações técnicas;
+                * Indisponibilidades decorrentes de falhas de infraestrutura própria ou de terceiros.
+                
+                O ValorPro IA não garante disponibilidade ininterrupta ou funcionamento livre de erros. Na máxima extensão permitida pela legislação aplicável, o ValorPro IA não será responsável por prejuízos decorrentes de indisponibilidades temporárias da plataforma.
 
-4. DADOS DE MERCADO, APIs E LIMITAÇÕES TÉCNICAS
-A plataforma poderá utilizar dados provenientes de APIs públicas e serviços de terceiros, incluindo provedores de cotações, corretoras, exchanges e plataformas financeiras.
-Embora o ValorPro IA adote esforços razoáveis para garantir a qualidade e atualização das informações exibidas, não garante:
-precisão absoluta dos dados;
-atualização em tempo real;
-ausência de atrasos (“delay”);
-indisponibilidade temporária de APIs terceiras;
-inexistência de erros de cálculo, integração ou sincronização.
-O Utilizador compromete-se a validar informações relevantes diretamente junto às instituições financeiras ou corretoras antes da realização de operações financeiras.
+                **6. PRIVACIDADE, SEGURANÇA E TRATAMENTO DE DADOS**
+                O tratamento de dados pessoais é realizado em conformidade com a Lei Geral de Proteção de Dados (LGPD). O ValorPro IA poderá tratar dados como:
+                * Nome e e-mail;
+                * Informações financeiras inseridas manualmente;
+                * Dados de utilização da plataforma e informações técnicas de acesso.
+                
+                O ValorPro IA adota medidas técnicas e organizacionais razoáveis de segurança compatíveis com padrões de mercado para proteção dos dados pessoais. O Utilizador é exclusivamente responsável pela confidencialidade de suas credenciais de acesso. Em caso de incidente de segurança que possa acarretar risco ou dano relevante aos titulares de dados, o ValorPro IA adotará as medidas legalmente exigidas, incluindo eventual comunicação às autoridades competentes e aos titulares afetados, conforme aplicável.
+                Para exercício de direitos relacionados à proteção de dados pessoais: privacidade@valorpro.com.br
 
-5. DISPONIBILIDADE DA PLATAFORMA
-O ValorPro IA é disponibilizado tal como se encontra, podendo sofrer:
-interrupções temporárias;
-manutenções programadas;
-atualizações;
-limitações técnicas;
-indisponibilidades decorrentes de falhas de infraestrutura própria ou de terceiros.
-O ValorPro IA não garante disponibilidade ininterrupta ou funcionamento livre de erros.
-Na máxima extensão permitida pela legislação aplicável, o ValorPro IA não será responsável por prejuízos decorrentes de indisponibilidades temporárias da plataforma.
+                **7. INTELIGÊNCIA ARTIFICIAL**
+                O ValorPro IA utiliza modelos de Inteligência Artificial para geração de respostas, análises estatísticas, cálculos e organização de informações. O Utilizador reconhece que:
+                * Sistemas de IA podem apresentar limitações técnicas;
+                * Respostas automatizadas podem conter inconsistências;
+                * Os resultados não substituem validação humana especializada.
+                
+                O ValorPro IA buscará adaptar suas práticas e políticas conforme a evolução da legislação e regulamentação aplicáveis à Inteligência Artificial no Brasil.
 
-6. PRIVACIDADE, SEGURANÇA E TRATAMENTO DE DADOS
-O tratamento de dados pessoais é realizado em conformidade com a Lei Geral de Proteção de Dados (LGPD).
-O ValorPro IA poderá tratar dados como:
-nome;
-e-mail;
-informações financeiras inseridas manualmente;
-dados de utilização da plataforma;
-informações técnicas de acesso.
-O ValorPro IA adota medidas técnicas e organizacionais razoáveis de segurança compatíveis com padrões de mercado para proteção dos dados pessoais.
-O Utilizador é exclusivamente responsável pela confidencialidade de suas credenciais de acesso.
-Em caso de incidente de segurança que possa acarretar risco ou dano relevante aos titulares de dados, o ValorPro IA adotará as medidas legalmente exigidas, incluindo eventual comunicação às autoridades competentes e aos titulares afetados, conforme aplicável.
-Para exercício de direitos relacionados à proteção de dados pessoais:
-privacidade@valorpro.com.br
+                **8. RESPONSABILIDADE FISCAL E TRIBUTÁRIA**
+                Relatórios fiscais, simuladores tributários, calculadoras de DARF e demais funcionalidades relacionadas a tributos possuem caráter exclusivamente auxiliar e educacional.
+                A responsabilidade pela conferência, validação e envio de informações à Receita Federal e demais órgãos competentes é integralmente do Utilizador. Os resultados gerados dependem da exatidão das informações inseridas ou importadas pelo Utilizador. O ValorPro IA recomenda que o Utilizador consulte contador ou profissional especializado antes do envio de declarações fiscais oficiais.
 
-7. INTELIGÊNCIA ARTIFICIAL
-O ValorPro IA utiliza modelos de Inteligência Artificial para geração de respostas, análises estatísticas, cálculos e organização de informações.
-O Utilizador reconhece que:
-sistemas de IA podem apresentar limitações técnicas;
-respostas automatizadas podem conter inconsistências;
-os resultados não substituem validação humana especializada.
-O ValorPro IA buscará adaptar suas práticas e políticas conforme a evolução da legislação e regulamentação aplicáveis à Inteligência Artificial no Brasil.
+                **9. PROPRIEDADE INTELECTUAL**
+                Todos os direitos relacionados ao ValorPro IA, incluindo software, códigos, interfaces, marcas, logotipos, design, bancos de dados e algoritmos, são protegidos pela legislação brasileira de propriedade intelectual e pertencem exclusivamente aos seus titulares. É proibido ao Utilizador:
+                * Compartilhar credenciais de acesso;
+                * Realizar engenharia reversa;
+                * Copiar, distribuir ou revender a plataforma;
+                * Utilizar ferramentas automatizadas para extração indevida de dados;
+                * Violar mecanismos de segurança da plataforma.
+                
+                O descumprimento destas disposições poderá resultar em suspensão ou encerramento da conta, sem prejuízo das medidas legais cabíveis.
 
-8. RESPONSABILIDADE FISCAL E TRIBUTÁRIA
-Relatórios fiscais, simuladores tributários, calculadoras de DARF e demais funcionalidades relacionadas a tributos possuem caráter exclusivamente auxiliar e educacional.
-A responsabilidade pela conferência, validação e envio de informações à Receita Federal e demais órgãos competentes é integralmente do Utilizador.
-Os resultados gerados dependem da exatidão das informações inseridas ou importadas pelo Utilizador.
-O ValorPro IA recomenda que o Utilizador consulte contador ou profissional especializado antes do envio de declarações fiscais oficiais.
+                **10. PAGAMENTOS, CANCELAMENTOS E REEMBOLSOS**
+                Os pagamentos poderão ser processados por plataformas terceiras especializadas. O ValorPro IA não armazena dados completos de cartões de crédito. Nos termos do artigo 49 do Código de Defesa do Consumidor, o Utilizador poderá exercer o direito de arrependimento no prazo de 7 (sete) dias corridos contados da contratação. Após esse período:
+                * O cancelamento impedirá cobranças futuras;
+                * Valores já pagos não serão reembolsados, salvo disposição legal em contrário.
 
-9. PROPRIEDADE INTELECTUAL
-Todos os direitos relacionados ao ValorPro IA, incluindo software, códigos, interfaces, marcas, logotipos, design, bancos de dados e algoritmos, são protegidos pela legislação brasileira de propriedade intelectual e pertencem exclusivamente aos seus titulares.
-É proibido ao Utilizador:
-compartilhar credenciais de acesso;
-realizar engenharia reversa;
-copiar, distribuir ou revender a plataforma;
-utilizar ferramentas automatizadas para extração indevida de dados;
-violar mecanismos de segurança da plataforma.
-O descumprimento destas disposições poderá resultar em suspensão ou encerramento da conta, sem prejuízo das medidas legais cabíveis.
+                **11. LIMITAÇÃO DE RESPONSABILIDADE**
+                Na máxima extensão permitida pela legislação aplicável, a responsabilidade total do ValorPro IA por quaisquer danos relacionados à utilização da plataforma ficará limitada ao valor efetivamente pago pelo Utilizador nos 12 (doze) meses anteriores ao evento que originar a reclamação. Nada nestes Termos exclui responsabilidades que não possam ser legalmente afastadas nos termos da legislação brasileira.
 
-10. PAGAMENTOS, CANCELAMENTOS E REEMBOLSOS
-Os pagamentos poderão ser processados por plataformas terceiras especializadas.
-O ValorPro IA não armazena dados completos de cartões de crédito.
-Nos termos do artigo 49 do Código de Defesa do Consumidor, o Utilizador poderá exercer o direito de arrependimento no prazo de 7 (sete) dias corridos contados da contratação.
-Após esse período:
-o cancelamento impedirá cobranças futuras;
-valores já pagos não serão reembolsados, salvo disposição legal em contrário.
+                **12. CAPACIDADE CIVIL**
+                A utilização da plataforma é permitida apenas a pessoas com capacidade civil plena, nos termos da legislação brasileira. Ao aceitar estes Termos, o Utilizador declara possuir idade mínima de 18 (dezoito) anos ou capacidade legal equivalente.
 
-11. LIMITAÇÃO DE RESPONSABILIDADE
-Na máxima extensão permitida pela legislação aplicável, a responsabilidade total do ValorPro IA por quaisquer danos relacionados à utilização da plataforma ficará limitada ao valor efetivamente pago pelo Utilizador nos 12 (doze) meses anteriores ao evento que originar a reclamação.
-Nada nestes Termos exclui responsabilidades que não possam ser legalmente afastadas nos termos da legislação brasileira.
+                **13. ALTERAÇÕES DOS TERMOS**
+                O ValorPro IA poderá atualizar estes Termos periodicamente para refletir:
+                * Alterações legais e mudanças regulatórias;
+                * Evolução tecnológica e novas funcionalidades da plataforma.
+                
+                As alterações relevantes poderão ser comunicadas por e-mail, notificação interna ou outros meios adequados. A continuidade de utilização da plataforma após a atualização dos Termos será interpretada como concordância com a nova versão.
 
-12. CAPACIDADE CIVIL
-A utilização da plataforma é permitida apenas a pessoas com capacidade civil plena, nos termos da legislação brasileira.
-Ao aceitar estes Termos, o Utilizador declara possuir idade mínima de 18 (dezoito) anos ou capacidade legal equivalente.
+                **14. LEGISLAÇÃO APLICÁVEL E FORO**
+                Os presentes Termos são regidos pelas leis da República Federativa do Brasil. Fica assegurado ao consumidor o foro de seu domicílio, nos termos da legislação aplicável, para dirimir eventuais controvérsias relacionadas à utilização da plataforma.
 
-13. ALTERAÇÕES DOS TERMOS
-O ValorPro IA poderá atualizar estes Termos periodicamente para refletir:
-alterações legais;
-mudanças regulatórias;
-evolução tecnológica;
-novas funcionalidades da plataforma.
-As alterações relevantes poderão ser comunicadas por e-mail, notificação interna ou outros meios adequados.
-A continuidade de utilização da plataforma após a atualização dos Termos será interpretada como concordância com a nova versão.
-
-14. LEGISLAÇÃO APLICÁVEL E FORO
-Os presentes Termos são regidos pelas leis da República Federativa do Brasil.
-Fica assegurado ao consumidor o foro de seu domicílio, nos termos da legislação aplicável, para dirimir eventuais controvérsias relacionadas à utilização da plataforma.
-
-15. CONTACTO
-Em caso de dúvidas, solicitações ou questões relacionadas a estes Termos:
-privacidade@valorpro.com.br
+                **15. CONTACTO**
+                Em caso de dúvidas, solicitações ou questões relacionadas a estes Termos: privacidade@valorpro.com.br
+                """)
 
 
             # ------------------------------------------
