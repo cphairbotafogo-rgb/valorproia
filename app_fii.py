@@ -777,6 +777,7 @@ with st.sidebar:
         st.cache_data.clear()
         st.session_state.df_geral = carregar_dados_nuvem()
         st.rerun()
+        st.caption("ℹ️ *B3 (Ações/FIIs): delay de até 15 min.*")
 
     st.divider()
     st.markdown("### 🛒 Lançar Operação")
@@ -967,7 +968,7 @@ try:
             border-top: 1px solid rgba(255,255,255,0.05);
             border-bottom: 1px solid rgba(255,255,255,0.05);
             padding: 8px 0;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
             border-radius: 8px;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }}
@@ -987,9 +988,12 @@ try:
                 {itens_html}
             </div>
         </div>
+        <div style="text-align: right; font-size: 10px; color: #64748b; margin-top: -2px; margin-bottom: 15px; padding-right: 5px;">
+            * Criptomoedas em tempo real. Ações e FIIs da B3 sujeitos a delay de até 15 minutos.
+        </div>
         """, unsafe_allow_html=True)
 except Exception as e:
-    pass # Falha silenciosa: se o Yahoo Finance não responder, o sistema não quebra, só não exibe o ticker
+    pass
 
 # =============================================================================
 # 21. ABAS PRINCIPAIS
