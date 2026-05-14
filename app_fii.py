@@ -918,14 +918,50 @@ if not df_geral.empty:
             pass
 
 # =============================================================================
+# 20. CABEÇALHO: LOGO + RELÓGIO
+# =============================================================================
+col_logo, col_clock = st.columns([3, 1])
+
+with col_logo:
+    st.image(URL_LOGO_OFICIAL, width=250)
+
+with col_clock:
+    import streamlit.components.v1 as components
+    components.html("""
+        <div style='text-align:right;padding-top:25px;'>
+            <span style='font-family:"DM Mono",monospace;font-size:14px;font-weight:600;color:#f8fafc;background-color:#0f172a;padding:8px 16px;border-radius:8px;border:1px solid #1e293b;'>
+                <span id='b3_dot' style='font-size:10px;vertical-align:middle;'>🔴</span>
+                <span id='b3_status' style='font-size:11px;color:#94a3b8;margin-right:8px;vertical-align:middle;'>B3 FECHADA</span>
+                <span id='relogio_vivo' style='vertical-align:middle;'></span>
+            </span>
+        </div>
+        <script>
+            function atualizarRelogio() {
+                var agora = new Date();
+                var h = agora.getHours(), dw = agora.getDay();
+                document.getElementById('relogio_vivo').innerText =
+                    String(h).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0')+':'+String(agora.getSeconds()).padStart(2,'0');
+                var dot = document.getElementById('b3_dot');
+                var st  = document.getElementById('b3_status');
+                if (dw >= 1 && dw <= 5 && h >= 10 && h < 17) {
+                    dot.innerText='🟢'; st.innerText='B3 ABERTA'; st.style.color='#4ade80';
+                } else {
+                    dot.innerText='🔴'; st.innerText='B3 FECHADA'; st.style.color='#94a3b8';
+                }
+            }
+            setInterval(atualizarRelogio, 1000);
+            atualizarRelogio();
+        </script>
+    """, height=80)
+
+# =============================================================================
 # 20.5 TICKER DE COTAÇÕES EM TEMPO REAL
 # =============================================================================
 try:
-    # Ativos que vão rodar no letreiro (mistura de ações, cripto, índices e moedas)
+    # Ativos que vão rodar no letreiro
     tickers_letreiro = ["PETR4.SA", "VALE3.SA", "ITUB4.SA", "BTC-USD", "ETH-USD", "USDBRL=X", "GC=F"]
     nomes_letreiro   = ["PETR4", "VALE3", "ITUB4", "BTC", "ETH", "DÓLAR", "OURO"]
     
-    # Busca os dados no Yahoo Finance (rápido, apenas os últimos 2 dias)
     dados_ticker = yf.download(tickers_letreiro, period="2d", interval="1d", progress=False)
     
     if isinstance(dados_ticker.columns, pd.MultiIndex):
@@ -942,7 +978,6 @@ try:
                 preco_ant   = float(serie.iloc[-2])
                 variacao    = ((preco_atual / preco_ant) - 1) * 100
                 
-                # Definir cor e seta
                 if variacao > 0:
                     cor = "#00e5a0" # Verde
                     seta = "▲"
@@ -953,11 +988,9 @@ try:
                     cor = "#94a3b8" # Cinza
                     seta = "➖"
                 
-                # Montar o item (Ex: PETR4 ▲ +2.5%)
                 sinal = "+" if variacao > 0 else ""
                 itens_html += f"<span style='margin-right: 40px; font-family: monospace; font-size: 14px; font-weight: bold; color: #f8fafc;'>{nomes_letreiro[i]} <span style='color: {cor};'>{seta} {sinal}{variacao:.2f}%</span></span>"
 
-    # Se conseguiu montar os itens, cria a animação CSS
     if itens_html:
         st.markdown(f"""
         <style>
