@@ -855,7 +855,8 @@ with st.sidebar:
     st.divider()
     st.markdown("""
     <div style='font-size: 10px; color: #64748b; text-align: justify; line-height: 1.3;'>
-        <b>Aviso Legal:</b> O ValorPro IA é uma ferramenta de apoio educacional e de gestão. Não somos corretora e não fazemos recomendações de ativos (Resolução CVM nº 20). Suas decisões financeiras e os riscos envolvidos são de sua exclusiva responsabilidade.
+        <b>Aviso Legal:</b> O ValorPro IA é uma ferramenta de apoio educacional e de gestão. Não somos corretora e não fazemos recomendações de ativos (Resolução CVM nº 20). Suas decisões financeiras e os riscos envolvidos são de sua exclusiva responsabilidade.<br><br>
+        <a href='https://docs.google.com/document/d/1OMHfk6rWGScK1bGlFtuYXEf0A7frE-scOOzWnG_XaFQ/edit?usp=sharing' target='_blank' style='color: #3b82f6; text-decoration: none; font-weight: 600;'>🔗 Ler Termos de Uso Completos</a>
     </div>
     """, unsafe_allow_html=True)
 # =============================================================================
