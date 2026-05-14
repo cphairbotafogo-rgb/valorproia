@@ -856,6 +856,17 @@ with st.sidebar:
 
 # === AVISO LEGAL PERMANENTE NA SIDEBAR ===
     st.divider()
+    
+    # MENSAGEM DE BETA AVANÇADO
+    st.markdown("""
+    <div style='background-color: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; padding: 10px; margin-bottom: 15px; border-radius: 5px;'>
+        <span style='font-size: 11px; color: #cbd5e1; line-height: 1.4;'>
+            🚀 <b>Fase Beta Avançada:</b> O ValorPro IA recebe atualizações semanais de segurança e inovação para entregar a melhor tecnologia do mercado.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # AVISO LEGAL
     st.markdown("""
     <div style='font-size: 10px; color: #64748b; text-align: justify; line-height: 1.3;'>
         <b>Aviso Legal:</b> O ValorPro IA é uma ferramenta de apoio educacional e de gestão. Não somos corretora e não fazemos recomendações de ativos (Resolução CVM nº 20). Suas decisões financeiras e os riscos envolvidos são de sua exclusiva responsabilidade.<br><br>
