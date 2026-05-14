@@ -917,41 +917,79 @@ if not df_geral.empty:
             pass
 
 # =============================================================================
-# 20. CABEÇALHO: LOGO + RELÓGIO
+# 20.5 TICKER DE COTAÇÕES EM TEMPO REAL
 # =============================================================================
-col_logo, col_clock = st.columns([3, 1])
+try:
+    # Ativos que vão rodar no letreiro (mistura de ações, cripto, índices e moedas)
+    tickers_letreiro = ["PETR4.SA", "VALE3.SA", "ITUB4.SA", "BTC-USD", "ETH-USD", "USDBRL=X", "GC=F"]
+    nomes_letreiro   = ["PETR4", "VALE3", "ITUB4", "BTC", "ETH", "DÓLAR", "OURO"]
+    
+    # Busca os dados no Yahoo Finance (rápido, apenas os últimos 2 dias)
+    dados_ticker = yf.download(tickers_letreiro, period="2d", interval="1d", progress=False)
+    
+    if isinstance(dados_ticker.columns, pd.MultiIndex):
+        closes = dados_ticker.xs('Close', axis=1, level=0) if 'Close' in dados_ticker.columns.levels[0] else dados_ticker['Close']
+    else:
+        closes = dados_ticker['Close'] if 'Close' in dados_ticker.columns else dados_ticker
+    
+    itens_html = ""
+    for i, t in enumerate(tickers_letreiro):
+        if t in closes.columns:
+            serie = closes[t].dropna()
+            if len(serie) > 1:
+                preco_atual = float(serie.iloc[-1])
+                preco_ant   = float(serie.iloc[-2])
+                variacao    = ((preco_atual / preco_ant) - 1) * 100
+                
+                # Definir cor e seta
+                if variacao > 0:
+                    cor = "#00e5a0" # Verde
+                    seta = "▲"
+                elif variacao < 0:
+                    cor = "#ff4d6d" # Vermelho
+                    seta = "▼"
+                else:
+                    cor = "#94a3b8" # Cinza
+                    seta = "➖"
+                
+                # Montar o item (Ex: PETR4 ▲ +2.5%)
+                sinal = "+" if variacao > 0 else ""
+                itens_html += f"<span style='margin-right: 40px; font-family: monospace; font-size: 14px; font-weight: bold; color: #f8fafc;'>{nomes_letreiro[i]} <span style='color: {cor};'>{seta} {sinal}{variacao:.2f}%</span></span>"
 
-with col_logo:
-    st.image(URL_LOGO_OFICIAL, width=250)
-
-with col_clock:
-    import streamlit.components.v1 as components
-    components.html("""
-        <div style='text-align:right;padding-top:25px;'>
-            <span style='font-family:"DM Mono",monospace;font-size:14px;font-weight:600;color:#f8fafc;background-color:#0f172a;padding:8px 16px;border-radius:8px;border:1px solid #1e293b;'>
-                <span id='b3_dot' style='font-size:10px;vertical-align:middle;'>🔴</span>
-                <span id='b3_status' style='font-size:11px;color:#94a3b8;margin-right:8px;vertical-align:middle;'>B3 FECHADA</span>
-                <span id='relogio_vivo' style='vertical-align:middle;'></span>
-            </span>
+    # Se conseguiu montar os itens, cria a animação CSS
+    if itens_html:
+        st.markdown(f"""
+        <style>
+        .ticker-wrapper {{
+            width: 100%;
+            overflow: hidden;
+            background-color: rgba(15, 23, 42, 0.8);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 8px 0;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }}
+        .ticker-content {{
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker-anim 30s linear infinite;
+        }}
+        @keyframes ticker-anim {{
+            0%   {{ transform: translate3d(0, 0, 0); }}
+            100% {{ transform: translate3d(-50%, 0, 0); }}
+        }}
+        </style>
+        <div class="ticker-wrapper">
+            <div class="ticker-content">
+                {itens_html}
+                {itens_html}
+            </div>
         </div>
-        <script>
-            function atualizarRelogio() {
-                var agora = new Date();
-                var h = agora.getHours(), dw = agora.getDay();
-                document.getElementById('relogio_vivo').innerText =
-                    String(h).padStart(2,'0')+':'+String(agora.getMinutes()).padStart(2,'0')+':'+String(agora.getSeconds()).padStart(2,'0');
-                var dot = document.getElementById('b3_dot');
-                var st  = document.getElementById('b3_status');
-                if (dw >= 1 && dw <= 5 && h >= 10 && h < 17) {
-                    dot.innerText='🟢'; st.innerText='B3 ABERTA'; st.style.color='#4ade80';
-                } else {
-                    dot.innerText='🔴'; st.innerText='B3 FECHADA'; st.style.color='#94a3b8';
-                }
-            }
-            setInterval(atualizarRelogio, 1000);
-            atualizarRelogio();
-        </script>
-    """, height=80)
+        """, unsafe_allow_html=True)
+except Exception as e:
+    pass # Falha silenciosa: se o Yahoo Finance não responder, o sistema não quebra, só não exibe o ticker
 
 # =============================================================================
 # 21. ABAS PRINCIPAIS
@@ -966,15 +1004,40 @@ tab_glo,tab_fii,tab_aco,tab_ext,tab_rf,tab_cripto,tab_div,tab_reb,tab_rad,tab_si
 # =============================================================================
 # ABA 1: VISÃO GLOBAL
 # =============================================================================
+# =============================================================================
+# ABA 1: VISÃO GLOBAL
+# =============================================================================
 with tab_glo:
-    with st.expander("🌍 Configurar Painel de Moedas", expanded=False):
+    with st.expander("🌍 Configurar Painel de Moedas e Ativos", expanded=False):
         dict_moedas = {
-            "Dólar (USD)":"USDBRL=X","Euro (EUR)":"EURBRL=X",
-            "Bitcoin (BTC)":"BTC-USD","Ethereum (ETH)":"ETH-USD",
-            "Libra (GBP)":"GBPBRL=X","Solana (SOL)":"SOL-USD"
+            # Moedas Tradicionais (Fiduciárias)
+            "Dólar (USD)": "USDBRL=X",
+            "Euro (EUR)": "EURBRL=X",
+            "Libra (GBP)": "GBPBRL=X",
+            "Dólar Canadense (CAD)": "CADBRL=X",
+            "Franco Suíço (CHF)": "CHFBRL=X",
+            "Iene Japonês (JPY)": "JPYBRL=X",
+            
+            # Criptomoedas Principais
+            "Bitcoin (BTC)": "BTC-USD",
+            "Ethereum (ETH)": "ETH-USD",
+            "Solana (SOL)": "SOL-USD",
+            "Binance Coin (BNB)": "BNB-USD",
+            "XRP (XRP)": "XRP-USD",
+            "Cardano (ADA)": "ADA-USD",
+            "Dogecoin (DOGE)": "DOGE-USD",
+            
+            # Commodities (Metais)
+            "Ouro (Gold)": "GC=F",
+            "Prata (Silver)": "SI=F"
         }
-        moedas_sel = st.multiselect("Moedas para monitorar:", options=list(dict_moedas.keys()),
-                                    default=["Dólar (USD)","Bitcoin (BTC)","Solana (SOL)"])
+        
+        # O cliente pode escolher quantas quiser (deixei 4 ativas por padrão para ficar bonito)
+        moedas_sel = st.multiselect(
+            "Moedas para monitorar (cotações em tempo real):", 
+            options=list(dict_moedas.keys()),
+            default=["Dólar (USD)", "Euro (EUR)", "Bitcoin (BTC)", "Ouro (Gold)"]
+        )
 
     if moedas_sel:
         try:
