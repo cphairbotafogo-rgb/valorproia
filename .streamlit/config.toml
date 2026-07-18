@@ -1,0 +1,9 @@
+[theme]
+# Paleta de marca do ValorPro IA — dourado para estados ativos/CTAs,
+# azul-petróleo escuro como base, deixando verde/vermelho livres para
+# indicar exclusivamente alta/baixa de mercado no restante da interface.
+primaryColor = "#C9A227"
+backgroundColor = "#0f172a"
+secondaryBackgroundColor = "#132A36"
+textColor = "#f8fafc"
+font = "sans serif"

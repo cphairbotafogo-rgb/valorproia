@@ -751,8 +751,8 @@ def buscar_multiplos(itens):
 # =============================================================================
 def exibir_bloqueio_premium(funcionalidade):
     st.markdown(f"""
-        <div style="text-align:center;padding:40px;border:2px dashed #1e3a8a;border-radius:15px;background-color:#f8f9fa;">
-            <h2 style="color:#1e3a8a;">🔒 {funcionalidade}</h2>
+        <div style="text-align:center;padding:40px;border:2px dashed #134156;border-radius:15px;background-color:#f8f9fa;">
+            <h2 style="color:#134156;">🔒 {funcionalidade}</h2>
             <p style="font-size:18px;">Esta funcionalidade é exclusiva para usuários <b>Premium</b>.</p>
         </div>
     """, unsafe_allow_html=True)
@@ -766,15 +766,50 @@ def exibir_bloqueio_premium(funcionalidade):
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+    /* Marca: dourado para estados ativos/CTAs, azul-petróleo para elementos
+       secundários. Verde/vermelho ficam reservados para alta/baixa de mercado
+       em qualquer outro lugar da interface. */
+    --brand-gold: #C9A227;
+    --brand-gold-soft: rgba(201, 162, 39, 0.15);
+    --brand-petrol: #134156;
+    --brand-petrol-soft: rgba(19, 65, 86, 0.35);
+    --market-up: #10b981;
+    --market-down: #ef4444;
+}
+
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif !important; }
+
+/* ── Hierarquia tipográfica: títulos de seção (H2/H3) bem mais fortes
+   que rótulos de card, que antes ficavam com peso quase igual ── */
+h2 { font-size: 1.55rem !important; font-weight: 700 !important; letter-spacing: -0.01em; }
+h3 { font-size: 1.2rem !important; font-weight: 600 !important; opacity: 0.95; }
+h4 { font-size: 1rem !important; font-weight: 600 !important; opacity: 0.9; }
+
 div[data-testid="metric-container"] { border-radius:12px;padding:16px 20px;box-shadow:0 4px 15px rgba(0,0,0,0.05);border:1px solid rgba(128,128,128,0.2);background-color:var(--secondary-background-color); }
 div[data-testid="metric-container"] label { font-size:12px !important;text-transform:uppercase;letter-spacing:0.08em;opacity:0.8; }
 div[data-testid="metric-container"] [data-testid="stMetricValue"],
-div[data-testid="metric-container"] [data-testid="stMetricDelta"] { font-family:'DM Mono',monospace !important; }
+div[data-testid="metric-container"] [data-testid="stMetricDelta"] { font-family:'DM Mono',monospace !important; font-variant-numeric: tabular-nums; }
+
+/* Números tabulares nas tabelas — hoje os valores não ficam alinhados
+   pela casa decimal porque a fonte padrão não é monoespaçada nos dígitos. */
+[data-testid="stDataFrame"], [data-testid="stTable"] {
+    font-variant-numeric: tabular-nums;
+}
+[data-testid="stDataFrame"] * , [data-testid="stTable"] * {
+    font-variant-numeric: tabular-nums;
+}
+
 [data-testid="stTabs"] [role="tablist"] { flex-wrap:wrap; }
 [data-testid="stTabs"] button[role="tab"] { font-weight:500 !important;font-size:13px !important;transition:all 0.2s ease; }
-.stButton > button[kind="primary"] { background:linear-gradient(135deg,#1e3a8a,#3b82f6) !important;border:none !important;color:white !important;font-weight:600 !important;border-radius:8px !important;transition:all 0.2s ease !important; }
-.stButton > button[kind="primary"]:hover { background:linear-gradient(135deg,#1e3a8a,#2563eb) !important;box-shadow:0 0 20px rgba(37,99,235,0.4) !important;transform:translateY(-1px); }
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    color: var(--brand-gold) !important;
+    border-bottom-color: var(--brand-gold) !important;
+}
+
+.stButton > button[kind="primary"] { background:linear-gradient(135deg,#8a6d1a,var(--brand-gold)) !important;border:none !important;color:#0f172a !important;font-weight:700 !important;border-radius:8px !important;transition:all 0.2s ease !important; }
+.stButton > button[kind="primary"]:hover { background:linear-gradient(135deg,#8a6d1a,#e0b830) !important;box-shadow:0 0 20px rgba(201,162,39,0.4) !important;transform:translateY(-1px); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -930,7 +965,7 @@ with st.sidebar:
         horas_r = st.session_state.get("horas_trial", 0)
         st.markdown(f"<span style='background:#f59e0b;color:#000;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;'>⏳ TRIAL — {horas_r}h restantes</span>", unsafe_allow_html=True)
     elif tipo_acesso == "premium":
-        st.markdown("<span style='background:#10b981;color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;'>✅ PREMIUM</span>", unsafe_allow_html=True)
+        st.markdown("<span style='background:#C9A227;color:#0f172a;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;'>✅ PREMIUM</span>", unsafe_allow_html=True)
 
     st.write("")
 
@@ -1053,7 +1088,7 @@ with st.sidebar:
     
     # MENSAGEM DE BETA AVANÇADO
     st.markdown("""
-    <div style='background-color: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; padding: 10px; margin-bottom: 15px; border-radius: 5px;'>
+    <div style='background-color: rgba(19, 65, 86, 0.35); border-left: 3px solid #134156; padding: 10px; margin-bottom: 15px; border-radius: 5px;'>
         <span style='font-size: 11px; color: #cbd5e1; line-height: 1.4;'>
             🚀 <b>Fase Beta Avançada:</b> O ValorPro IA recebe atualizações semanais de segurança e inovação para entregar a melhor tecnologia do mercado.
         </span>
@@ -1064,7 +1099,7 @@ with st.sidebar:
     st.markdown("""
     <div style='font-size: 10px; color: #64748b; text-align: justify; line-height: 1.3;'>
         <b>Aviso Legal:</b> O ValorPro IA é uma ferramenta de apoio educacional e de gestão. Não somos corretora e não fazemos recomendações de ativos (Resolução CVM nº 20). Suas decisões financeiras e os riscos envolvidos são de sua exclusiva responsabilidade.<br><br>
-        <a href='https://docs.google.com/document/d/1OMHfk6rWGScK1bGlFtuYXEf0A7frE-scOOzWnG_XaFQ/edit?usp=sharing' target='_blank' style='color: #3b82f6; text-decoration: none; font-weight: 600;'>🔗 Ler Termos de Uso Completos</a>
+        <a href='https://docs.google.com/document/d/1OMHfk6rWGScK1bGlFtuYXEf0A7frE-scOOzWnG_XaFQ/edit?usp=sharing' target='_blank' style='color: #C9A227; text-decoration: none; font-weight: 600;'>🔗 Ler Termos de Uso Completos</a>
     </div>
     """, unsafe_allow_html=True)
 # =============================================================================
@@ -1233,10 +1268,9 @@ except Exception as e:
 # =============================================================================
 tabs = st.tabs([
     "🌍 Visão Global","🏢 FIIs","📈 Ações","🌎 Exterior",
-    "🛡️ Renda Fixa","🪙 Cripto","💰 Dividendos","⚖️ Rebalanceamento",
-    "🔍 Radar","🧮 Simuladores","🤖 ValorPro IA","🧾 IR","🎯 Metas","📝 Histórico"
+    "🛡️ Renda Fixa","🪙 Cripto","💰 Dividendos"
 ])
-tab_glo,tab_fii,tab_aco,tab_ext,tab_rf,tab_cripto,tab_div,tab_reb,tab_rad,tab_sim,tab_ia,tab_ir,tab_metas,tab_edit = tabs
+tab_glo,tab_fii,tab_aco,tab_ext,tab_rf,tab_cripto,tab_div = tabs
 
 # =============================================================================
 # ABA 1: VISÃO GLOBAL
@@ -1654,9 +1688,21 @@ with tab_div:
         st.info("Adicione FIIs para ativar a projeção.")
 
 # =============================================================================
+# 21.5 FERRAMENTAS (antes eram mais 7 abas na mesma fileira do topo;
+# agora ficam num menu suspenso separado — "o que estou olhando" nas
+# abas acima, "o que eu quero fazer" aqui embaixo)
+# =============================================================================
+st.divider()
+ferramenta_sel = st.selectbox(
+    "🛠️ Ferramentas",
+    ["Selecione uma ferramenta...", "⚖️ Rebalanceamento", "🔍 Radar", "🧮 Simuladores",
+     "🤖 ValorPro IA", "🧾 IR", "🎯 Metas", "📝 Histórico"],
+)
+
+# =============================================================================
 # ABA 8: REBALANCEAMENTO (LIBERADO NO TRIAL)
 # =============================================================================
-with tab_reb:
+if ferramenta_sel == "⚖️ Rebalanceamento":
     with st.expander("ℹ️ Como usar o Rebalanceamento", expanded=False):
         st.markdown("Defina pesos por classe e veja onde aportar o próximo investimento.")
 
@@ -1725,7 +1771,7 @@ with tab_reb:
 # =============================================================================
 # ABA 9: RADAR
 # =============================================================================
-with tab_rad:
+if ferramenta_sel == "🔍 Radar":
     with st.expander("ℹ️ Como usar o Radar de Mercado", expanded=False):
         st.markdown("Pesquise qualquer ativo da B3 em tempo real e compare fundamentos.")
 
@@ -1771,7 +1817,7 @@ with tab_rad:
 # =============================================================================
 # ABA 10: SIMULADORES
 # =============================================================================
-with tab_sim:
+if ferramenta_sel == "🧮 Simuladores":
     with st.expander("ℹ️ Como usar os Simuladores", expanded=False):
         st.markdown("Projete juros compostos, renda alvo e calcule DARFs de forma rápida.")
 
@@ -1871,7 +1917,7 @@ with tab_sim:
 # =============================================================================
 # ABA 11: VALORPRO IA (BLOQUEADA NO TRIAL)
 # =============================================================================
-with tab_ia:
+if ferramenta_sel == "🤖 ValorPro IA":
     checar_trial_bloqueio("ValorPro IA Intelligence")
 
     with st.expander("ℹ️ Como conversar com a ValorPro IA", expanded=False):
@@ -1948,7 +1994,7 @@ with tab_ia:
 # =============================================================================
 # ABA 12: IMPOSTO DE RENDA (BLOQUEADA NO TRIAL)
 # =============================================================================
-with tab_ir:
+if ferramenta_sel == "🧾 IR":
     checar_trial_bloqueio("Imposto de Renda")
 
     with st.expander("ℹ️ Como usar a aba de Imposto de Renda", expanded=False):
@@ -2090,7 +2136,7 @@ with tab_ir:
 # =============================================================================
 # ABA 13: METAS (BLOQUEADA NO TRIAL)
 # =============================================================================
-with tab_metas:
+if ferramenta_sel == "🎯 Metas":
     checar_trial_bloqueio("Metas de Patrimônio")
 
     with st.expander("ℹ️ Como usar as Metas", expanded=False):
@@ -2139,7 +2185,7 @@ with tab_metas:
 # =============================================================================
 # ABA 14: HISTÓRICO E EDIÇÃO
 # =============================================================================
-with tab_edit:
+if ferramenta_sel == "📝 Histórico":
     he1, he2 = st.tabs(["👁️ Visualizar Lançamentos","🏷️ Histórico de Marcação"])
 
     with he1:
