@@ -18,10 +18,19 @@ import plotly.graph_objects as go
 import google.generativeai as genai
 import yfinance as yf
 
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
+from zoneinfo import ZoneInfo
 
-from banco import *
-from motor import *
+# Imports explícitos (o "import *" duplicava funções entre banco.py e motor.py
+# e deixava ambíguo qual versão de buscar_mercado/classificar_ativo valia)
+from banco import consolidar, carregar_log_precos, carregar_precos_manuais
+from motor import descobrir_setor
+
+TZ_BR = ZoneInfo("America/Sao_Paulo")
+
+def agora_br() -> datetime:
+    """Data/hora no fuso de Brasília (o servidor da nuvem roda em UTC)."""
+    return datetime.now(TZ_BR)
 
 try:
     from supabase import create_client, Client
@@ -68,9 +77,10 @@ ID_ADMIN = "75f81617-e3f0-49d9-8b18-9fe6f6e0ad7b"
 # 5. FUNÇÃO DE VERIFICAÇÃO DE ACESSO (COM TRIAL DE 3 DIAS)
 # =============================================================================
 def verificar_acesso(dados: dict) -> tuple:
-    email       = dados.get("e-mail", "").strip().lower()
-    status      = dados.get("status", "inativo")
-    exp_str     = dados.get("expiracao")
+    email        = dados.get("e-mail", "").strip().lower()
+    status       = dados.get("status", "inativo")
+    tipo         = str(dados.get("tipo", "")).strip().lower()
+    exp_str      = dados.get("expiracao")
     trial_inicio = dados.get("trial_inicio")
     trial_usado  = dados.get("trial_usado", False)
 
@@ -78,25 +88,38 @@ def verificar_acesso(dados: dict) -> tuple:
     if email == EMAIL_ADMIN:
         return True, "admin"
 
-    # Usuário com assinatura ativa
+    # BUG CORRIGIDO: antes, todo cadastro novo (status="ativo", tipo="trial")
+    # caía no ramo "premium" e ganhava acesso completo, ignorando os bloqueios
+    # do trial. Agora o tipo "trial" é verificado ANTES do premium.
     if status == "ativo":
+        exp = None
         if exp_str:
             try:
-                exp = date.fromisoformat(str(exp_str))
-                if exp < date.today():
-                    try:
-                        supabase.table("usuarios").update({"status": "inativo"}).eq("e-mail", email).execute()
-                    except Exception as e:
-                        logging.error(f"Erro ao inativar expirado ({email}): {e}")
-                    return False, "expirado"
+                exp = date.fromisoformat(str(exp_str)[:10])
             except Exception as e:
                 logging.error(f"Data inválida para {email}: {e}")
                 return False, "data_invalida"
+
+        if exp and exp < date.today():
+            try:
+                supabase.table("usuarios").update({"status": "inativo"}).eq("e-mail", email).execute()
+            except Exception as e:
+                logging.error(f"Erro ao inativar expirado ({email}): {e}")
+            return (False, "trial_expirado") if tipo == "trial" else (False, "expirado")
+
+        if tipo == "trial":
+            if exp:
+                fim = datetime.combine(exp, datetime.max.time())
+                horas_restantes = max(0, int((fim - datetime.now()).total_seconds() / 3600))
+            else:
+                horas_restantes = 72
+            return True, f"trial:{horas_restantes}"
+
         return True, "premium"
 
-    # Nunca usou trial → ativar agora
+    # Legado: usuários antigos com controle por trial_inicio/trial_usado
     if not trial_inicio and not trial_usado:
-        agora = datetime.utcnow().isoformat()
+        agora = datetime.now(ZoneInfo("UTC")).isoformat()
         try:
             supabase.table("usuarios").update({
                 "trial_inicio": agora,
@@ -106,13 +129,13 @@ def verificar_acesso(dados: dict) -> tuple:
             logging.error(f"Erro ao ativar trial ({email}): {e}")
         return True, "trial:72"
 
-    # Já usou trial → verificar validade
     if trial_inicio and trial_usado:
         try:
-            inicio    = datetime.fromisoformat(str(trial_inicio).replace("Z", ""))
+            inicio    = datetime.fromisoformat(str(trial_inicio).replace("Z", "").split("+")[0])
             fim_trial = inicio + timedelta(days=3)
-            if datetime.utcnow() < fim_trial:
-                horas_restantes = int((fim_trial - datetime.utcnow()).total_seconds() / 3600)
+            agora_utc = datetime.now(ZoneInfo("UTC")).replace(tzinfo=None)
+            if agora_utc < fim_trial:
+                horas_restantes = int((fim_trial - agora_utc).total_seconds() / 3600)
                 return True, f"trial:{horas_restantes}"
             else:
                 return False, "trial_expirado"
@@ -189,9 +212,27 @@ if not st.session_state.autenticado:
                             resp = supabase.table("usuarios").select("*").eq("e-mail", u).execute()
                             if resp.data:
                                 dados       = resp.data[0]
-                                senha_banco = dados.get("senha")
+                                senha_banco = dados.get("senha") or ""
 
-                                if check_password_hash(senha_banco, p) or senha_banco == p:
+                                # SEGURANÇA: senhas agora são verificadas por hash.
+                                # Contas antigas (senha em texto puro) são migradas
+                                # automaticamente para hash no primeiro login.
+                                senha_ok = False
+                                try:
+                                    if senha_banco.startswith(("pbkdf2:", "scrypt:")):
+                                        senha_ok = check_password_hash(senha_banco, p)
+                                    elif senha_banco and senha_banco == p:
+                                        senha_ok = True
+                                        try:
+                                            supabase.table("usuarios").update(
+                                                {"senha": generate_password_hash(p)}
+                                            ).eq("id", dados.get("id")).execute()
+                                        except Exception as e:
+                                            logging.error(f"Falha ao migrar senha para hash ({u}): {e}")
+                                except Exception:
+                                    senha_ok = False
+
+                                if senha_ok:
                                     tem_acesso, motivo = verificar_acesso(dados)
 
                                     if tem_acesso:
@@ -206,6 +247,10 @@ if not st.session_state.autenticado:
                                         st.session_state.autenticado    = True
                                         st.session_state.usuario_logado = u
                                         st.session_state.usuario_id     = dados.get("id")
+                                        # PRIVACIDADE: limpa dados de um usuário anterior
+                                        # que possa ter usado o mesmo navegador/sessão
+                                        for chave in ["df_geral", "mensagens_ia", "chat_ia"]:
+                                            st.session_state.pop(chave, None)
                                         st.rerun()
 
                                     elif motivo == "trial_expirado":
@@ -222,6 +267,9 @@ if not st.session_state.autenticado:
                                         st.error("❌ Conta inativa. Entre em contato com o suporte.")
                                     else:
                                         st.error("❌ Problema ao verificar o acesso.")
+                                else:
+                                    # BUG CORRIGIDO: antes, senha errada não mostrava nada
+                                    st.error("❌ Senha incorreta. Tente novamente.")
                             else:
                                 st.error("❌ E-mail não encontrado.")
                         except Exception as e:
@@ -369,27 +417,34 @@ if not st.session_state.autenticado:
                 btn_cadastrar = st.form_submit_button("🚀 Criar Minha Conta Grátis", type="primary")
 
                 if btn_cadastrar:
+                    email_limpo = novo_email.strip().lower()
                     if not concorda_termos:
                         st.error(f"⚠️ OBRIGATÓRIO: Você deve marcar a caixa de declaração jurídica acima confirmando que leu e aceita os Termos de Uso (Versão {VERSAO_TERMOS}) para prosseguir.")
                     elif not novo_email or not nova_senha or not novo_nome:
                         st.error("⚠️ Por favor, preencha todos os campos!")
+                    elif "@" not in email_limpo or "." not in email_limpo.split("@")[-1]:
+                        st.error("⚠️ Digite um e-mail válido.")
+                    elif len(nova_senha) < 6:
+                        st.error("⚠️ A senha deve ter pelo menos 6 caracteres.")
                     else:
                         try:
                             # 1. Verifica se o e-mail já existe
-                            resposta = supabase.table("usuarios").select("id").eq("e-mail", novo_email.strip().lower()).execute()
+                            resposta = supabase.table("usuarios").select("id").eq("e-mail", email_limpo).execute()
 
                             if len(resposta.data) > 0:
                                 st.warning("❌ Este e-mail já está cadastrado. Vá na aba 'Entrar no Sistema'!")
                             else:
                                 # 2. Calcula 3 dias de trial
-                                hoje = datetime.now()
+                                hoje = datetime.now(TZ_BR)
                                 data_expiracao = (hoje + timedelta(days=3)).strftime("%Y-%m-%d")
 
                                 # 3. Salva no Supabase COM O LOG DE COMPLIANCE
+                                # SEGURANÇA: a senha agora é salva como HASH,
+                                # nunca mais em texto puro no banco.
                                 novo_usuario = {
                                     "nome": novo_nome.strip(),
-                                    "e-mail": novo_email.strip().lower(),
-                                    "senha": nova_senha,
+                                    "e-mail": email_limpo,
+                                    "senha": generate_password_hash(nova_senha),
                                     "status": "ativo",
                                     "tipo": "trial",
                                     "expiracao": data_expiracao,
@@ -399,7 +454,7 @@ if not st.session_state.autenticado:
 
                                 supabase.table("usuarios").insert(novo_usuario).execute()
 
-                                st.success(f"✅ Parabéns, {novo_nome}! Sua conta foi criada com sucesso.")
+                                st.success(f"✅ Parabéns, {novo_nome.strip()}! Sua conta foi criada com sucesso.")
                                 st.info("👈 Agora é só clicar na aba 'Entrar no Sistema' e fazer o login com o e-mail e senha que você acabou de criar!")
 
                         except Exception as e:
@@ -478,14 +533,14 @@ except Exception:
 # =============================================================================
 # 10. ARQUIVOS POR USUÁRIO
 # =============================================================================
+# ⚠️ IMPORTANTE: no Streamlit Cloud o disco é EFÊMERO (zera a cada deploy).
+# Por isso, proventos e evolução patrimonial agora ficam no Supabase.
+# Os arquivos abaixo são apenas caches locais secundários.
 user_id       = st.session_state.get("usuario_logado", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
 
-DB_FILE         = f"investimentos_{user_id_clean}.csv"
-SNAPSHOT_FILE   = f"history_{user_id_clean}.csv"
-PROVENTOS_FILE  = f"proventos_{user_id_clean}.csv"
-DB_METAS        = f"metas_financeiras_{user_id_clean}.csv"
-DIVIDENDOS_FILE = f"dividendos_{user_id_clean}.csv"
+PRECOS_MANUAIS_USUARIO = f"precos_manuais_{user_id_clean}.csv"
+ARQUIVO_CHAT           = f"historico_ia_{user_id_clean}.json"  # antes era global: um usuário via o chat do outro!
 
 # =============================================================================
 # 11. CONFIGURAÇÃO DA IA (GEMINI)
@@ -624,7 +679,7 @@ def _motor_fundamentos_br(ticker, is_fii):
 
     return p_vp, p_l, dy, rend
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)  # 5 min: alivia o Fundamentus/Yahoo e acelera o app
 def buscar_mercado(ticker: str, categoria_sugerida: str = None):
     ticker    = ticker.upper().strip()
     is_crypto = ticker.endswith("-BRL") or ticker.endswith("-USD")
@@ -790,6 +845,80 @@ if "df_geral" not in st.session_state:
 df_geral = st.session_state.df_geral
 
 # =============================================================================
+# 17.1 PROVENTOS E EVOLUÇÃO PATRIMONIAL NA NUVEM
+# =============================================================================
+# Antes, os proventos eram salvos em "dividendos_<usuario>.csv" mas LIDOS de
+# "meus_dividendos.csv" (arquivo global do banco.py) — ou seja, o lançamento
+# sumia da tela e ainda misturava dados de usuários. Agora tudo vai para o
+# Supabase (tabelas "proventos" e "snapshots_patrimonio" — ver migracao.sql).
+
+def carregar_proventos_nuvem() -> pd.DataFrame:
+    if not st.session_state.get("usuario_id"):
+        return pd.DataFrame()
+    try:
+        res = supabase.table("proventos").select("*").eq(
+            "usuario_id", st.session_state.usuario_id
+        ).order("data_recebimento", desc=True).execute()
+        df = pd.DataFrame(res.data)
+        if df.empty:
+            return pd.DataFrame()
+        df = df.rename(columns={
+            "data_recebimento": "Data",
+            "ticker":           "Ticker",
+            "valor":            "Valor",
+            "tipo":             "Tipo",
+        })
+        df["Data"]  = pd.to_datetime(df["Data"])
+        df["Valor"] = pd.to_numeric(df["Valor"], errors="coerce").fillna(0)
+        return df
+    except Exception as e:
+        logging.error(f"Erro ao carregar proventos: {e}")
+        return pd.DataFrame()
+
+def salvar_provento_nuvem(data_receb, ticker: str, valor: float, tipo: str) -> bool:
+    try:
+        supabase.table("proventos").insert({
+            "usuario_id":       st.session_state.usuario_id,
+            "data_recebimento": data_receb.strftime("%Y-%m-%d"),
+            "ticker":           ticker.upper().strip(),
+            "valor":            float(valor),
+            "tipo":             tipo,
+        }).execute()
+        return True
+    except Exception as e:
+        st.error(f"Falha ao salvar provento: {e}")
+        return False
+
+def salvar_snapshot_nuvem(aportado: float, mercado: float):
+    """Grava a foto diária do patrimônio (1 registro por usuário/dia)."""
+    if not st.session_state.get("usuario_id"):
+        return
+    try:
+        supabase.table("snapshots_patrimonio").upsert({
+            "usuario_id": st.session_state.usuario_id,
+            "data":       agora_br().strftime("%Y-%m-%d"),
+            "aportado":   round(float(aportado), 2),
+            "mercado":    round(float(mercado), 2),
+        }, on_conflict="usuario_id,data").execute()
+    except Exception as e:
+        logging.error(f"Erro ao salvar snapshot: {e}")
+
+def carregar_snapshots_nuvem() -> pd.DataFrame:
+    if not st.session_state.get("usuario_id"):
+        return pd.DataFrame()
+    try:
+        res = supabase.table("snapshots_patrimonio").select("data,aportado,mercado").eq(
+            "usuario_id", st.session_state.usuario_id
+        ).order("data").execute()
+        df = pd.DataFrame(res.data)
+        if df.empty:
+            return pd.DataFrame()
+        return df.rename(columns={"data": "Data", "aportado": "Aportado", "mercado": "Mercado"})
+    except Exception as e:
+        logging.error(f"Erro ao carregar snapshots: {e}")
+        return pd.DataFrame()
+
+# =============================================================================
 # 18. SIDEBAR
 # =============================================================================
 with st.sidebar:
@@ -810,37 +939,47 @@ with st.sidebar:
         n_pwd = st.text_input("Nova Senha:", type="password")
         c_pwd = st.text_input("Confirme a Senha:", type="password")
         if st.button("Atualizar Credenciais", use_container_width=True):
-            if n_pwd == c_pwd and n_pwd != "":
+            if n_pwd == c_pwd and len(n_pwd) >= 6:
                 try:
-                    supabase.table("usuarios").update({"e-mail": n_usr, "senha": n_pwd}).eq("id", st.session_state.usuario_id).execute()
+                    # SEGURANÇA: senha salva como hash, e-mail normalizado
+                    supabase.table("usuarios").update({
+                        "e-mail": n_usr.strip().lower(),
+                        "senha":  generate_password_hash(n_pwd)
+                    }).eq("id", st.session_state.usuario_id).execute()
                     st.success("✅ Atualizado! Faça login novamente.")
                     time.sleep(1.5)
                     st.session_state.autenticado = False
+                    for chave in ["df_geral", "mensagens_ia", "chat_ia"]:
+                        st.session_state.pop(chave, None)
                     st.rerun()
                 except Exception:
                     st.error("Erro ao atualizar.")
             elif n_pwd != c_pwd:
                 st.error("As senhas não conferem.")
             else:
-                st.error("A senha não pode ser vazia.")
+                st.error("A senha deve ter pelo menos 6 caracteres.")
 
     if st.button("🚪 Sair do Sistema", use_container_width=True):
+        # PRIVACIDADE: limpa todos os dados do usuário da sessão
+        for chave in ["autenticado", "usuario_logado", "usuario_id", "tipo_acesso",
+                      "horas_trial", "df_geral", "mensagens_ia", "chat_ia"]:
+            st.session_state.pop(chave, None)
         st.session_state.autenticado = False
         st.rerun()
 
     st.divider()
     st.markdown("### 🔄 Sincronização")
+    st.caption("ℹ️ *B3 (Ações/FIIs): delay de até 15 min.*")
     if st.button("⟳ Atualizar Cotações", use_container_width=True, type="primary"):
         st.cache_data.clear()
         st.session_state.df_geral = carregar_dados_nuvem()
         st.rerun()
-        st.caption("ℹ️ *B3 (Ações/FIIs): delay de até 15 min.*")
 
     st.divider()
     st.markdown("### 🛒 Lançar Operação")
     classe_ativo = st.selectbox("Classe:", ["Bolsa (Ações/FIIs)", "Renda Fixa (CDB/Tesouro)", "Criptomoedas", "Exterior (EUA)"])
     tipo         = st.radio("Tipo:", ["Compra", "Venda"], horizontal=True)
-    data_op      = st.date_input("Data:", datetime.now())
+    data_op      = st.date_input("Data:", agora_br().date())
 
     if classe_ativo == "Bolsa (Ações/FIIs)":
         opcao_t = st.selectbox("Ativo:", ["Digitar código..."] + LISTA_COMPLETA_B3)
@@ -960,7 +1099,7 @@ if not df_geral.empty:
         df_g.loc[df_g["Ticker"].str.contains("TESOURO", case=False, na=False), "Categoria"] = "Renda Fixa"
 
         try:
-            precos_manuais = carregar_precos_manuais()
+            precos_manuais = carregar_precos_manuais(PRECOS_MANUAIS_USUARIO)
         except Exception:
             precos_manuais = {}
 
@@ -974,16 +1113,9 @@ if not df_geral.empty:
         df_g["Custo_Pos"]   = df_g["Qtd"] * df_g["Preco_Medio"]
         df_g["Setor"]       = df_g.apply(lambda r: descobrir_setor(r["Ticker"], r["Categoria"]), axis=1)
 
-        hoje_str = datetime.now().strftime("%Y-%m-%d")
-        snap_df  = pd.DataFrame([{"Data": hoje_str, "Aportado": df_g["Custo_Pos"].sum(), "Mercado": df_g["Total_Atual"].sum()}])
-        try:
-            if os.path.exists(SNAPSHOT_FILE):
-                df_snap_old = pd.read_csv(SNAPSHOT_FILE)
-                pd.concat([df_snap_old[df_snap_old["Data"] != hoje_str], snap_df], ignore_index=True).to_csv(SNAPSHOT_FILE, index=False)
-            else:
-                snap_df.to_csv(SNAPSHOT_FILE, index=False)
-        except Exception:
-            pass
+        # Foto diária do patrimônio agora vai para o Supabase (o CSV local
+        # era apagado a cada deploy do Streamlit Cloud, zerando o histórico)
+        salvar_snapshot_nuvem(df_g["Custo_Pos"].sum(), df_g["Total_Atual"].sum())
 
 # =============================================================================
 # 20. CABEÇALHO: LOGO + RELÓGIO
@@ -1181,10 +1313,14 @@ with tab_glo:
         custo_total   = df_g["Custo_Pos"].sum()
         rent_v_global = ((total_alocado - custo_total) / custo_total * 100) if custo_total > 0 else 0.0
 
+        # BUG CORRIGIDO: o código antigo somava "df_proventos", uma variável
+        # que não existia em lugar nenhum (o try/except escondia o NameError).
+        # Agora mostramos o total de proventos reais recebidos, vindo da nuvem.
         try:
-            total_pendente = df_proventos[df_proventos['Status'] == 'Pendente']['Valor'].sum()
+            df_prov_glo    = carregar_proventos_nuvem()
+            total_proventos = float(df_prov_glo["Valor"].sum()) if not df_prov_glo.empty else 0.0
         except Exception:
-            total_pendente = 0.0
+            total_proventos = 0.0
 
         st.markdown("#### 📊 Resumo de Patrimônio Alocado")
         mc1, mc2, mc3 = st.columns(3)
@@ -1195,10 +1331,10 @@ with tab_glo:
         mc4, mc5, mc6 = st.columns(3)
         mc4.metric("🛡️ Renda Fixa", f"R$ {df_g[df_g['Categoria']=='Renda Fixa']['Total_Atual'].sum():,.2f}")
         mc5.metric("🪙 Cripto",      f"R$ {df_g[df_g['Categoria']=='Criptomoedas']['Total_Atual'].sum():,.2f}")
-        mc6.metric("💎 Total Geral", f"R$ {total_alocado + total_pendente:,.2f}", delta=f"{rent_v_global:+.2f}%")
+        mc6.metric("💎 Total Geral", f"R$ {total_alocado:,.2f}", delta=f"{rent_v_global:+.2f}%")
 
-        if total_pendente > 0:
-            st.caption(f"ℹ️ Inclui **R$ {total_pendente:,.2f}** de proventos pendentes.")
+        if total_proventos > 0:
+            st.caption(f"ℹ️ Você já recebeu **R$ {total_proventos:,.2f}** em proventos (veja a aba 💰 Dividendos).")
 
         st.divider()
         st.markdown("#### 🔍 Detalhamento da Carteira")
@@ -1236,18 +1372,14 @@ with tab_glo:
 
         with col_graf2:
             st.markdown("### 📈 Evolução Patrimonial")
-            if os.path.exists(SNAPSHOT_FILE):
-                try:
-                    df_hist = pd.read_csv(SNAPSHOT_FILE)
-                    if len(df_hist) > 0:
-                        fig_hist = px.line(df_hist, x="Data", y=["Aportado","Mercado"],
-                                           markers=True, color_discrete_sequence=["#94a3b8","#10b981"])
-                        fig_hist.update_layout(margin=dict(t=30,b=0,l=0,r=0), legend_title_text="Legenda")
-                        st.plotly_chart(fig_hist, use_container_width=True)
-                except Exception:
-                    st.info("Histórico em construção.")
+            df_hist = carregar_snapshots_nuvem()
+            if not df_hist.empty:
+                fig_hist = px.line(df_hist, x="Data", y=["Aportado","Mercado"],
+                                   markers=True, color_discrete_sequence=["#94a3b8","#10b981"])
+                fig_hist.update_layout(margin=dict(t=30,b=0,l=0,r=0), legend_title_text="Legenda")
+                st.plotly_chart(fig_hist, use_container_width=True)
             else:
-                st.info("O gráfico aparecerá após o primeiro salvamento.")
+                st.info("O gráfico aparecerá após o primeiro dia de uso (a foto diária agora fica salva na nuvem).")
     else:
         st.info("Lance suas operações para ver o patrimônio.")
 
@@ -1454,14 +1586,14 @@ with tab_div:
         st.markdown("Registre recebimentos, veja histórico e projete a bola de neve dos dividendos.")
 
     st.markdown("#### 💰 Registro de Renda Passiva")
-    try:
-        df_divs = carregar_dividendos()
-    except Exception:
-        df_divs = pd.DataFrame()
+    # BUG CORRIGIDO: antes o lançamento era salvo em "dividendos_<usuario>.csv"
+    # mas a leitura vinha de "meus_dividendos.csv" (arquivo global) — o registro
+    # sumia da tela e ainda misturava dados de usuários. Agora tudo é Supabase.
+    df_divs = carregar_proventos_nuvem()
 
     with st.expander("➕ Lançar novo recebimento", expanded=df_divs.empty):
         cd1, cd2, cd3, cd4, cd5 = st.columns([1,1.2,1,1,0.8])
-        with cd1: d_data = st.date_input("Data:", datetime.now(), key="div_dt")
+        with cd1: d_data = st.date_input("Data:", agora_br().date(), key="div_dt")
         with cd2:
             opcao_d = st.selectbox("Ativo:", ["Digitar..."] + LISTA_COMPLETA_B3, key="div_sel")
             d_tick  = st.text_input("Código:", key="div_inp").upper() if opcao_d == "Digitar..." else opcao_d
@@ -1471,15 +1603,10 @@ with tab_div:
             st.write(""); st.write("")
             if st.button("Lançar", use_container_width=True, key="div_btn"):
                 if d_tick:
-                    novo = pd.DataFrame([{"Data": d_data, "Ticker": d_tick.upper(), "Valor": d_val, "Tipo": d_tipo}])
-                    df_div_ok = pd.concat([df_divs, novo], ignore_index=True) if not df_divs.empty else novo
-                    try:
-                        df_div_ok.to_csv(DIVIDENDOS_FILE, index=False)
-                        st.success("✅ Registrado!")
+                    if salvar_provento_nuvem(d_data, d_tick, d_val, d_tipo):
+                        st.success("✅ Registrado na nuvem!")
                         time.sleep(0.8)
                         st.rerun()
-                    except Exception:
-                        pass
                 else:
                     st.error("Preencha o ativo.")
 
@@ -1515,7 +1642,7 @@ with tab_div:
                                      pd.to_numeric(df_renda["Rend"], errors="coerce")).sum()
 
     if renda_mensal_estimada > 0:
-        meses_proj   = [(datetime.now() + pd.DateOffset(months=i)).strftime("%b/%Y") for i in range(1, 13)]
+        meses_proj   = [(agora_br() + pd.DateOffset(months=i)).strftime("%b/%Y") for i in range(1, 13)]
         valores_proj = [renda_mensal_estimada * ((1.005)**i) for i in range(13)][1:]
         df_proj = pd.DataFrame({"Mês": meses_proj, "Renda Projetada (R$)": valores_proj})
         fig_proj = px.bar(df_proj, x="Mês", y="Renda Projetada (R$)", text_auto=".2f",
@@ -1751,7 +1878,8 @@ with tab_ia:
         st.markdown("Faça perguntas sobre sua carteira, ativos ou estratégias de investimento.")
 
     st.markdown("#### 🤖 ValorPro IA Intelligence")
-    ARQUIVO_CHAT = "historico_ia.json"
+    # ARQUIVO_CHAT agora é por usuário (definido na seção 10) — antes era um
+    # arquivo GLOBAL: o histórico de chat de um cliente aparecia para outro!
 
     if st.session_state.get('tipo_acesso') not in ["premium", "admin"]:
         exibir_bloqueio_premium("ValorPro IA Intelligence")
@@ -1836,7 +1964,8 @@ with tab_ir:
         * **FIIs:** SEM ISENÇÃO (20% sobre lucro)
         """)
     with col_ir1:
-        anos_disponiveis = [datetime.now().year, datetime.now().year - 1, datetime.now().year - 2]
+        ano_atual        = agora_br().year
+        anos_disponiveis = [ano_atual, ano_atual - 1, ano_atual - 2]
         ano_base = st.selectbox("📅 Ano-Calendário:", anos_disponiveis)
         st.success(f"🕰️ Sistema configurado para o ano base **{ano_base}**.")
 
@@ -1845,10 +1974,14 @@ with tab_ir:
             df_ir_filtrado = df_geral[df_geral['Data'] <= data_limite].copy()
 
             if not df_ir_filtrado.empty:
-                df_ir_calc = df_ir_filtrado.groupby('Ticker').agg(
-                    {'Qtd':'sum','Preco_Pago':'mean','Categoria':'first'}
-                ).reset_index()
-                df_ir_calc = df_ir_calc[df_ir_calc['Qtd'] > 0.0001]
+                # BUG CORRIGIDO: antes o preço médio era a média SIMPLES dos
+                # preços ('Preco_Pago':'mean'), ignorando as quantidades e as
+                # vendas — errado para a Receita Federal. Agora usamos o mesmo
+                # motor de consolidação cronológico da carteira.
+                df_ir_calc = consolidar(df_ir_filtrado)
+                if not df_ir_calc.empty:
+                    df_ir_calc = df_ir_calc.rename(columns={"Preco_Medio": "Preco_Pago"})
+                    df_ir_calc = df_ir_calc[df_ir_calc['Qtd'] > 0.0001]
 
                 if not df_ir_calc.empty:
                     df_ir_calc['Custo_Total'] = df_ir_calc['Qtd'] * df_ir_calc['Preco_Pago']
@@ -2037,7 +2170,11 @@ with tab_edit:
                     sucesso = 0
                     for index, campos_alterados in mudancas.items():
                         row_id = int(df_para_editar.iloc[int(index)]['id'])
-                        supabase.table("operacoes").update(campos_alterados).eq("id", row_id).execute()
+                        # SEGURANÇA: o filtro por usuario_id impede alterar
+                        # registros de outra pessoa mesmo se o id for forjado
+                        supabase.table("operacoes").update(campos_alterados)\
+                            .eq("id", row_id)\
+                            .eq("usuario_id", st.session_state.usuario_id).execute()
                         sucesso += 1
                     st.success(f"✅ {sucesso} alteração(ões) salva(s)!")
                     st.session_state.df_geral = carregar_dados_nuvem()
@@ -2067,7 +2204,9 @@ with tab_edit:
                     btn_apagar = st.form_submit_button("🗑️ Excluir Definitivamente")
                 if btn_apagar:
                     try:
-                        supabase.table("operacoes").delete().eq("id", id_selecionado).execute()
+                        supabase.table("operacoes").delete()\
+                            .eq("id", id_selecionado)\
+                            .eq("usuario_id", st.session_state.usuario_id).execute()
                         st.success("✅ Lançamento apagado!")
                         st.session_state.df_geral = carregar_dados_nuvem()
                         time.sleep(1)
