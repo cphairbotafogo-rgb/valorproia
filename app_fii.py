@@ -15,6 +15,7 @@ import pandas as pd
 import requests
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.io as pio
 import google.generativeai as genai
 import yfinance as yf
 
@@ -814,6 +815,71 @@ div[data-testid="metric-container"] [data-testid="stMetricDelta"] { font-family:
 """, unsafe_allow_html=True)
 
 # =============================================================================
+# 15.1 TEMA DOS GRÁFICOS (Plotly)
+# =============================================================================
+# Paleta categórica validada (CVD-safety: protanopia/deuteranopia ΔE >= 12,
+# contraste >= 3:1 no fundo escuro do app) — verde/vermelho ficam FORA dela
+# de propósito, pois já são usados em toda a interface só para alta/baixa
+# de mercado. Ordem fixa: nunca reordenar por dado, sempre atribuir em
+# sequência (slot 1 para a série "principal", etc.).
+PALETA_CATEGORICA   = ["#B08419", "#2AA7B0", "#9085E9", "#C06A1E", "#4C8FE0", "#D5518A", "#A65D2E"]
+COR_MARCA_OURO      = "#C9A227"   # estados ativos/CTA/destaque ("isto é seu")
+COR_MARCA_PETROLEO  = "#134156"   # elementos secundários/comparação
+COR_MERCADO_ALTA    = "#10b981"   # reservado: só variação de mercado/ganho
+COR_MERCADO_BAIXA   = "#ef4444"   # reservado: só variação de mercado/perda
+
+_tema_valorpro = go.layout.Template()
+_tema_valorpro.layout = go.Layout(
+    colorway=PALETA_CATEGORICA,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="DM Sans, sans-serif", color="#f8fafc", size=13),
+    title=dict(font=dict(size=16, color="#f8fafc")),
+    legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#cbd5e1", size=12)),
+    xaxis=dict(gridcolor="rgba(148,163,184,0.12)", linecolor="rgba(148,163,184,0.3)",
+               zerolinecolor="rgba(148,163,184,0.3)"),
+    yaxis=dict(gridcolor="rgba(148,163,184,0.12)", linecolor="rgba(148,163,184,0.3)",
+               zerolinecolor="rgba(148,163,184,0.3)"),
+    hoverlabel=dict(bgcolor="#132A36", font=dict(color="#f8fafc", family="DM Sans, sans-serif", size=12),
+                     bordercolor=COR_MARCA_OURO),
+    margin=dict(t=40, b=30, l=10, r=10),
+)
+pio.templates["valorpro"] = _tema_valorpro
+pio.templates.default = "valorpro"
+
+def grafico_donut_patrimonio(df: pd.DataFrame, n_top: int = 5, altura: int = 260):
+    """Donut de composição por ativo: agrupa o excedente em 'Outros' (máx.
+    n_top+1 fatias, sempre legível), mostra R$ e % no hover e o total no
+    centro — em vez de uma pizza genérica sem contexto."""
+    d = df[["Ticker", "Total_Atual"]].copy()
+    d = d[d["Total_Atual"] > 0].sort_values("Total_Atual", ascending=False)
+    if d.empty:
+        return None
+    if len(d) > n_top:
+        resto = d.iloc[n_top:]["Total_Atual"].sum()
+        d = pd.concat([
+            d.iloc[:n_top],
+            pd.DataFrame([{"Ticker": f"Outros ({len(d) - n_top})", "Total_Atual": resto}])
+        ], ignore_index=True)
+
+    total = d["Total_Atual"].sum()
+    fig = px.pie(d, values="Total_Atual", names="Ticker", hole=0.62,
+                 color_discrete_sequence=PALETA_CATEGORICA)
+    fig.update_traces(
+        textposition="outside", textinfo="percent",
+        hovertemplate="<b>%{label}</b><br>R$ %{value:,.2f}<br>%{percent} da carteira<extra></extra>",
+        marker=dict(line=dict(color="#0f172a", width=2)),
+    )
+    fig.update_layout(
+        height=altura, showlegend=True,
+        legend=dict(orientation="h", y=-0.18, font=dict(size=10)),
+        margin=dict(t=10, b=10, l=10, r=10),
+        annotations=[dict(text=f"R$ {total:,.0f}", x=0.5, y=0.5, showarrow=False,
+                           font=dict(size=14, color="#f8fafc"))],
+    )
+    return fig
+
+# =============================================================================
 # 16. LISTAS DE ATIVOS
 # =============================================================================
 TOP_20_FII   = ["MXRF11","HGLG11","XPML11","BTLG11","VISC11","KNIP11","KNCR11","XPLG11","HGRU11","CPTS11","IRDM11","HGBS11","ALZR11","TRXF11","VGHF11","KNSC11","VGIR11","RBRR11","MCCI11","KNRI11"]
@@ -1379,9 +1445,11 @@ with tab_glo:
         col_p, col_t = st.columns([1.5, 2.5])
         with col_p:
             st.markdown("##### Distribuição")
-            fig_p = px.pie(df_v_filt, values="Total_Atual", names="Ticker", hole=0.55)
-            fig_p.update_layout(height=350, showlegend=True, legend=dict(orientation="h", y=-0.2))
-            st.plotly_chart(fig_p, use_container_width=True)
+            fig_p = grafico_donut_patrimonio(df_v_filt, n_top=6, altura=350)
+            if fig_p is not None:
+                st.plotly_chart(fig_p, use_container_width=True)
+            else:
+                st.info("Sem posições para exibir.")
         with col_t:
             st.markdown("##### Ativos")
             st.dataframe(df_v_filt[["Ticker","Qtd","Preço","Total_Atual"]].sort_values("Total_Atual", ascending=False),
@@ -1398,20 +1466,51 @@ with tab_glo:
                 "Indicador":         ["Minha Carteira","CDI","B3 (Meta Ibov)"],
                 "Rentabilidade (%)": [rent_carteira, cdi_anual, ibov_anual]
             })
+            # Destaque na sua carteira (dourado) vs. referências de mercado
+            # (petróleo/azul) — evita usar verde/vermelho aqui, que ficam
+            # reservados só para alta/baixa de preço.
             fig_comp = px.bar(df_comp, x="Indicador", y="Rentabilidade (%)", text="Rentabilidade (%)",
-                              color="Indicador", color_discrete_sequence=["#3b82f6","#10b981","#f59e0b"])
-            fig_comp.update_traces(texttemplate='%{text:.2%}', textposition='outside')
+                              color="Indicador",
+                              color_discrete_map={"Minha Carteira": COR_MARCA_OURO,
+                                                   "CDI": COR_MARCA_PETROLEO,
+                                                   "B3 (Meta Ibov)": PALETA_CATEGORICA[4]})
+            fig_comp.update_traces(texttemplate='%{text:.2%}', textposition='outside',
+                                    hovertemplate="<b>%{x}</b><br>%{y:.2%}<extra></extra>")
             fig_comp.update_layout(yaxis_tickformat='.1%', showlegend=False, margin=dict(t=30,b=0,l=0,r=0))
             st.plotly_chart(fig_comp, use_container_width=True)
+            st.caption("🟡 Sua carteira em destaque contra o CDI e a meta do Ibovespa definidos na barra lateral.")
 
         with col_graf2:
             st.markdown("### 📈 Evolução Patrimonial")
             df_hist = carregar_snapshots_nuvem()
             if not df_hist.empty:
-                fig_hist = px.line(df_hist, x="Data", y=["Aportado","Mercado"],
-                                   markers=True, color_discrete_sequence=["#94a3b8","#10b981"])
-                fig_hist.update_layout(margin=dict(t=30,b=0,l=0,r=0), legend_title_text="Legenda")
+                df_hist = df_hist.sort_values("Data")
+                # Cor por ponto conforme você está acima (verde) ou abaixo
+                # (vermelho) do total aportado — é a única leitura que
+                # importa nesse gráfico, então ela vira a cor principal.
+                cores_pontos = [COR_MERCADO_ALTA if m >= a else COR_MERCADO_BAIXA
+                                 for m, a in zip(df_hist["Mercado"], df_hist["Aportado"])]
+                fig_hist = go.Figure()
+                fig_hist.add_trace(go.Scatter(
+                    x=df_hist["Data"], y=df_hist["Aportado"], name="Aportado",
+                    mode="lines", line=dict(color=COR_MARCA_PETROLEO, width=2, dash="dot"),
+                    hovertemplate="Aportado: R$ %{y:,.2f}<extra></extra>",
+                ))
+                fig_hist.add_trace(go.Scatter(
+                    x=df_hist["Data"], y=df_hist["Mercado"], name="Mercado",
+                    mode="lines+markers",
+                    line=dict(color=COR_MARCA_OURO, width=3),
+                    marker=dict(color=cores_pontos, size=7, line=dict(color="#0f172a", width=1)),
+                    hovertemplate="Mercado: R$ %{y:,.2f}<extra></extra>",
+                ))
+                fig_hist.update_layout(margin=dict(t=30,b=0,l=0,r=0), legend_title_text="Legenda",
+                                        hovermode="x unified")
                 st.plotly_chart(fig_hist, use_container_width=True)
+
+                diff = float(df_hist["Mercado"].iloc[-1] - df_hist["Aportado"].iloc[-1])
+                emoji = "🟢" if diff >= 0 else "🔴"
+                situacao = "acima" if diff >= 0 else "abaixo"
+                st.caption(f"{emoji} Hoje seu patrimônio está **R$ {abs(diff):,.2f}** {situacao} do total aportado.")
             else:
                 st.info("O gráfico aparecerá após o primeiro dia de uso (a foto diária agora fica salva na nuvem).")
     else:
@@ -1438,11 +1537,9 @@ with tab_fii:
             m3.metric("📈 Valorização", f"R$ {lp_fii:,.2f}", f"{lp_fii/ct_fii*100:+.2f}%" if ct_fii > 0 else "")
 
             with col_pie_fii:
-                fig_pf = px.pie(f, values="Total_Atual", names="Ticker", hole=0.4,
-                                color_discrete_sequence=px.colors.qualitative.Set2)
-                fig_pf.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
-                fig_pf.update_layout(height=220, margin=dict(t=10,b=10,l=10,r=10), showlegend=False)
-                st.plotly_chart(fig_pf, use_container_width=True)
+                fig_pf = grafico_donut_patrimonio(f, n_top=4, altura=220)
+                if fig_pf is not None:
+                    st.plotly_chart(fig_pf, use_container_width=True)
 
             f["L/P (R$)"] = f["Total_Atual"] - f["Custo_Pos"]
             f["L/P (%)"]  = f.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
@@ -1479,11 +1576,9 @@ with tab_aco:
             m2.metric("📈 Valorização", f"R$ {lp_aco:,.2f}", f"{lp_aco/ct_aco*100:+.2f}%" if ct_aco > 0 else "")
 
             with col_pie_aco:
-                fig_pa = px.pie(a, values="Total_Atual", names="Ticker", hole=0.4,
-                                color_discrete_sequence=px.colors.qualitative.Pastel)
-                fig_pa.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
-                fig_pa.update_layout(height=220, margin=dict(t=10,b=10,l=10,r=10), showlegend=False)
-                st.plotly_chart(fig_pa, use_container_width=True)
+                fig_pa = grafico_donut_patrimonio(a, n_top=4, altura=220)
+                if fig_pa is not None:
+                    st.plotly_chart(fig_pa, use_container_width=True)
 
             a["L/P (R$)"] = a["Total_Atual"] - a["Custo_Pos"]
             a["L/P (%)"]  = a.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
@@ -1520,11 +1615,9 @@ with tab_ext:
             m2.metric("📈 Valorização", f"R$ {lp_ext:,.2f}", f"{lp_ext/ct_ext*100:+.2f}%" if ct_ext > 0 else "")
 
             with col_pie_ext:
-                fig_ext = px.pie(ext, values="Total_Atual", names="Ticker", hole=0.4,
-                                 color_discrete_sequence=["#1d4ed8","#2563eb","#3b82f6","#60a5fa"])
-                fig_ext.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
-                fig_ext.update_layout(height=220, margin=dict(t=10,b=10,l=10,r=10), showlegend=False)
-                st.plotly_chart(fig_ext, use_container_width=True)
+                fig_ext = grafico_donut_patrimonio(ext, n_top=4, altura=220)
+                if fig_ext is not None:
+                    st.plotly_chart(fig_ext, use_container_width=True)
 
             ext["L/P (R$)"] = ext["Total_Atual"] - ext["Custo_Pos"]
             ext["L/P (%)"]  = ext.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
@@ -1584,12 +1677,9 @@ with tab_cripto:
             m2.metric("📈 Valorização", f"R$ {lp_cripto:,.2f}", f"{lp_cripto/ct_cripto*100:+.2f}%" if ct_cripto > 0 else "")
 
             with col_pie_cripto:
-                fig_cripto = px.pie(criptos, values="Total_Atual", names="Ticker", hole=0.4,
-                                    color_discrete_sequence=["#eab308","#ca8a04","#854d0e"])
-                fig_cripto.update_traces(textposition='inside', textinfo='percent', insidetextorientation='horizontal')
-                fig_cripto.update_layout(height=220, margin=dict(t=10,b=10,l=10,r=10),
-                                         showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                st.plotly_chart(fig_cripto, use_container_width=True)
+                fig_cripto = grafico_donut_patrimonio(criptos, n_top=4, altura=220)
+                if fig_cripto is not None:
+                    st.plotly_chart(fig_cripto, use_container_width=True)
 
             criptos["L/P (R$)"] = criptos["Total_Atual"] - criptos["Custo_Pos"]
             criptos["L/P (%)"]  = criptos.apply(lambda r: (r["L/P (R$)"] / r["Custo_Pos"] * 100) if r["Custo_Pos"] > 0 else 0, axis=1)
@@ -1657,8 +1747,10 @@ with tab_div:
 
         df_grp  = df_divs.groupby(["Mês","Tipo"])["Valor"].sum().reset_index()
         fig_div = px.bar(df_grp, x="Mês", y="Valor", color="Tipo", text_auto=".2f",
-                         color_discrete_sequence=["#3b82f6","#22c55e","#f59e0b","#a855f7"])
-        fig_div.update_layout(height=300, title="Renda Passiva Mensal por Tipo", barmode="stack")
+                         color_discrete_sequence=PALETA_CATEGORICA)
+        fig_div.update_traces(hovertemplate="<b>%{fullData.name}</b><br>%{x}: R$ %{y:,.2f}<extra></extra>")
+        fig_div.update_layout(height=300, title="Renda Passiva Mensal por Tipo", barmode="stack",
+                               yaxis_title="Valor recebido (R$)", xaxis_title="")
         st.plotly_chart(fig_div, use_container_width=True)
 
         with st.expander("📋 Extrato completo"):
@@ -1680,8 +1772,9 @@ with tab_div:
         valores_proj = [renda_mensal_estimada * ((1.005)**i) for i in range(13)][1:]
         df_proj = pd.DataFrame({"Mês": meses_proj, "Renda Projetada (R$)": valores_proj})
         fig_proj = px.bar(df_proj, x="Mês", y="Renda Projetada (R$)", text_auto=".2f",
-                          color_discrete_sequence=["#10b981"])
-        fig_proj.update_layout(height=280)
+                          color_discrete_sequence=[COR_MARCA_OURO])
+        fig_proj.update_traces(hovertemplate="<b>%{x}</b><br>R$ %{y:,.2f}<extra></extra>")
+        fig_proj.update_layout(height=280, yaxis_title="Renda projetada (R$)", xaxis_title="")
         st.plotly_chart(fig_proj, use_container_width=True)
         st.info(f"💡 Projeção média de **R$ {renda_mensal_estimada:,.2f}** no próximo mês.")
     else:
@@ -1760,8 +1853,9 @@ if ferramenta_sel == "⚖️ Rebalanceamento":
                                    alvo_aco, alvo_fii, alvo_rf, alvo_ext, alvo_cripto]
                     })
                     fig_rb = px.bar(df_comp, x="Classe", y="Valor", color="Tipo", barmode="group",
-                                    color_discrete_map={"Atual":"#3b82f6","Alvo":"#22c55e"})
-                    fig_rb.update_layout(height=280, title="Comparativo Atual vs Alvo")
+                                    color_discrete_map={"Atual": COR_MARCA_PETROLEO, "Alvo": COR_MARCA_OURO})
+                    fig_rb.update_traces(hovertemplate="<b>%{fullData.name}</b><br>%{x}: R$ %{y:,.2f}<extra></extra>")
+                    fig_rb.update_layout(height=280, title="Comparativo Atual vs Alvo", yaxis_title="R$")
                     st.plotly_chart(fig_rb, use_container_width=True)
                 else:
                     st.info("✅ Carteira já alinhada!")
@@ -1872,8 +1966,9 @@ if ferramenta_sel == "🧮 Simuladores":
         rc3.metric("🏆 Patrimônio Final", f"R$ {pat:,.2f}")
         df_jc  = pd.DataFrame({"Ano": hs_m, "Investido": hs_i, "Juros": hs_j})
         fig_jc = px.bar(df_jc, x="Ano", y=["Investido","Juros"], barmode="stack",
-                        color_discrete_map={"Investido":"#3b82f6","Juros":"#22c55e"})
-        fig_jc.update_layout(height=300)
+                        color_discrete_map={"Investido": COR_MARCA_PETROLEO, "Juros": COR_MARCA_OURO})
+        fig_jc.update_traces(hovertemplate="<b>%{fullData.name}</b><br>%{x}: R$ %{y:,.2f}<extra></extra>")
+        fig_jc.update_layout(height=300, yaxis_title="R$", legend_title_text="")
         st.plotly_chart(fig_jc, use_container_width=True)
 
     with s3:
@@ -2166,15 +2261,20 @@ if ferramenta_sel == "🎯 Metas":
                 mode="gauge+number", value=patrimonio_atual,
                 domain={'x':[0,1],'y':[0,1]},
                 title={'text':"Velocímetro de Riqueza"},
-                number={'prefix':"R$ "},
+                number={'prefix':"R$ ", 'valueformat':",.2f"},
                 gauge={
                     'axis':{'range':[None, meta_patrimonio]},
-                    'bar':{'color':"#1e3a8a"},
+                    'bar':{'color': COR_MARCA_OURO},
+                    # Zonas de status (longe/perto/na meta) — única exceção
+                    # legítima ao uso de verde/vermelho fora de mercado,
+                    # pois aqui a cor representa mesmo "distância da meta".
                     'steps':[
-                        {'range':[0, meta_patrimonio*0.3],  'color':"rgba(239,68,68,0.2)"},
-                        {'range':[meta_patrimonio*0.3, meta_patrimonio*0.7], 'color':"rgba(245,158,11,0.2)"},
-                        {'range':[meta_patrimonio*0.7, meta_patrimonio],     'color':"rgba(34,197,94,0.2)"}
-                    ]
+                        {'range':[0, meta_patrimonio*0.3],  'color':"#7f2c2c"},
+                        {'range':[meta_patrimonio*0.3, meta_patrimonio*0.7], 'color':"#8a6a1f"},
+                        {'range':[meta_patrimonio*0.7, meta_patrimonio],     'color':"#1f6f52"}
+                    ],
+                    'bgcolor': "#0f172a",
+                    'bordercolor': "rgba(148,163,184,0.3)"
                 }
             ))
             fig_gauge.update_layout(height=280, margin=dict(l=20,r=20,t=40,b=20))
