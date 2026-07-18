@@ -1330,13 +1330,25 @@ except Exception as e:
     pass
 
 # =============================================================================
-# 21. ABAS PRINCIPAIS
+# 21. ABAS PRINCIPAIS + FERRAMENTAS
 # =============================================================================
-tabs = st.tabs([
-    "🌍 Visão Global","🏢 FIIs","📈 Ações","🌎 Exterior",
-    "🛡️ Renda Fixa","🪙 Cripto","💰 Dividendos"
-])
+# O seletor de Ferramentas fica ao lado das abas de ativos (não mais lá
+# embaixo, depois de rolar todo o conteúdo da aba ativa) — sempre visível,
+# na mesma linha.
+col_tabs, col_ferr = st.columns([5, 1.6])
+with col_tabs:
+    tabs = st.tabs([
+        "🌍 Visão Global","🏢 FIIs","📈 Ações","🌎 Exterior",
+        "🛡️ Renda Fixa","🪙 Cripto","💰 Dividendos"
+    ])
 tab_glo,tab_fii,tab_aco,tab_ext,tab_rf,tab_cripto,tab_div = tabs
+with col_ferr:
+    st.write("")
+    ferramenta_sel = st.selectbox(
+        "🛠️ Ferramentas",
+        ["Selecione uma ferramenta...", "⚖️ Rebalanceamento", "🔍 Radar", "🧮 Simuladores",
+         "🤖 ValorPro IA", "🧾 IR", "🎯 Metas", "📝 Histórico"],
+    )
 
 # =============================================================================
 # ABA 1: VISÃO GLOBAL
@@ -1781,20 +1793,9 @@ with tab_div:
         st.info("Adicione FIIs para ativar a projeção.")
 
 # =============================================================================
-# 21.5 FERRAMENTAS (antes eram mais 7 abas na mesma fileira do topo;
-# agora ficam num menu suspenso separado — "o que estou olhando" nas
-# abas acima, "o que eu quero fazer" aqui embaixo)
-# =============================================================================
-st.divider()
-ferramenta_sel = st.selectbox(
-    "🛠️ Ferramentas",
-    ["Selecione uma ferramenta...", "⚖️ Rebalanceamento", "🔍 Radar", "🧮 Simuladores",
-     "🤖 ValorPro IA", "🧾 IR", "🎯 Metas", "📝 Histórico"],
-)
-
-# =============================================================================
 # ABA 8: REBALANCEAMENTO (LIBERADO NO TRIAL)
 # =============================================================================
+st.divider()
 if ferramenta_sel == "⚖️ Rebalanceamento":
     with st.expander("ℹ️ Como usar o Rebalanceamento", expanded=False):
         st.markdown("Defina pesos por classe e veja onde aportar o próximo investimento.")
