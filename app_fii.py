@@ -537,7 +537,7 @@ except Exception:
 # ⚠️ IMPORTANTE: no Streamlit Cloud o disco é EFÊMERO (zera a cada deploy).
 # Por isso, proventos e evolução patrimonial agora ficam no Supabase.
 # Os arquivos abaixo são apenas caches locais secundários.
-user_id       = st.session_state.get("usuario_logado", "admin")
+user_id       = st.session_state.get("usuario_id", "admin")
 user_id_clean = "".join(filter(str.isalnum, str(user_id)))
 
 PRECOS_MANUAIS_USUARIO = f"precos_manuais_{user_id_clean}.csv"
@@ -1036,23 +1036,48 @@ with st.sidebar:
     st.write("")
 
     with st.expander("🔐 Alterar Senha"):
+        senha_atual = st.text_input("Senha Atual:", type="password", key="senha_atual_confirm")
         n_usr = st.text_input("Novo E-mail:", value=st.session_state.usuario_logado)
         n_pwd = st.text_input("Nova Senha:", type="password")
         c_pwd = st.text_input("Confirme a Senha:", type="password")
         if st.button("Atualizar Credenciais", use_container_width=True):
-            if n_pwd == c_pwd and len(n_pwd) >= 6:
+            if not senha_atual:
+                st.error("Informe sua senha atual para confirmar a alteração.")
+            elif n_pwd == c_pwd and len(n_pwd) >= 6:
                 try:
-                    # SEGURANÇA: senha salva como hash, e-mail normalizado
-                    supabase.table("usuarios").update({
-                        "e-mail": n_usr.strip().lower(),
-                        "senha":  generate_password_hash(n_pwd)
-                    }).eq("id", st.session_state.usuario_id).execute()
-                    st.success("✅ Atualizado! Faça login novamente.")
-                    time.sleep(1.5)
-                    st.session_state.autenticado = False
-                    for chave in ["df_geral", "mensagens_ia", "chat_ia"]:
-                        st.session_state.pop(chave, None)
-                    st.rerun()
+                    # SEGURANÇA: exige a senha atual antes de trocar e-mail/senha,
+                    # para impedir sequestro de conta a partir de uma sessão aberta
+                    atual = supabase.table("usuarios").select("senha").eq(
+                        "id", st.session_state.usuario_id
+                    ).execute().data
+                    senha_banco = (atual[0].get("senha") or "") if atual else ""
+                    if senha_banco.startswith(("pbkdf2:", "scrypt:")):
+                        senha_confere = check_password_hash(senha_banco, senha_atual)
+                    else:
+                        senha_confere = bool(senha_banco) and senha_banco == senha_atual
+
+                    if not senha_confere:
+                        st.error("❌ Senha atual incorreta.")
+                    else:
+                        email_novo = n_usr.strip().lower()
+                        # SEGURANÇA: impede reaproveitar um e-mail já usado por outra conta
+                        duplicado = supabase.table("usuarios").select("id").eq(
+                            "e-mail", email_novo
+                        ).execute().data
+                        if duplicado and str(duplicado[0]["id"]) != str(st.session_state.usuario_id):
+                            st.error("❌ Este e-mail já está em uso por outra conta.")
+                        else:
+                            # SEGURANÇA: senha salva como hash, e-mail normalizado
+                            supabase.table("usuarios").update({
+                                "e-mail": email_novo,
+                                "senha":  generate_password_hash(n_pwd)
+                            }).eq("id", st.session_state.usuario_id).execute()
+                            st.success("✅ Atualizado! Faça login novamente.")
+                            time.sleep(1.5)
+                            st.session_state.autenticado = False
+                            for chave in ["df_geral", "mensagens_ia", "chat_ia"]:
+                                st.session_state.pop(chave, None)
+                            st.rerun()
                 except Exception:
                     st.error("Erro ao atualizar.")
             elif n_pwd != c_pwd:
